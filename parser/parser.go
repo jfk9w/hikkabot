@@ -98,7 +98,11 @@ func Parse(post dvach.Post) []string {
 }
 
 func attach(file dvach.File) string {
-	return fmt.Sprintf("[%s](%s)", escape(file.Name), escape(file.URL()))
+	return fmt.Sprintf("[%s](%s)", escapeAttach(file.Name), escapeAttach(file.URL()))
+}
+
+func escapeAttach(value string) string {
+	return strings.Replace(escape(value), `]`, `\]`, -1)
 }
 
 func repartition(lines []part) []part {
@@ -131,7 +135,12 @@ func repartition(lines []part) []part {
 	return parts
 }
 
-var escaper = strings.NewReplacer(`\r`, ``, `\`, `\\`, `[`, `\[`, `]`, `\]`, `_`, `\_`, `*`, `\*`)
+var escaper = strings.NewReplacer(
+	`\r`, ``,
+	`\`, `\\`,
+	`[`, `\[`,
+	`_`, `\_`,
+	`*`, `\*`)
 
 func escape(text string) string {
 	return escaper.Replace(text)

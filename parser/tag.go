@@ -5,8 +5,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-type handler func(attrs []html.Attribute) (string, bool)
-
 type tag struct {
 	typ       string
 	token     string
