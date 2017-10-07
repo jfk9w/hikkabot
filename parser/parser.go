@@ -6,6 +6,7 @@ import (
 	"github.com/jfk9w/tele2ch/dvach"
 	"golang.org/x/net/html"
 	"strings"
+	"regexp"
 )
 
 const maxMessageLength = 3900
@@ -139,11 +140,18 @@ var escaper = strings.NewReplacer(
 	`\r`, ``,
 	`\`, `\\`,
 	`[`, `\[`,
-	`_`, `\_`,
-	`*`, `\*`)
+	`*`, `\*`,
+	`_`, `\_`)
 
 func escape(text string) string {
-	return escaper.Replace(text)
+	return fixUnderscores(escaper.Replace(text))
+}
+
+var underscoreRegexp = regexp.MustCompile(`([a-zA-Zа-яА-Я0-9])\\_([a-zA-Zа-яА-Я0-9])`)
+
+func fixUnderscores(text string) string {
+	text = underscoreRegexp.ReplaceAllString(text, "$1_$2")
+	return text
 }
 
 func attr(attrs []html.Attribute, name string) (string, error) {

@@ -67,10 +67,10 @@ func (svc *API) GetThreadFeed(url string, post int) (*ThreadFeed, error) {
 	return f, nil
 }
 
-var threadlinkre, _ = regexp.Compile(`((http|https):\/\/){0,1}2ch\.hk\/([a-z]+)\/res\/([0-9]+)\.html`)
+var threadLinkRegexp = regexp.MustCompile(`((http|https):\/\/){0,1}2ch\.hk\/([a-z]+)\/res\/([0-9]+)\.html`)
 
 func parseThreadURL(url string) (string, int, error) {
-	groups := threadlinkre.FindSubmatch([]byte(url))
+	groups := threadLinkRegexp.FindSubmatch([]byte(url))
 	if len(groups) == 5 {
 		board := string(groups[3])
 		threadId, err := strconv.Atoi(string(groups[4]))

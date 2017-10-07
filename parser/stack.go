@@ -27,15 +27,16 @@ func (s *stack) isEmpty() bool {
 }
 
 func (s *stack) push(t tag) {
+	// this is retarded and dangerous
+	if !t.contents {
+		s.hasLink = true
+	}
+
 	for _, ee := range s.tags {
 		if ee.token == t.token {
 			t.token = ""
 			break
 		}
-	}
-
-	if t.typ == "a" {
-		s.hasLink = true
 	}
 
 	if s.contents() {
