@@ -15,7 +15,7 @@ func Parse(post dvach.Post) []string {
 	reader := strings.NewReader(post.Comment)
 	tokenizer := html.NewTokenizer(reader)
 
-	lines := make([]part, 0)
+	lines := make([]string, 0)
 	stack := newStack()
 	for {
 		tokenType := tokenizer.Next()
@@ -27,7 +27,7 @@ func Parse(post dvach.Post) []string {
 		switch tokenType {
 		case html.StartTagToken:
 			if token.Data == "br" {
-				var line part
+				var line string
 				line, stack = stack.drain()
 				lines = append(lines, line)
 				continue
@@ -42,7 +42,7 @@ func Parse(post dvach.Post) []string {
 				if len(ls) == 1 {
 					stack.write(escape(ls[0]))
 				} else {
-					var line part
+					var line string
 					for i, l := range ls {
 						stack.write(escape(l))
 						line, stack = stack.drain()
@@ -65,7 +65,7 @@ func Parse(post dvach.Post) []string {
 	}
 
 	line, _ := stack.drain()
-	if len(line.text) > 0 {
+	if len(line) > 0 {
 		lines = append(lines, line)
 	}
 
@@ -73,22 +73,18 @@ func Parse(post dvach.Post) []string {
 	msgs := make([]string, len(reparted))
 	fileCount := 0
 	files := len(post.Files)
-	for i, part := range reparted {
-		if i == 0 {
-			part.text = fmt.Sprintf("#P%s /\n%s", post.Num, part.text)
-		}
-
+	for i, msg := range reparted {
 		if fileCount < files {
-			if !part.hasLink {
-				f := post.Files[fileCount]
-				msgs[i] = fmt.Sprintf("%s\n---\n%s", part.text, attach(f))
-				fileCount++
-
-				continue
-			}
+			f := post.Files[fileCount]
+			msg = fmt.Sprintf("%s\n---\n%s", attach(f), msg)
+			fileCount++
 		}
 
-		msgs[i] = part.text
+		if i == 0 {
+			msg = fmt.Sprintf("#P%s /\n%s", post.Num, msg)
+		}
+
+		msgs[i] = msg
 	}
 
 	for ; fileCount < files; fileCount++ {
@@ -106,31 +102,30 @@ func escapeAttach(value string) string {
 	return strings.Replace(escape(value), `]`, `\]`, -1)
 }
 
-func repartition(lines []part) []part {
-	parts := make([]part, 0)
-	curr := part{}
+func repartition(lines []string) []string {
+	parts := make([]string, 0)
+	curr := ""
 	for _, line := range lines {
-		test := curr.text
+		test := curr
 		if len(test) > 0 {
 			test += "\n"
 		}
 
-		test += line.text
+		test += line
 		if len(test) > maxMessageLength {
 			parts = append(parts, curr)
-			curr = part{}
+			curr = ""
 		} else {
-			curr.text = test
-			curr.hasLink = curr.hasLink || line.hasLink
+			curr = test
 		}
 	}
 
-	if len(curr.text) > 0 {
+	if len(curr) > 0 {
 		parts = append(parts, curr)
 	}
 
 	if len(parts) == 0 {
-		parts = append(parts, part{})
+		parts = append(parts, "")
 	}
 
 	return parts

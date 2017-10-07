@@ -2,16 +2,10 @@ package parser
 
 import "bytes"
 
-type part struct {
-	text    string
-	hasLink bool
-}
-
 type stack struct {
 	tags    []tag
 	size    int
 	buf     *bytes.Buffer
-	hasLink bool
 }
 
 func newStack() *stack {
@@ -27,11 +21,6 @@ func (s *stack) isEmpty() bool {
 }
 
 func (s *stack) push(t tag) {
-	// this is retarded and dangerous
-	if !t.contents {
-		s.hasLink = true
-	}
-
 	for _, ee := range s.tags {
 		if ee.token == t.token {
 			t.token = ""
@@ -78,14 +67,14 @@ func (s *stack) contents() bool {
 	}
 }
 
-func (s *stack) drain() (part, *stack) {
+func (s *stack) drain() (string, *stack) {
 	next := newStack()
 	for ; !s.isEmpty(); {
 		t := s.pop()
 		next.push(t)
 	}
 
-	return part{s.buf.String(), s.hasLink}, next
+	return s.buf.String(), next
 }
 
 func (s *stack) write(text string) {
