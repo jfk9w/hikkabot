@@ -16,7 +16,7 @@ func Test_Parse(t *testing.T) {
 	feed, _ := api.GetThreadFeed(testThreadLink, 0)
 	feed.Start()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		select {
 		case err := <-feed.Err:
 			t.Fatal(err)
@@ -25,6 +25,6 @@ func Test_Parse(t *testing.T) {
 			t.Log(Parse(post))
 		}
 	}
-	
+
 	feed.Stop()
 }

@@ -63,6 +63,11 @@ func Parse(post dvach.Post) []string {
 		}
 	}
 
+	line, _ := stack.drain()
+	if len(line.text) > 0 {
+		lines = append(lines, line)
+	}
+
 	reparted := repartition(lines)
 	msgs := make([]string, len(reparted))
 	fileCount := 0
@@ -117,6 +122,10 @@ func repartition(lines []part) []part {
 
 	if len(curr.text) > 0 {
 		parts = append(parts, curr)
+	}
+
+	if len(parts) == 0 {
+		parts = append(parts, part{})
 	}
 
 	return parts
