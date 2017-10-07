@@ -1,8 +1,8 @@
 package dvach
 
 import (
-	"strconv"
 	"fmt"
+	"strconv"
 )
 
 type File struct {
@@ -35,7 +35,7 @@ type Post struct {
 	Email     string `json:"email"`
 	Endless   int    `json:"endless"`
 	Files     []File `json:"files"`
-	LastHit   uint   `json:"lasthit"`
+	LastHit   int    `json:"lasthit"`
 	Name      string `json:"name"`
 	Num       string `json:"num"`
 	Op        int    `json:"op"`

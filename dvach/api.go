@@ -12,9 +12,11 @@ import (
 
 const Endpoint = "https://2ch.hk/"
 
-const ThreadFeedAlreadyRegistered = "thread feed already registered"
-
-const threadFeedTimeout = 5 * time.Second
+const (
+	ThreadFeedAlreadyRegistered = "thread feed already registered"
+	ThreadFeedAlreadyStarted    = "thread feed already started"
+	ThreadFeedNotRunning        = "thread feed not running"
+)
 
 type API struct {
 	client  *http.Client

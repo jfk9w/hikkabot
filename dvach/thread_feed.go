@@ -8,9 +8,6 @@ import (
 	"time"
 )
 
-const ThreadFeedAlreadyStarted = "thread feed already started"
-const ThreadFeedNotRunning = "thread feed not running"
-
 type ThreadFeed struct {
 	C   chan Post
 	Err chan error
