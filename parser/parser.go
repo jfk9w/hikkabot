@@ -8,21 +8,14 @@ import (
 	"errors"
 )
 
-type context struct {
-	buf   *bytes.Buffer
-	parts []string
-	size  int
-}
+const maxMessageLength = 4000
 
 func Parse(post dvach.Post) []string {
 	reader := strings.NewReader(post.Comment)
 	tokenizer := html.NewTokenizer(reader)
 
 	buf := new(bytes.Buffer)
-	stack := newStack(func(text string) {
-		buf.WriteString(text)
-	})
-
+	stack := newStack()
 	for {
 		tokenType := tokenizer.Next()
 		if tokenType == html.ErrorToken {
@@ -33,7 +26,10 @@ func Parse(post dvach.Post) []string {
 		switch tokenType {
 		case html.StartTagToken:
 			if token.Data == "br" {
-				buf.WriteString("\n")
+				var msg string
+				msg, stack = stack.drain()
+				buf.WriteString(msg)
+				buf.WriteRune('\n')
 				continue
 			}
 
@@ -42,7 +38,24 @@ func Parse(post dvach.Post) []string {
 
 		case html.TextToken:
 			if stack.contents() {
-				buf.WriteString(escape(token.Data))
+				lines := strings.Split(token.Data, `\n`)
+				if len(lines) == 1 {
+					stack.write(escape(lines[0]))
+				} else {
+					first := true
+					for _, line := range lines {
+						if first {
+							first = false
+						} else {
+							buf.WriteRune('\n')
+						}
+
+						stack.write(escape(line))
+						var msg string
+						msg, stack = stack.drain()
+						buf.WriteString(msg)
+					}
+				}
 			}
 
 		case html.EndTagToken:
@@ -58,9 +71,7 @@ func Parse(post dvach.Post) []string {
 	return []string{buf.String()}
 }
 
-var escaper = strings.NewReplacer(`\n`, "\n", `\r`, "",
-	`\`, `\\`, `[`, `\[`, `]`, `\]`, `_`, `\_`, `*`, `\*`)
-
+var escaper = strings.NewReplacer(`\r`, ``, `\`, `\\`, `[`, `\[`, `]`, `\]`, `_`, `\_`, `*`, `\*`)
 func escape(text string) string {
 	return escaper.Replace(text)
 }

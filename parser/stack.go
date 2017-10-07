@@ -1,16 +1,18 @@
 package parser
 
+import "bytes"
+
 type stack struct {
 	tags    []tag
 	size    int
-	onWrite func(part string)
+	buf		*bytes.Buffer
 }
 
-func newStack(onWrite func(part string)) *stack {
+func newStack() *stack {
 	return &stack{
-		onWrite: onWrite,
-		tags:    make([]tag, 20),
+		tags:    make([]tag, 0),
 		size:    0,
+		buf: 	 new(bytes.Buffer),
 	}
 }
 
@@ -19,10 +21,6 @@ func (s *stack) isEmpty() bool {
 }
 
 func (s *stack) push(t tag) {
-	if s.size == 20 {
-		panic("push() on full stack")
-	}
-
 	for _, ee := range s.tags {
 		if ee.token == t.token {
 			t.token = ""
@@ -31,11 +29,11 @@ func (s *stack) push(t tag) {
 	}
 
 	if s.contents() {
-		s.onWrite(t.token)
+		s.write(t.token)
 	}
 
 	t.contents = t.contents && s.contents()
-	s.tags[s.size] = t
+	s.tags = append(s.tags, t)
 	s.size++
 }
 
@@ -55,7 +53,7 @@ func (s *stack) pop() tag {
 	s.size--
 	t := s.tags[s.size]
 	if t.close {
-		s.onWrite(t.token)
+		s.write(t.token)
 	}
 
 	return t
@@ -67,4 +65,18 @@ func (s *stack) contents() bool {
 	} else {
 		return s.peek().contents
 	}
+}
+
+func (s *stack) drain() (string, *stack) {
+	next := newStack()
+	for ; !s.isEmpty(); {
+		t := s.pop()
+		next.push(t)
+	}
+
+	return s.buf.String(), next
+}
+
+func (s *stack) write(text string) {
+	s.buf.WriteString(text)
 }
