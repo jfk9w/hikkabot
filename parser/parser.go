@@ -74,17 +74,28 @@ func Parse(post dvach.Post) []string {
 	fileCount := 0
 	files := len(post.Files)
 	for i, msg := range reparted {
+		prefix := ""
+		if i == 0 {
+			prefix = fmt.Sprintf("#P%s /", post.Num)
+		}
+
 		if fileCount < files {
 			f := post.Files[fileCount]
-			msg = fmt.Sprintf("%s\n---\n%s", attach(f), msg)
+			if len(prefix) > 0 {
+				prefix += " "
+			}
+
+			prefix += attach(f)
+			if len(msg) > 0 {
+				prefix += "\n"
+			}
+
 			fileCount++
+		} else if i == 0 {
+			prefix += "\n"
 		}
 
-		if i == 0 {
-			msg = fmt.Sprintf("#P%s /\n%s", post.Num, msg)
-		}
-
-		msgs[i] = msg
+		msgs[i] = prefix + msg
 	}
 
 	for ; fileCount < files; fileCount++ {
@@ -95,7 +106,7 @@ func Parse(post dvach.Post) []string {
 }
 
 func attach(file dvach.File) string {
-	return fmt.Sprintf("[%s](%s)", escapeAttach(file.Name), escapeAttach(file.URL()))
+	return fmt.Sprintf(`[(A)](%s)`, escapeAttach(file.URL()))
 }
 
 func escapeAttach(value string) string {

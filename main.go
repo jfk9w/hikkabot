@@ -15,7 +15,7 @@ func main() {
 	feed, _ := dv.GetThreadFeed("https://2ch.hk/b/res/162521351.html", 0)
 	feed.Start()
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 3; i++ {
 		select {
 		case err := <-feed.Err:
 			panic(err)
