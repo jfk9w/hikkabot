@@ -2,17 +2,23 @@ package parser
 
 import "bytes"
 
+type part struct {
+	text    string
+	hasLink bool
+}
+
 type stack struct {
 	tags    []tag
 	size    int
-	buf		*bytes.Buffer
+	buf     *bytes.Buffer
+	hasLink bool
 }
 
 func newStack() *stack {
 	return &stack{
-		tags:    make([]tag, 0),
-		size:    0,
-		buf: 	 new(bytes.Buffer),
+		tags: make([]tag, 0),
+		size: 0,
+		buf:  new(bytes.Buffer),
 	}
 }
 
@@ -26,6 +32,10 @@ func (s *stack) push(t tag) {
 			t.token = ""
 			break
 		}
+	}
+
+	if t.typ == "a" {
+		s.hasLink = true
 	}
 
 	if s.contents() {
@@ -67,14 +77,14 @@ func (s *stack) contents() bool {
 	}
 }
 
-func (s *stack) drain() (string, *stack) {
+func (s *stack) drain() (part, *stack) {
 	next := newStack()
 	for ; !s.isEmpty(); {
 		t := s.pop()
 		next.push(t)
 	}
 
-	return s.buf.String(), next
+	return part{s.buf.String(), s.hasLink}, next
 }
 
 func (s *stack) write(text string) {

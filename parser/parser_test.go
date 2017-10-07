@@ -25,4 +25,6 @@ func Test_Parse(t *testing.T) {
 			t.Log(Parse(post))
 		}
 	}
+	
+	feed.Stop()
 }

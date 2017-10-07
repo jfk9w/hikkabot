@@ -78,7 +78,9 @@ func (f *ThreadFeed) Start() error {
 					f.C <- post
 				}
 
-				f.Post = posts[len(posts)-1].num() + 1
+				if len(posts) > 0 {
+					f.Post = posts[len(posts)-1].num() + 1
+				}
 			}
 		}
 	}()
