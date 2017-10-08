@@ -4,7 +4,7 @@ import (
 	"gopkg.in/telegram-bot-api.v4"
 	"github.com/jfk9w/tele2ch/dvach"
 	"time"
-	"github.com/jfk9w/tele2ch/parser"
+	"github.com/jfk9w/tele2ch/html2md"
 	"fmt"
 )
 
@@ -12,16 +12,16 @@ func main() {
 	bot, _ := tgbotapi.NewBotAPI("")
 	dv := dvach.NewAPI(dvach.APIConfig{ThreadFeedTimeout: 5 * time.Second})
 
-	feed, _ := dv.GetThreadFeed("https://2ch.hk/b/res/162521351.html", 0)
+	feed, _ := dv.GetThreadFeed("https://2ch.hk/b/res/162535733.html", 0)
 	feed.Start()
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 50; i++ {
 		select {
 		case err := <-feed.Err:
 			panic(err)
 
 		case post := <-feed.C:
-			msgs := parser.Parse(post)
+			msgs := html2md.Parse(post)
 			for _, msg := range msgs {
 				fmt.Println(msg)
 				mc := tgbotapi.MessageConfig{

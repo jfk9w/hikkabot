@@ -1,4 +1,4 @@
-package parser
+package html2md
 
 import (
 	"testing"
