@@ -1,10 +1,10 @@
 package dvach
 
 import (
-	"net/http"
-	"errors"
-	"strconv"
 	"encoding/json"
+	"errors"
+	"net/http"
+	"strconv"
 )
 
 var unit struct{}
@@ -14,6 +14,8 @@ func httpGetJSON(client *http.Client, url string, result interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return errors.New(strconv.Itoa(resp.StatusCode))

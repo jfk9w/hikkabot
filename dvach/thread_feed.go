@@ -69,8 +69,11 @@ func (f *ThreadFeed) Start() error {
 					f.mu.Lock()
 					defer f.mu.Unlock()
 
-					f.wg.Done()
-					f.wg = nil
+					if f.wg != nil {
+						f.wg.Done()
+						f.wg = nil
+					}
+
 					return
 				}
 
