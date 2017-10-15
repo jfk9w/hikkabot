@@ -1,10 +1,14 @@
 package telegram
 
+type MessageID int
+type ChatID int64
+type UpdateID uint
+type UserID int
+
 // This object represents a Telegram user or bot.
 type User struct {
-
 	// Unique identifier for this user or bot
-	ID int `json:"id"`
+	ID UserID `json:"id"`
 
 	// True, if this user is a bot
 	IsBot bool `json:"is_bot"`
@@ -24,13 +28,12 @@ type User struct {
 
 // This object represents a chat.
 type Chat struct {
-
 	// Unique identifier for this chat.
 	// This number may be greater than 32 bits and some programming languages
 	// may have difficulty/silent defects in interpreting it. But it is smaller
 	// than 52 bits, so a signed 64 bit integer or double-precision float type
 	// are safe for storing this identifier.
-	ID int64 `json:"id"`
+	ID ChatID `json:"id"`
 
 	// Type of chat, can be either “private”, “group”, “supergroup” or “channel”
 	Type string `json:"type"`
@@ -71,9 +74,8 @@ type Chat struct {
 
 // This object represents a message.
 type Message struct {
-
 	// Unique message identifier inside this chat
-	ID int `json:"message_id"`
+	ID MessageID `json:"message_id"`
 
 	// Optional. Sender, empty for messages sent to channels
 	From User `json:"from"`
@@ -124,7 +126,6 @@ type Message struct {
 // This object represents one special entity in a text message.
 // For example, hashtags, usernames, URLs, etc.
 type MessageEntity struct {
-
 	// Type of the entity. Can be mention (@username), hashtag, bot_command,
 	// url, email, bold (bold text), italic (italic text),
 	// code (monowidth string), pre (monowidth block),
@@ -147,12 +148,11 @@ type MessageEntity struct {
 // This object represents an incoming update.
 // At most one of the optional parameters can be present in any given update.
 type Update struct {
-
 	// The update‘s unique identifier. Update identifiers start from a certain
 	// positive number and increase sequentially. This ID becomes especially
 	// handy if you’re using Webhooks, since it allows you to ignore repeated
 	// updates or to restore the correct update sequence, should they get out of order.
-	ID uint `json:"update_id"`
+	ID UpdateID `json:"update_id"`
 
 	// Optional. New incoming message of any kind — text, photo, sticker, etc.
 	Message `json:"message"`
