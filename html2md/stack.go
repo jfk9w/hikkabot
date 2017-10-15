@@ -2,15 +2,17 @@ package html2md
 
 import "bytes"
 
+const maxStackSize = 10
+
 type stack struct {
-	tags    []tag
-	size    int
-	buf     *bytes.Buffer
+	tags []tag
+	size int
+	buf  *bytes.Buffer
 }
 
 func newStack() *stack {
 	return &stack{
-		tags: make([]tag, 0),
+		tags: make([]tag, maxStackSize),
 		size: 0,
 		buf:  new(bytes.Buffer),
 	}
@@ -21,6 +23,10 @@ func (s *stack) isEmpty() bool {
 }
 
 func (s *stack) push(t tag) {
+	if s.size >= maxStackSize {
+		panic("push() on full stack")
+	}
+
 	for _, ee := range s.tags {
 		if ee.token == t.token {
 			t.token = ""
@@ -33,7 +39,7 @@ func (s *stack) push(t tag) {
 	}
 
 	t.contents = t.contents && s.contents()
-	s.tags = append(s.tags, t)
+	s.tags[s.size] = t
 	s.size++
 }
 
@@ -69,7 +75,7 @@ func (s *stack) contents() bool {
 
 func (s *stack) drain() (string, *stack) {
 	next := newStack()
-	for ; !s.isEmpty(); {
+	for !s.isEmpty() {
 		t := s.pop()
 		next.push(t)
 	}

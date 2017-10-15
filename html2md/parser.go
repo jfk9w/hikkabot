@@ -3,10 +3,11 @@ package html2md
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/jfk9w/tele2ch/dvach"
 	"golang.org/x/net/html"
-	"strings"
-	"regexp"
 )
 
 const maxMessageLength = 3900
@@ -76,7 +77,7 @@ func Parse(post dvach.Post) []string {
 	for i, msg := range reparted {
 		prefix := ""
 		if i == 0 {
-			prefix = fmt.Sprintf("#P%s /", post.Num)
+			prefix = fmt.Sprintf("#P%d /", post.Num)
 		}
 
 		if fileCount < files {
