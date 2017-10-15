@@ -29,11 +29,11 @@ type APIConfig struct {
 	ThreadFeedTimeout time.Duration
 }
 
-func NewAPI(cfg APIConfig) *API {
-	return NewAPIWithClient(&http.Client{}, cfg)
-}
+func NewAPI(client *http.Client, cfg APIConfig) *API {
+	if client == nil {
+		client = new(http.Client)
+	}
 
-func NewAPIWithClient(client *http.Client, cfg APIConfig) *API {
 	return &API{
 		client:  client,
 		cfg:     cfg,

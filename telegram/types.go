@@ -86,10 +86,10 @@ type Message struct {
 	Chat `json:"chat"`
 
 	// Optional. For forwarded messages, sender of the original message
-	ForwardFrom User `json:"forward_from"`
+	ForwardFrom *User `json:"forward_from"`
 
 	// Optional. For messages forwarded from channels, information about the original channel
-	ForwardFromChat Chat `json:"forward_from_chat"`
+	ForwardFromChat *Chat `json:"forward_from_chat"`
 
 	// Optional. For messages forwarded from channels, identifier of the original message in the channel
 	ForwardFromMessageID int `json:"forward_from_message_id"`
@@ -141,7 +141,7 @@ type MessageEntity struct {
 	URL string `json:"url"`
 
 	// Optional. For “text_mention” only, the mentioned user
-	User `json:"user"`
+	User *User `json:"user"`
 }
 
 // This object represents an incoming update.
@@ -154,14 +154,14 @@ type Update struct {
 	ID int `json:"update_id"`
 
 	// Optional. New incoming message of any kind — text, photo, sticker, etc.
-	Message `json:"message"`
+	Message *Message `json:"message"`
 
 	// Optional. New version of an incoming message of any kind — text, photo, sticker, etc.
-	EditedMessage Message `json:"edited_message"`
+	EditedMessage *Message `json:"edited_message"`
 
 	// Optional. New incoming channel post of any kind — text, photo, sticker, etc.
-	ChannelPost Message `json:"channel_post"`
+	ChannelPost *Message `json:"channel_post"`
 
 	// Optional. New version of a channel post that is known to the bot and was edited
-	EditedChannelPost Message `json:"edited_message_post"`
+	EditedChannelPost *Message `json:"edited_message_post"`
 }

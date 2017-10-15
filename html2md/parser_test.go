@@ -8,8 +8,8 @@ import (
 
 const testThreadLink = "https://2ch.hk/abu/res/42375.html"
 
-func Test_Parse(t *testing.T) {
-	api := dvach.NewAPI(dvach.APIConfig{
+func TestParse(t *testing.T) {
+	api := dvach.NewAPI(nil, dvach.APIConfig{
 		ThreadFeedTimeout: 2 * time.Second,
 	})
 

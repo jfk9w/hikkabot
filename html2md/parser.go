@@ -77,7 +77,7 @@ func Parse(post dvach.Post) []string {
 	for i, msg := range reparted {
 		prefix := ""
 		if i == 0 {
-			prefix = fmt.Sprintf("#P%d /", post.Num)
+			prefix = fmt.Sprintf("#P%s /", post.Num)
 		}
 
 		if fileCount < files {

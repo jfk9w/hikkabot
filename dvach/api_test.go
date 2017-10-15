@@ -7,8 +7,8 @@ import (
 
 const testThreadLink = "https://2ch.hk/abu/res/42375.html"
 
-func TestAPI_GetThreadFeed(t *testing.T) {
-	api := NewAPI(APIConfig{
+func TestGetThreadFeed(t *testing.T) {
+	api := NewAPI(nil, APIConfig{
 		ThreadFeedTimeout: 2 * time.Second,
 	})
 

@@ -1,43 +1,46 @@
 package main
 
 import (
-	"fmt"
+	"flag"
+	sm "github.com/phemmer/sawmill"
+	"net/http"
 	"time"
-
-	"github.com/jfk9w/tele2ch/dvach"
-	"github.com/jfk9w/tele2ch/html2md"
-	"gopkg.in/telegram-bot-api.v4"
 )
 
-func main() {
-	bot, _ := tgbotapi.NewBotAPI("400117146:AAGOT-5L1BhzuwVgyFGsM4JTq4OfmRWVRW8")
-	dv := dvach.NewAPI(dvach.APIConfig{ThreadFeedTimeout: 5 * time.Second})
+var HttpClient = new(http.Client)
 
-	feed, _ := dv.GetThreadFeed("https://2ch.hk/b/res/162591137.html", 0)
-	feed.Start()
+type Config struct {
+	Token    string
+	Snapshot string
+	LogLevel string
+}
 
-	for i := 0; i < 50; i++ {
-		select {
-		case err := <-feed.Err:
-			panic(err)
+func GetConfig() Config {
+	token := flag.String("token", "", "Telegram Bot API token")
+	snapshot := flag.String("snapshot", "", "Snapshot file location")
+	logLevel := flag.String("log", "info", "Set the log level")
+	flag.Parse()
 
-		case post := <-feed.C:
-			msgs := html2md.Parse(post)
-			for _, msg := range msgs {
-				fmt.Println(msg)
-				mc := tgbotapi.MessageConfig{
-					BaseChat: tgbotapi.BaseChat{
-						ChatID: 50613409,
-					},
-					ParseMode: tgbotapi.ModeMarkdown,
-					Text:      msg,
-				}
-
-				_, err := bot.Send(mc)
-				if err != nil {
-					panic(err)
-				}
-			}
-		}
+	return Config{
+		Token: *token,
+		Snapshot: *snapshot,
+		LogLevel: *logLevel,
 	}
+}
+
+func main() {
+	defer func() {
+		sm.CheckPanic()
+		sm.Stop()
+	}()
+
+	cfg := GetConfig()
+	SetUpLogging(cfg)
+
+	ctl := SetUp(cfg)
+	ctl.Start()
+
+	time.Sleep(time.Minute)
+
+	ctl.Stop()
 }

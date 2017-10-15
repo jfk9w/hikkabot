@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 	"time"
+	"github.com/phemmer/sawmill"
 )
 
 const (
@@ -60,7 +61,7 @@ func (u *Updates) Start() error {
 				}
 
 				updates := make([]Update, 0)
-				err = resp.Parse(updates)
+				err = resp.Parse(&updates)
 				if err != nil {
 					// logging
 					continue
@@ -68,8 +69,13 @@ func (u *Updates) Start() error {
 
 				for _, update := range updates {
 					u.C <- update
-					if u.request.Offset < update.ID {
-						u.request.Offset = update.ID
+					sawmill.Debug("Update", sawmill.Fields{
+						"Update": update,
+					})
+
+					offset := update.ID + 1
+					if u.request.Offset < offset {
+						u.request.Offset = offset
 					}
 				}
 			}
