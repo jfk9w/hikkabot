@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	sm "github.com/phemmer/sawmill"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/phemmer/sawmill"
 )
 
 // The response contains a JSON object, which always has a Boolean field ‘ok’
@@ -29,6 +30,7 @@ type Response struct {
 
 // Contains information about why a request was unsuccessful.
 type ResponseParameters struct {
+
 	// Optional. The group has been migrated to a supergroup with
 	// the specified identifier. This number may be greater than 32 bits
 	// and some programming languages may have difficulty/silent defects
@@ -209,10 +211,10 @@ func (g *Gateway) Stop(choke bool) error {
 func (g *Gateway) MakeRequest(req Request) (*Response, error) {
 	r, err := http.PostForm(g.endpoint(req.Method()), req.Parameters())
 	if err != nil {
-		sm.Error("MakeRequest", sm.Fields{
-			"Request.Method": req.Method(),
+		sawmill.Error("MakeRequest", sawmill.Fields{
+			"Request.Method":     req.Method(),
 			"Request.Parameters": req.Parameters(),
-			"Error":   err,
+			"Error":              err,
 		})
 
 		return nil, err
@@ -223,22 +225,22 @@ func (g *Gateway) MakeRequest(req Request) (*Response, error) {
 	resp := new(Response)
 	err = json.NewDecoder(r.Body).Decode(resp)
 	if err != nil {
-		sm.Error("MakeRequest", sm.Fields{
-			"Request.Method": req.Method(),
+		sawmill.Error("MakeRequest", sawmill.Fields{
+			"Request.Method":     req.Method(),
 			"Request.Parameters": req.Parameters(),
-			"Error":   err,
+			"Error":              err,
 		})
 
 		return nil, err
 	}
 
-	sm.Debug("MakeRequest", sm.Fields{
-		"Request.Method": req.Method(),
-		"Request.Parameters": req.Parameters(),
-		"Response.Ok": resp.Ok,
-		"Response.ErrorCode": resp.ErrorCode,
+	sawmill.Debug("MakeRequest", sawmill.Fields{
+		"Request.Method":       req.Method(),
+		"Request.Parameters":   req.Parameters(),
+		"Response.Ok":          resp.Ok,
+		"Response.ErrorCode":   resp.ErrorCode,
 		"Response.Description": resp.Description,
-		"Response.Parameters": resp.Parameters,
+		"Response.Parameters":  resp.Parameters,
 	})
 
 	return resp, nil

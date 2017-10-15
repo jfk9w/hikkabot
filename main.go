@@ -2,36 +2,37 @@ package main
 
 import (
 	"flag"
-	sm "github.com/phemmer/sawmill"
 	"net/http"
 	"time"
+
+	"github.com/phemmer/sawmill"
 )
 
 var HttpClient = new(http.Client)
 
 type Config struct {
-	Token    string
-	Snapshot string
-	LogLevel string
+	Token      string
+	DbFilename string
+	LogLevel   string
 }
 
 func GetConfig() Config {
 	token := flag.String("token", "", "Telegram Bot API token")
-	snapshot := flag.String("snapshot", "", "Snapshot file location")
+	dbfilename := flag.String("db", "", "Database file location")
 	logLevel := flag.String("log", "info", "Set the log level")
 	flag.Parse()
 
 	return Config{
-		Token:    *token,
-		Snapshot: *snapshot,
-		LogLevel: *logLevel,
+		Token:      *token,
+		DbFilename: *dbfilename,
+		LogLevel:   *logLevel,
 	}
 }
 
 func main() {
 	defer func() {
-		sm.CheckPanic()
-		sm.Stop()
+		sawmill.CheckPanic()
+		sawmill.Stop()
 	}()
 
 	cfg := GetConfig()

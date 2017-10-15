@@ -4,7 +4,7 @@ BUILD=build
 APP=$BUILD/app
 PID=$BUILD/.pid
 LOG=$BUILD/log
-SNAPSHOT=$BUILD/snapshot
+DB=$BUILD/db
 
 CMD=$1
 case "$CMD" in
@@ -17,7 +17,7 @@ case "$CMD" in
 		if [ -f $PID ]; then
 			echo "Already running"
 		else
-			$APP -token=$2 -snapshot=$SNAPSHOT -log=debug > $LOG 2>&1 &
+			$APP -token=$2 -db=$DB -log=debug > $LOG 2>&1 &
 			echo $! > $PID
 		fi
 		;;

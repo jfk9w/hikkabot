@@ -1,12 +1,12 @@
 package dvach
 
 import (
-	"regexp"
-	"net/http"
 	"errors"
+	"fmt"
+	"net/http"
+	"regexp"
 	"strconv"
 	"sync"
-	"fmt"
 	"time"
 )
 
@@ -38,14 +38,14 @@ func NewAPI(client *http.Client, cfg APIConfig) *API {
 		client:  client,
 		cfg:     cfg,
 		threads: make(map[string]*ThreadFeed),
-		mu:      &sync.Mutex{},
+		mu:      new(sync.Mutex),
 	}
 }
 
-func (svc *API) GetThreadFeed(url string, post int) (*ThreadFeed, error) {
+func (svc *API) GetThreadFeed(url string, offset int) (string, *ThreadFeed, error) {
 	board, threadId, err := parseThreadURL(url)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	key := fmt.Sprintf("%s/%d", board, threadId)
@@ -54,17 +54,17 @@ func (svc *API) GetThreadFeed(url string, post int) (*ThreadFeed, error) {
 	defer svc.mu.Unlock()
 
 	if f, ok := svc.threads[key]; ok {
-		return f, errors.New(ThreadFeedAlreadyRegistered)
+		return key, f, errors.New(ThreadFeedAlreadyRegistered)
 	}
 
 	if post <= 0 {
 		post = threadId
 	}
 
-	f := newThreadFeed(svc.client, board, threadId, post, svc.cfg.ThreadFeedTimeout)
+	f := newThreadFeed(svc.client, board, threadId, offset, svc.cfg.ThreadFeedTimeout)
 	svc.threads[key] = f
 
-	return f, nil
+	return key, f, nil
 }
 
 var threadLinkRegexp = regexp.MustCompile(`((http|https):\/\/){0,1}2ch\.hk\/([a-z]+)\/res\/([0-9]+)\.html`)

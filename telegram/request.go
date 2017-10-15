@@ -27,11 +27,11 @@ type GetUpdatesRequest struct {
 	Offset int
 
 	// Limits the number of updates to be retrieved. Values between 1—100 are accepted. Defaults to 100.
-	Limit          int
+	Limit int
 
 	// Timeout in seconds for long polling. Defaults to 0, i.e. usual short polling.
 	// Should be positive, short polling should be used for testing purposes only.
-	Timeout        int
+	Timeout int
 
 	// List the types of updates you want your bot to receive.
 	// For example, specify [“message”, “edited_channel_post”, “callback_query”]
@@ -39,7 +39,7 @@ type GetUpdatesRequest struct {
 	// See Update for a complete list of available update types.
 	// Specify an empty list to receive all updates regardless of type (default).
 	// If not specified, the previous setting will be used.
-    //
+	//
 	// Please note that this parameter doesn't affect updates created
 	// before the call to the getUpdates,
 	// so unwanted updates may be received for a short period of time.
@@ -79,20 +79,25 @@ func (r GetMeRequest) Parameters() url.Values {
 	return url.Values{}
 }
 
-// Unique identifier for the target chat or username of the target channel (in the format @channelusername)
-type ChatRequestField struct {
+// Unique identifier for the target chat or
+// username of the target channel (in the format @channelusername)
+type ChatRef struct {
 	ID       ChatID
 	Username string
 }
 
-func (r ChatRequestField) Parameters() url.Values {
-	v := url.Values{}
-	if len(r.Username) > 0 {
-		v.Set("chat_id", r.Username)
-	} else {
-		v.Set("chat_id", strconv.FormatInt(int64(r.ID), 10))
+func (r ChatRef) Parameters() url.Values {
+	return url.Values{
+		"chat_id": []string{r.Key()},
 	}
-	return v
+}
+
+func (r ChatRef) Key() string {
+	if len(r.Username) > 0 {
+		return r.Username
+	} else {
+		return strconv.FormatInt(int64(r.ID), 10)
+	}
 }
 
 const (
@@ -102,24 +107,23 @@ const (
 
 // Use this method to send text messages. On success, the sent Message is returned.
 type SendMessageRequest struct {
-
-	Chat                  ChatRequestField
+	Chat ChatRef
 
 	// Text of the message to be sent
-	Text                  string
+	Text string
 
 	// Send Markdown or HTML, if you want Telegram apps
 	// to show bold, italic, fixed-width text or inline URLs in your bot's message.
-	ParseMode             string
+	ParseMode string
 
 	// Disables link previews for links in this message
 	DisableWebPagePreview bool
 
 	// Sends the message silently. Users will receive a notification with no sound.
-	DisableNotification   bool
+	DisableNotification bool
 
 	// If the message is a reply, ID of the original message
-	ReplyToMessageID      MessageID
+	ReplyToMessageID MessageID
 
 	// Additional interface options.
 	// A JSON-serialized object for an inline keyboard, custom reply keyboard,
@@ -162,8 +166,7 @@ func (r SendMessageRequest) Parameters() url.Values {
 // Note: In regular groups (non-supergroups),
 // this method will only work if the ‘All Members Are Admins’ setting is off in the target group.
 type SetChatTitleRequest struct {
-
-	Chat ChatRequestField
+	Chat ChatRef
 
 	// New chat title, 1-255 characters
 	Title string

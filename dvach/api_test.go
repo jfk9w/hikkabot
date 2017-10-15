@@ -12,12 +12,12 @@ func TestGetThreadFeed(t *testing.T) {
 		ThreadFeedTimeout: 2 * time.Second,
 	})
 
-	feed, err := api.GetThreadFeed(testThreadLink, 0)
+	_, feed, err := api.GetThreadFeed(testThreadLink, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	feed1, err := api.GetThreadFeed(testThreadLink, 0)
+	_, feed1, err := api.GetThreadFeed(testThreadLink, 0)
 	if err.Error() != ThreadFeedAlreadyRegistered && feed1 != feed {
 		t.Fail()
 	}
