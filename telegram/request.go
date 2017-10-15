@@ -47,7 +47,7 @@ type GetUpdatesRequest struct {
 }
 
 func (r GetUpdatesRequest) Method() string {
-	return "/getUpdates"
+	return "getUpdates"
 }
 
 func (r GetUpdatesRequest) Parameters() url.Values {
@@ -72,7 +72,7 @@ func (r GetUpdatesRequest) Parameters() url.Values {
 type GetMeRequest struct{}
 
 func (r GetMeRequest) Method() string {
-	return "/getMe"
+	return "getMe"
 }
 
 func (r GetMeRequest) Parameters() url.Values {
@@ -128,7 +128,7 @@ type SendMessageRequest struct {
 }
 
 func (r SendMessageRequest) Method() string {
-	return "/sendMessage"
+	return "sendMessage"
 }
 
 func (r SendMessageRequest) Parameters() url.Values {
@@ -170,7 +170,7 @@ type SetChatTitleRequest struct {
 }
 
 func (r SetChatTitleRequest) Method() string {
-	return "/setChatTitle"
+	return "setChatTitle"
 }
 
 func (r SetChatTitleRequest) Parameters() url.Values {

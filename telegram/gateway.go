@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	sm "github.com/phemmer/sawmill"
 	"net/http"
 	"sync"
 	"time"
@@ -208,6 +209,11 @@ func (g *Gateway) Stop(choke bool) error {
 func (g *Gateway) MakeRequest(req Request) (*Response, error) {
 	r, err := http.PostForm(g.endpoint(req.Method()), req.Parameters())
 	if err != nil {
+		sm.Error("MakeRequest", sm.Fields{
+			"Request.Method": req.Method(),
+			"Error":   err,
+		})
+
 		return nil, err
 	}
 
@@ -216,8 +222,21 @@ func (g *Gateway) MakeRequest(req Request) (*Response, error) {
 	resp := new(Response)
 	err = json.NewDecoder(r.Body).Decode(resp)
 	if err != nil {
+		sm.Error("MakeRequest", sm.Fields{
+			"Request.Method": req.Method(),
+			"Error":   err,
+		})
+
 		return nil, err
 	}
+
+	sm.Debug("MakeRequest", sm.Fields{
+		"Request.Method": req.Method(),
+		"Response.Ok": resp.Ok,
+		"Response.ErrorCode": resp.ErrorCode,
+		"Response.Description": resp.Description,
+		"Response.Parameters": resp.Parameters,
+	})
 
 	return resp, nil
 }

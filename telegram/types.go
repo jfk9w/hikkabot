@@ -102,7 +102,7 @@ type Message struct {
 
 	// Optional. For replies, the original message. Note that the Message object
 	// in this field will not contain further reply_to_message fields even if it itself is a reply.
-	ReplyToMessage Message `json:"reply_to_message"`
+	ReplyToMessage *Message `json:"reply_to_message"`
 
 	// Optional. Date the message was last edited in Unix time
 	EditDate int `json:"edit_date"`

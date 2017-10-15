@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-const Endpoint = "https://api.telegram.org/"
+const Endpoint = "https://api.telegram.org"
 
 type BotAPI struct {
 	Me      *User
