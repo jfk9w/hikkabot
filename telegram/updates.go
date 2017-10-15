@@ -13,7 +13,6 @@ const (
 
 type Updates struct {
 	C chan Update
-
 	gateway *Gateway
 	request GetUpdatesRequest
 	wg      *sync.WaitGroup
@@ -42,7 +41,7 @@ func (u *Updates) Start() error {
 	u.wg = new(sync.WaitGroup)
 	u.wg.Add(1)
 	go func() {
-		ticker := time.NewTicker(u.request.timeout)
+		ticker := time.NewTicker(time.Duration(u.request.Timeout) * time.Second)
 		defer func() {
 			ticker.Stop()
 			u.wg.Done()
@@ -69,6 +68,9 @@ func (u *Updates) Start() error {
 
 				for _, update := range updates {
 					u.C <- update
+					if u.request.Offset < update.ID {
+						u.request.Offset = update.ID
+					}
 				}
 			}
 		}

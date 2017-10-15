@@ -2,7 +2,6 @@ package telegram
 
 type MessageID int
 type ChatID int64
-type UpdateID uint
 type UserID int
 
 // This object represents a Telegram user or bot.
@@ -152,7 +151,7 @@ type Update struct {
 	// positive number and increase sequentially. This ID becomes especially
 	// handy if you’re using Webhooks, since it allows you to ignore repeated
 	// updates or to restore the correct update sequence, should they get out of order.
-	ID UpdateID `json:"update_id"`
+	ID int `json:"update_id"`
 
 	// Optional. New incoming message of any kind — text, photo, sticker, etc.
 	Message `json:"message"`

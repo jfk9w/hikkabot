@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 )
@@ -51,19 +50,23 @@ func (r *Response) Parse(v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
+type ResponseHandler func(resp *Response, err error)
+
 type DeferredRequest struct {
-	real     Request
-	Callback func(resp *Response, err error)
+	real    Request
+	handler ResponseHandler
 }
 
 const (
 	GatewayAlreadyRunning = "gateway already running"
 	GatewayNotRunning     = "gateway not running"
+	GatewayChoking        = "gateway choking"
 )
 
 type Gateway struct {
 	client *http.Client
 	token  string
+	urgent chan DeferredRequest
 	queue  chan DeferredRequest
 	wg     *sync.WaitGroup
 	mu     *sync.Mutex
@@ -79,7 +82,8 @@ func NewGateway(client *http.Client, token string) *Gateway {
 	return &Gateway{
 		client: client,
 		token:  token,
-		queue:  make(chan DeferredRequest, 100000),
+		urgent: make(chan DeferredRequest, 20),
+		queue:  make(chan DeferredRequest, 10000),
 		mu:     new(sync.Mutex),
 		stop:   make(chan struct{}, 1),
 		choke:  make(chan struct{}, 1),
@@ -97,60 +101,35 @@ func (g *Gateway) Start() error {
 	g.wg = new(sync.WaitGroup)
 	g.wg.Add(1)
 	go func() {
-		var retries time.Duration = 0
 		ticker := time.NewTicker(60 * time.Millisecond)
 		defer func() {
 			ticker.Stop()
 			g.wg.Done()
 		}()
 
-		for {
+		for range ticker.C {
 			select {
 			case <-g.choke:
 				return
 
-			case r := <-g.queue:
-				<-ticker.C
-				var (
-					resp *Response
-					err  error
-				)
-
-				for {
-					resp, err = g.MakeRequest(r.real)
-					if err == nil {
-						retries = 0
-						if resp.Parameters != nil {
-							timeout := time.Duration(resp.Parameters.RetryAfter)
-							if timeout > 0 {
-								time.Sleep(timeout * time.Second)
-								select {
-								case <-g.choke:
-									return
-								default:
-									continue
-								}
-							}
-						}
-
-						break
-					}
-
-					if retries >= 30 {
-						break
-					}
-
-					time.Sleep(retries * time.Second)
-					select {
-					case <-g.choke:
-						return
-					default:
-						continue
-					}
+			case r := <-g.urgent:
+				resp, err := g.RetryRequest(r.real, 2)
+				if err.Error() == GatewayChoking {
+					return
 				}
 
-				if r.Callback != nil {
-					r.Callback(resp, err)
+				if r.handler != nil {
+					r.handler(resp, err)
+				}
+
+			case r := <-g.queue:
+				resp, err := g.RetryRequest(r.real, 5)
+				if err.Error() == GatewayChoking {
+					return
+				}
+
+				if r.handler != nil {
+					r.handler(resp, err)
 				}
 
 			case <-g.stop:
@@ -160,6 +139,48 @@ func (g *Gateway) Start() error {
 	}()
 
 	return nil
+}
+
+func (g *Gateway) RetryRequest(req Request, retries int) (*Response, error) {
+	var (
+		resp *Response
+		err  error
+	)
+
+	for {
+		resp, err = g.MakeRequest(req)
+		if err == nil {
+			if resp.Parameters != nil {
+				timeout := time.Duration(resp.Parameters.RetryAfter)
+				if timeout > 0 {
+					time.Sleep(timeout * time.Second)
+					select {
+					case <-g.choke:
+						return nil, errors.New(GatewayChoking)
+					default:
+						continue
+					}
+				}
+			}
+
+			break
+		}
+
+		if retries == 0 {
+			break
+		}
+
+		retries--
+		time.Sleep(time.Second)
+		select {
+		case <-g.choke:
+			return nil, errors.New(GatewayChoking)
+		default:
+			continue
+		}
+	}
+
+	return resp, err
 }
 
 func (g *Gateway) Stop(choke bool) error {
@@ -201,8 +222,18 @@ func (g *Gateway) MakeRequest(req Request) (*Response, error) {
 	return resp, nil
 }
 
-func (g *Gateway) Submit(request DeferredRequest) {
-	g.queue <- request
+func (g *Gateway) Submit(request Request, handler ResponseHandler) {
+	g.queue <- DeferredRequest{
+		request,
+		handler,
+	}
+}
+
+func (g *Gateway) Urgent(request Request, handler ResponseHandler) {
+	g.urgent <- DeferredRequest{
+		request,
+		handler,
+	}
 }
 
 func (g *Gateway) endpoint(method string) string {
