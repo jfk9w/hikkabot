@@ -157,7 +157,7 @@ type Update struct {
 	// Optional. New incoming message of any kind — text, photo, sticker, etc.
 	Message `json:"message"`
 
-	// Optional. New incoming message of any kind — text, photo, sticker, etc.
+	// Optional. New version of an incoming message of any kind — text, photo, sticker, etc.
 	EditedMessage Message `json:"edited_message"`
 
 	// Optional. New incoming channel post of any kind — text, photo, sticker, etc.

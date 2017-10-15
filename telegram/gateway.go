@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"sync"
@@ -24,13 +23,12 @@ type Response struct {
 	Ok          bool                `json:"ok"`
 	ErrorCode   int                 `json:"error_code"`
 	Description string              `json:"description"`
-	Result      *json.RawMessage    `json:"result"`
+	Result      json.RawMessage     `json:"result"`
 	Parameters  *ResponseParameters `json:"parameters"`
 }
 
 // Contains information about why a request was unsuccessful.
 type ResponseParameters struct {
-
 	// Optional. The group has been migrated to a supergroup with
 	// the specified identifier. This number may be greater than 32 bits
 	// and some programming languages may have difficulty/silent defects
@@ -45,19 +43,22 @@ type ResponseParameters struct {
 }
 
 func (r *Response) Parse(v interface{}) error {
-	return json.Unmarshal(r.Result, v)
+	data, err := r.Result.MarshalJSON()
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(data, v)
 }
 
 type DeferredRequest struct {
-	Method     string
-	Parameters url.Values
-	Callback   func(resp *Response, err error)
+	real     Request
+	Callback func(resp *Response, err error)
 }
 
 const (
 	GatewayAlreadyRunning = "gateway already running"
 	GatewayNotRunning     = "gateway not running"
-	GatewayError          = "gateway error"
 )
 
 type Gateway struct {
@@ -79,7 +80,7 @@ func NewGateway(client *http.Client, token string) *Gateway {
 		client: client,
 		token:  token,
 		queue:  make(chan DeferredRequest, 100000),
-		mu:     &sync.Mutex{},
+		mu:     new(sync.Mutex),
 		stop:   make(chan struct{}, 1),
 		choke:  make(chan struct{}, 1),
 	}
@@ -93,10 +94,10 @@ func (g *Gateway) Start() error {
 		return errors.New(GatewayAlreadyRunning)
 	}
 
-	g.wg = &sync.WaitGroup{}
+	g.wg = new(sync.WaitGroup)
 	g.wg.Add(1)
 	go func() {
-		retries := 0
+		var retries time.Duration = 0
 		ticker := time.NewTicker(60 * time.Millisecond)
 		defer func() {
 			ticker.Stop()
@@ -116,13 +117,13 @@ func (g *Gateway) Start() error {
 				)
 
 				for {
-					resp, err = g.MakeRequest(r.Method, r.Parameters)
+					resp, err = g.MakeRequest(r.real)
 					if err == nil {
 						retries = 0
 						if resp.Parameters != nil {
-							timeout := resp.Parameters.RetryAfter
+							timeout := time.Duration(resp.Parameters.RetryAfter)
 							if timeout > 0 {
-								time.Sleep(timeout)
+								time.Sleep(timeout * time.Second)
 								select {
 								case <-g.choke:
 									return
@@ -148,7 +149,7 @@ func (g *Gateway) Start() error {
 					}
 				}
 
-				if r.Callback {
+				if r.Callback != nil {
 					r.Callback(resp, err)
 				}
 
@@ -183,16 +184,16 @@ func (g *Gateway) Stop(choke bool) error {
 	return nil
 }
 
-func (g *Gateway) MakeRequest(method string, parameters url.Values) (*Response, error) {
-	r, err := http.PostForm(g.endpoint(method), parameters)
+func (g *Gateway) MakeRequest(req Request) (*Response, error) {
+	r, err := http.PostForm(g.endpoint(req.Method()), req.Parameters())
 	if err != nil {
-		return nil, error
+		return nil, err
 	}
 
 	defer r.Body.Close()
 
 	resp := new(Response)
-	err := json.NewDecoder(r.Body).Decode(resp)
+	err = json.NewDecoder(r.Body).Decode(resp)
 	if err != nil {
 		return nil, err
 	}
