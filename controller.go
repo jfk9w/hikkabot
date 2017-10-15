@@ -25,7 +25,7 @@ func SetUp(cfg Config) *Controller {
 
 func (svc *Controller) Start() {
 	svc.bot.Start(&telegram.GetUpdatesRequest{
-		Timeout:        3,
+		Timeout:        60,
 		AllowedUpdates: []string{"message"},
 	})
 }

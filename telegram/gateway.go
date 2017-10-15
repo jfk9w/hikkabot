@@ -211,6 +211,7 @@ func (g *Gateway) MakeRequest(req Request) (*Response, error) {
 	if err != nil {
 		sm.Error("MakeRequest", sm.Fields{
 			"Request.Method": req.Method(),
+			"Request.Parameters": req.Parameters(),
 			"Error":   err,
 		})
 
@@ -224,6 +225,7 @@ func (g *Gateway) MakeRequest(req Request) (*Response, error) {
 	if err != nil {
 		sm.Error("MakeRequest", sm.Fields{
 			"Request.Method": req.Method(),
+			"Request.Parameters": req.Parameters(),
 			"Error":   err,
 		})
 
@@ -232,6 +234,7 @@ func (g *Gateway) MakeRequest(req Request) (*Response, error) {
 
 	sm.Debug("MakeRequest", sm.Fields{
 		"Request.Method": req.Method(),
+		"Request.Parameters": req.Parameters(),
 		"Response.Ok": resp.Ok,
 		"Response.ErrorCode": resp.ErrorCode,
 		"Response.Description": resp.Description,

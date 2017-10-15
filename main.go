@@ -22,7 +22,7 @@ func GetConfig() Config {
 	flag.Parse()
 
 	return Config{
-		Token: *token,
+		Token:    *token,
 		Snapshot: *snapshot,
 		LogLevel: *logLevel,
 	}
