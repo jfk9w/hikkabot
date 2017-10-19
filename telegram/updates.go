@@ -1,60 +1,45 @@
 package telegram
 
 import (
-	"errors"
-	"sync"
-	"time"
 	"github.com/phemmer/sawmill"
+	"time"
 )
 
-const (
-	UpdatesAlreadyRunning = "updates already running"
-	UpdatesNotRunning = "updates not running"
-)
-
-type Updates struct {
-	C chan Update
-	gateway *Gateway
+type updates struct {
+	c       chan Update
+	gateway *gateway
 	request GetUpdatesRequest
-	wg      *sync.WaitGroup
-	mu      *sync.Mutex
-	stop    chan struct{}
+	stop0   chan struct{}
 }
 
-func NewUpdates(gateway *Gateway, base GetUpdatesRequest) *Updates {
-	return &Updates{
-		C:       make(chan Update, 20),
+func (svc *updates) Channel() <-chan Update {
+	return svc.c
+}
+
+func newUpdates(gateway *gateway, base GetUpdatesRequest) *updates {
+	return &updates{
+		c:       make(chan Update, 20),
 		gateway: gateway,
 		request: base,
-		mu:      new(sync.Mutex),
-		stop:    make(chan struct{}, 1),
+		stop0:   make(chan struct{}, 1),
 	}
 }
 
-func (u *Updates) Start() error {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-
-	if u.wg != nil {
-		return errors.New(UpdatesAlreadyRunning)
-	}
-
-	u.wg = new(sync.WaitGroup)
-	u.wg.Add(1)
+func (svc *updates) start() {
 	go func() {
-		ticker := time.NewTicker(time.Duration(u.request.Timeout) * time.Second)
+		ticker := time.NewTicker(time.Duration(svc.request.Timeout) * time.Second)
 		defer func() {
+			svc.stop0 <- unit
 			ticker.Stop()
-			u.wg.Done()
 		}()
 
 		for {
 			select {
-			case <-u.stop:
+			case <-svc.stop0:
 				return
 
 			case <-ticker.C:
-				resp, err := u.gateway.MakeRequest(u.request)
+				resp, err := svc.gateway.makeRequest(svc.request)
 				if err != nil || !resp.Ok {
 					// logging
 					continue
@@ -68,34 +53,22 @@ func (u *Updates) Start() error {
 				}
 
 				for _, update := range updates {
-					u.C <- update
+					svc.c <- update
 					sawmill.Debug("Update", sawmill.Fields{
 						"Update": update,
 					})
 
 					offset := update.ID + 1
-					if u.request.Offset < offset {
-						u.request.Offset = offset
+					if svc.request.Offset < offset {
+						svc.request.Offset = offset
 					}
 				}
 			}
 		}
 	}()
-
-	return nil
 }
 
-func (u *Updates) Stop() error {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-
-	if u.wg == nil {
-		return errors.New(UpdatesNotRunning)
-	}
-
-	u.stop <- unit
-	u.wg.Wait()
-	u.wg = nil
-
-	return nil
+func (svc *updates) stop() <-chan struct{} {
+	svc.stop0 <- unit
+	return svc.stop0
 }

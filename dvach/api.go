@@ -6,65 +6,44 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	"sync"
-	"time"
 )
 
 const Endpoint = "https://2ch.hk/"
 
-const (
-	ThreadFeedAlreadyRegistered = "thread feed already registered"
-	ThreadFeedAlreadyStarted    = "thread feed already started"
-	ThreadFeedNotRunning        = "thread feed not running"
-)
-
 type API struct {
-	client  *http.Client
-	cfg     APIConfig
-	threads map[string]*ThreadFeed
-	mu      *sync.Mutex
+	client *http.Client
 }
 
-type APIConfig struct {
-	ThreadFeedTimeout time.Duration
-}
-
-func NewAPI(client *http.Client, cfg APIConfig) *API {
+func NewAPI(client *http.Client) *API {
 	if client == nil {
 		client = new(http.Client)
 	}
 
 	return &API{
-		client:  client,
-		cfg:     cfg,
-		threads: make(map[string]*ThreadFeed),
-		mu:      new(sync.Mutex),
+		client: client,
 	}
 }
 
-func (svc *API) GetThreadFeed(url string, offset int) (string, *ThreadFeed, error) {
+func (svc *API) GetThread(url string, offset int) ([]Post, error) {
 	board, threadId, err := parseThreadURL(url)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	key := fmt.Sprintf("%s/%d", board, threadId)
-
-	svc.mu.Lock()
-	defer svc.mu.Unlock()
-
-	if f, ok := svc.threads[key]; ok {
-		return key, f, errors.New(ThreadFeedAlreadyRegistered)
+	if offset <= 0 {
+		offset = threadId
 	}
 
-	if post <= 0 {
-		post = threadId
+	endpoint := fmt.Sprintf(
+		"%s/makaba/mobile.fcgi?task=get_thread&board=%s&thread=%d&num=%d",
+		Endpoint, board, threadId, offset)
+
+	posts := make([]Post, 0)
+	if err := httpGetJSON(svc.client, endpoint, &posts); err != nil {
+		return nil, err
 	}
 
-	f := newThreadFeed(svc.client, board, threadId, offset, svc.cfg.ThreadFeedTimeout)
-	svc.threads[key] = f
-
-	return key, f, nil
+	return posts, nil
 }
 
 var threadLinkRegexp = regexp.MustCompile(`((http|https):\/\/){0,1}2ch\.hk\/([a-z]+)\/res\/([0-9]+)\.html`)

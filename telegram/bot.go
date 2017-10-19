@@ -8,8 +8,9 @@ const Endpoint = "https://api.telegram.org"
 
 type BotAPI struct {
 	Me      *User
-	Updates *Updates
-	gateway *Gateway
+
+	updates *updates
+	gateway *gateway
 }
 
 func NewBotAPI(client *http.Client, token string) *BotAPI {
@@ -18,42 +19,36 @@ func NewBotAPI(client *http.Client, token string) *BotAPI {
 	}
 
 	return &BotAPI{
-		gateway: NewGateway(client, token),
+		gateway: newGateway(client, token),
 	}
 }
 
-func (svc *BotAPI) Start(updates *GetUpdatesRequest) {
+func (svc *BotAPI) Start() {
 	me, err := svc.GetMe()
 	if err != nil {
 		panic(err)
 	}
 
 	svc.Me = me
+	svc.gateway.start()
+}
 
-	err = svc.gateway.Start()
-	if err != nil {
-		panic(err)
-	}
-
-	if updates != nil {
-		svc.Updates = NewUpdates(svc.gateway, *updates)
-		err = svc.Updates.Start()
-		if err != nil {
-			panic(err)
-		}
-	}
+func (svc *BotAPI) GetUpdates(updates GetUpdatesRequest) <-chan Update {
+	svc.updates = newUpdates(svc.gateway, updates)
+	svc.updates.start()
+	return svc.updates.c
 }
 
 func (svc *BotAPI) Stop(choke bool) {
-	if svc.Updates != nil {
-		svc.Updates.Stop()
+	if svc.updates != nil {
+		<-svc.updates.stop()
 	}
 
-	svc.gateway.Stop(choke)
+	<-svc.gateway.stop(choke)
 }
 
 func (svc *BotAPI) GetMe() (*User, error) {
-	resp, err := svc.gateway.MakeRequest(GetMeRequest{})
+	resp, err := svc.MakeRequest(GetMeRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -67,16 +62,12 @@ func (svc *BotAPI) GetMe() (*User, error) {
 	return result, nil
 }
 
-func (svc *BotAPI) SendMessage(r SendMessageRequest, callback ResponseHandler) {
-	svc.gateway.Submit(r, callback)
-}
-
-func (svc *BotAPI) SendUrgentMessage(r SendMessageRequest, callback ResponseHandler) {
-	svc.gateway.Urgent(r, callback)
+func (svc *BotAPI) SendMessage(r SendMessageRequest, handler ResponseHandler, urgent bool) {
+	svc.gateway.submit(r, handler, urgent)
 }
 
 func (svc *BotAPI) SetChatTitle(r SetChatTitleRequest) (*bool, error) {
-	resp, err := svc.gateway.MakeRequest(r)
+	resp, err := svc.MakeRequest(r)
 	if err != nil {
 		return nil, err
 	}
@@ -88,4 +79,8 @@ func (svc *BotAPI) SetChatTitle(r SetChatTitleRequest) (*bool, error) {
 	}
 
 	return result, nil
+}
+
+func (svc *BotAPI) MakeRequest(r Request) (*Response, error) {
+	return svc.gateway.makeRequest(r)
 }

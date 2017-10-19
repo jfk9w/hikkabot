@@ -7,8 +7,8 @@ import (
 )
 
 var levels = map[string]event.Level{
-	"debug":	 event.Debug,
-	"dbg":		 event.Dbg,
+	"debug":     event.Debug,
+	"dbg":       event.Dbg,
 	"info":      event.Info,
 	"notice":    event.Notice,
 	"warning":   event.Warning,
@@ -23,7 +23,7 @@ var levels = map[string]event.Level{
 	"emerg":     event.Emerg,
 }
 
-func SetUpLogging(config Config) {
+func InitLogging(config *Config) {
 	var level event.Level
 	if lvl, ok := levels[config.LogLevel]; ok {
 		level = lvl

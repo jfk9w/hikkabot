@@ -1,87 +1,57 @@
 package main
 
 import (
-	"strings"
-	"sync"
-	"time"
-
-	"github.com/boltdb/bolt"
 	"github.com/jfk9w/tele2ch/dvach"
 	"github.com/jfk9w/tele2ch/telegram"
+	"strings"
 )
 
-var (
-	realmTable = []byte("realm")
-)
-
-type Context interface {
-	Bot() *telegram.BotAPI
-	Dvach() *dvach.API
-	DB() *bolt.DB
-}
-
-type Controller struct {
+type controller struct {
 	bot   *telegram.BotAPI
 	dvach *dvach.API
-	db    *bolt.DB
-
-	stop chan struct{}
-	wg   *sync.WaitGroup
+	stop  chan struct{}
 }
 
-func SetUp(cfg Config) *Controller {
-	bot := telegram.NewBotAPI(HttpClient, cfg.Token)
-	dvachClient := dvach.NewAPI(HttpClient, dvach.APIConfig{
-		ThreadFeedTimeout: time.Minute,
-	})
-
-	db, err := bolt.Open(cfg.DbFilename, 0600, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	db.Update(func(tx *bolt.Tx) error {
-		tx.CreateBucket(realmTable)
-		return nil
-	})
-
-	return &Controller{
-		bot:   bot,
-		dvach: dvachClient,
-		db:    db,
+func InitController(cfg *Config) *controller {
+	ctl := &controller{
+		bot:   telegram.NewBotAPI(HttpClient, cfg.Token),
+		dvach: dvach.NewAPI(HttpClient),
 		stop:  make(chan struct{}, 1),
 	}
+
+	ctl.start()
+	return ctl
 }
 
-func (svc *Controller) Start() {
-	svc.bot.Start(&telegram.GetUpdatesRequest{
-		Timeout:        60,
-		AllowedUpdates: []string{"message"},
-	})
+var getUpdatesRequest = telegram.GetUpdatesRequest{
+	Timeout:        60,
+	AllowedUpdates: []string{"message"},
+}
 
-	svc.wg = new(sync.WaitGroup)
+func (svc *controller) start() {
+	svc.bot.Start()
 	go func() {
-		defer svc.wg.Done()
 		for {
 			select {
-			case <-svc.stop:
-				return
+			case u := <-svc.bot.GetUpdates(getUpdatesRequest):
+				tokens := svc.parseCommand(u.Message)
 
-			case u := <-svc.bot.Updates.C:
-				if u.Message != nil {
-					tokens := svc.ParseCommand(*u.Message)
-				}
+
+			case <-svc.stop:
+				svc.stop <- unit
+				return
 			}
 		}
 	}()
 }
 
-func (svc *Controller) Stop() {
+func (svc *controller) Stop() <-chan struct{} {
 	svc.bot.Stop(false)
-	svc.db.Close()
+	svc.stop <- unit
+	return svc.stop
 }
 
-func (svc *Controller) ParseCommand(msg telegram.Message) []string {
+func (svc *controller) parseCommand(msg *telegram.Message) []string {
 	for _, entity := range msg.Entities {
 		if entity.Type == "bot_command" {
 			end := entity.Offset + entity.Length

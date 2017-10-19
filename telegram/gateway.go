@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/phemmer/sawmill"
@@ -30,7 +29,6 @@ type Response struct {
 
 // Contains information about why a request was unsuccessful.
 type ResponseParameters struct {
-
 	// Optional. The group has been migrated to a supergroup with
 	// the specified identifier. This number may be greater than 32 bits
 	// and some programming languages may have difficulty/silent defects
@@ -61,62 +59,48 @@ type DeferredRequest struct {
 }
 
 const (
-	GatewayAlreadyRunning = "gateway already running"
-	GatewayNotRunning     = "gateway not running"
-	GatewayChoking        = "gateway choking"
+	GatewayChoking = "gateway choking"
 )
 
-type Gateway struct {
+type gateway struct {
 	client *http.Client
 	token  string
 	urgent chan DeferredRequest
 	queue  chan DeferredRequest
-	wg     *sync.WaitGroup
-	mu     *sync.Mutex
-	stop   chan struct{}
+	stop0  chan struct{}
 	choke  chan struct{}
 }
 
-func NewGateway(client *http.Client, token string) *Gateway {
+func newGateway(client *http.Client, token string) *gateway {
 	if client == nil {
 		client = &http.Client{}
 	}
 
-	return &Gateway{
+	return &gateway{
 		client: client,
 		token:  token,
 		urgent: make(chan DeferredRequest, 20),
 		queue:  make(chan DeferredRequest, 10000),
-		mu:     new(sync.Mutex),
-		stop:   make(chan struct{}, 1),
+		stop0:  make(chan struct{}, 1),
 		choke:  make(chan struct{}, 1),
 	}
 }
 
-func (g *Gateway) Start() error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if g.wg != nil {
-		return errors.New(GatewayAlreadyRunning)
-	}
-
-	g.wg = new(sync.WaitGroup)
-	g.wg.Add(1)
+func (svc *gateway) start() {
 	go func() {
 		ticker := time.NewTicker(60 * time.Millisecond)
 		defer func() {
+			svc.stop0 <- unit
 			ticker.Stop()
-			g.wg.Done()
 		}()
 
 		for range ticker.C {
 			select {
-			case <-g.choke:
+			case <-svc.choke:
 				return
 
-			case r := <-g.urgent:
-				resp, err := g.RetryRequest(r.real, 2)
+			case r := <-svc.urgent:
+				resp, err := svc.retryRequest(r.real, 2)
 				if err.Error() == GatewayChoking {
 					return
 				}
@@ -125,8 +109,8 @@ func (g *Gateway) Start() error {
 					r.handler(resp, err)
 				}
 
-			case r := <-g.queue:
-				resp, err := g.RetryRequest(r.real, 5)
+			case r := <-svc.queue:
+				resp, err := svc.retryRequest(r.real, 5)
 				if err.Error() == GatewayChoking {
 					return
 				}
@@ -135,30 +119,52 @@ func (g *Gateway) Start() error {
 					r.handler(resp, err)
 				}
 
-			case <-g.stop:
+			case <-svc.stop0:
 				return
 			}
 		}
 	}()
-
-	return nil
 }
 
-func (g *Gateway) RetryRequest(req Request, retries int) (*Response, error) {
+func (svc *gateway) stop(choke bool) <-chan struct{} {
+	if choke {
+		svc.choke <- unit
+	} else {
+		svc.stop0 <- unit
+	}
+
+	return svc.stop0
+}
+
+func (svc *gateway) submit(request Request, handler ResponseHandler, urgent bool) {
+	var c chan DeferredRequest
+	if urgent {
+		c = svc.urgent
+	} else {
+		c = svc.queue
+	}
+
+	c <- DeferredRequest{
+		request,
+		handler,
+	}
+}
+
+func (svc *gateway) retryRequest(req Request, retries int) (*Response, error) {
 	var (
 		resp *Response
 		err  error
 	)
 
 	for {
-		resp, err = g.MakeRequest(req)
+		resp, err = svc.makeRequest(req)
 		if err == nil {
 			if resp.Parameters != nil {
 				timeout := time.Duration(resp.Parameters.RetryAfter)
 				if timeout > 0 {
 					time.Sleep(timeout * time.Second)
 					select {
-					case <-g.choke:
+					case <-svc.choke:
 						return nil, errors.New(GatewayChoking)
 					default:
 						continue
@@ -176,7 +182,7 @@ func (g *Gateway) RetryRequest(req Request, retries int) (*Response, error) {
 		retries--
 		time.Sleep(time.Second)
 		select {
-		case <-g.choke:
+		case <-svc.choke:
 			return nil, errors.New(GatewayChoking)
 		default:
 			continue
@@ -186,35 +192,13 @@ func (g *Gateway) RetryRequest(req Request, retries int) (*Response, error) {
 	return resp, err
 }
 
-func (g *Gateway) Stop(choke bool) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if g.wg == nil {
-		return errors.New(GatewayNotRunning)
-	}
-
-	var c chan struct{}
-	if choke {
-		c = g.choke
-	} else {
-		c = g.stop
-	}
-
-	c <- unit
-	g.wg.Wait()
-	g.wg = nil
-
-	return nil
-}
-
-func (g *Gateway) MakeRequest(req Request) (*Response, error) {
-	r, err := http.PostForm(g.endpoint(req.Method()), req.Parameters())
+func (svc *gateway) makeRequest(req Request) (*Response, error) {
+	r, err := http.PostForm(svc.endpoint(req.Method()), req.Parameters())
 	if err != nil {
-		sawmill.Error("MakeRequest", sawmill.Fields{
-			"Request.Method":     req.Method(),
-			"Request.Parameters": req.Parameters(),
-			"Error":              err,
+		sawmill.Error("makeRequest", sawmill.Fields{
+			"req.Method":     req.Method(),
+			"req.Parameters": req.Parameters(),
+			"Error":          err,
 		})
 
 		return nil, err
@@ -225,41 +209,27 @@ func (g *Gateway) MakeRequest(req Request) (*Response, error) {
 	resp := new(Response)
 	err = json.NewDecoder(r.Body).Decode(resp)
 	if err != nil {
-		sawmill.Error("MakeRequest", sawmill.Fields{
-			"Request.Method":     req.Method(),
-			"Request.Parameters": req.Parameters(),
-			"Error":              err,
+		sawmill.Error("makeRequest", sawmill.Fields{
+			"req.Method":     req.Method(),
+			"req.Parameters": req.Parameters(),
+			"Error":          err,
 		})
 
 		return nil, err
 	}
 
-	sawmill.Debug("MakeRequest", sawmill.Fields{
-		"Request.Method":       req.Method(),
-		"Request.Parameters":   req.Parameters(),
-		"Response.Ok":          resp.Ok,
-		"Response.ErrorCode":   resp.ErrorCode,
-		"Response.Description": resp.Description,
-		"Response.Parameters":  resp.Parameters,
+	sawmill.Debug("makeRequest", sawmill.Fields{
+		"req.Method":       req.Method(),
+		"req.Parameters":   req.Parameters(),
+		"resp.Ok":          resp.Ok,
+		"resp.ErrorCode":   resp.ErrorCode,
+		"resp.Description": resp.Description,
+		"resp.Parameters":  resp.Parameters,
 	})
 
 	return resp, nil
 }
 
-func (g *Gateway) Submit(request Request, handler ResponseHandler) {
-	g.queue <- DeferredRequest{
-		request,
-		handler,
-	}
-}
-
-func (g *Gateway) Urgent(request Request, handler ResponseHandler) {
-	g.urgent <- DeferredRequest{
-		request,
-		handler,
-	}
-}
-
-func (g *Gateway) endpoint(method string) string {
-	return fmt.Sprintf("%s/bot%s/%s", Endpoint, g.token, method)
+func (svc *gateway) endpoint(method string) string {
+	return fmt.Sprintf("%s/bot%s/%s", Endpoint, svc.token, method)
 }

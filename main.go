@@ -5,28 +5,34 @@ import (
 	"net/http"
 	"time"
 
+	"encoding/json"
 	"github.com/phemmer/sawmill"
+	"io/ioutil"
 )
 
-var HttpClient = new(http.Client)
+var HttpClient *http.Client = new(http.Client)
 
 type Config struct {
-	Token      string
-	DbFilename string
-	LogLevel   string
+	Token      string	`json:"telegram_bot_api_token"`
+	DBFilename string	`json:"db_filename"`
+	LogLevel   string	`json:"log_level"`
 }
 
-func GetConfig() Config {
-	token := flag.String("token", "", "Telegram Bot API token")
-	dbfilename := flag.String("db", "", "Database file location")
-	logLevel := flag.String("log", "info", "Set the log level")
+func GetConfig() (*Config, error) {
+	filename := flag.String("config", "", "Configuration file")
 	flag.Parse()
 
-	return Config{
-		Token:      *token,
-		DbFilename: *dbfilename,
-		LogLevel:   *logLevel,
+	data, err := ioutil.ReadFile(*filename)
+	if err != nil {
+		return nil, err
 	}
+
+	cfg := new(Config)
+	if err = json.Unmarshal(data, cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
 func main() {
@@ -35,13 +41,14 @@ func main() {
 		sawmill.Stop()
 	}()
 
-	cfg := GetConfig()
-	SetUpLogging(cfg)
+	cfg, err := GetConfig()
+	if err != nil {
+		panic(err)
+	}
 
-	ctl := SetUp(cfg)
-	ctl.Start()
+	InitLogging(cfg)
 
+	ctl := InitController(cfg)
 	time.Sleep(time.Minute)
-
 	ctl.Stop()
 }
