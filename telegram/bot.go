@@ -39,12 +39,12 @@ func (svc *BotAPI) GetUpdates(updates GetUpdatesRequest) <-chan Update {
 	return svc.updates.c
 }
 
-func (svc *BotAPI) Stop(choke bool) {
+func (svc *BotAPI) Stop(choke bool) <-chan struct{} {
 	if svc.updates != nil {
 		<-svc.updates.stop()
 	}
 
-	<-svc.gateway.stop(choke)
+	return svc.gateway.stop(choke)
 }
 
 func (svc *BotAPI) GetMe() (*User, error) {

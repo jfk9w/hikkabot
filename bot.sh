@@ -17,7 +17,7 @@ case "$CMD" in
 		if [ -f $PID ]; then
 			echo "Already running"
 		else
-			$APP -token=$2 -db=$DB -log=debug > $LOG 2>&1 &
+			$APP -config=$2 2>&1 > $LOG &
 			echo $! > $PID
 		fi
 		;;

@@ -2,7 +2,6 @@ package telegram
 
 import (
 	"github.com/phemmer/sawmill"
-	"time"
 )
 
 type updates struct {
@@ -27,19 +26,14 @@ func newUpdates(gateway *gateway, base GetUpdatesRequest) *updates {
 
 func (svc *updates) start() {
 	go func() {
-		ticker := time.NewTicker(time.Duration(svc.request.Timeout) * time.Second)
-		defer func() {
-			svc.stop0 <- unit
-			ticker.Stop()
-		}()
-
 		for {
 			select {
 			case <-svc.stop0:
+				svc.stop0 <- unit
 				return
 
-			case <-ticker.C:
-				resp, err := svc.gateway.makeRequest(svc.request)
+			default:
+				resp, err := svc.gateway.makeLongRequest(svc.request)
 				if err != nil || !resp.Ok {
 					// logging
 					continue

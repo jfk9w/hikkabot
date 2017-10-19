@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/phemmer/sawmill"
+	"bytes"
+	"bufio"
 )
 
 // The response contains a JSON object, which always has a Boolean field ‘ok’
@@ -101,7 +103,7 @@ func (svc *gateway) start() {
 
 			case r := <-svc.urgent:
 				resp, err := svc.retryRequest(r.real, 2)
-				if err.Error() == GatewayChoking {
+				if err != nil && err.Error() == GatewayChoking {
 					return
 				}
 
@@ -111,7 +113,7 @@ func (svc *gateway) start() {
 
 			case r := <-svc.queue:
 				resp, err := svc.retryRequest(r.real, 5)
-				if err.Error() == GatewayChoking {
+				if err != nil && err.Error() == GatewayChoking {
 					return
 				}
 
@@ -150,14 +152,43 @@ func (svc *gateway) submit(request Request, handler ResponseHandler, urgent bool
 	}
 }
 
-func (svc *gateway) retryRequest(req Request, retries int) (*Response, error) {
+func (svc *gateway) makeLongRequest(request Request) (*Response, error) {
+	data, err := json.Marshal(&request)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, svc.endpoint(request.Method()), bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := svc.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	response := new(Response)
+	if err = json.Unmarshal(bufio.NewScanner(resp.Body).Bytes(), response); err != nil {
+		return nil, err
+	}
+
+	sawmill.Info("makeLongRequest", sawmill.Fields{
+		"response": response,
+	})
+	return response, nil
+}
+
+func (svc *gateway) retryRequest(request Request, retries int) (*Response, error) {
 	var (
 		resp *Response
 		err  error
 	)
 
 	for {
-		resp, err = svc.makeRequest(req)
+		resp, err = svc.makeRequest(request)
 		if err == nil {
 			if resp.Parameters != nil {
 				timeout := time.Duration(resp.Parameters.RetryAfter)
@@ -192,26 +223,26 @@ func (svc *gateway) retryRequest(req Request, retries int) (*Response, error) {
 	return resp, err
 }
 
-func (svc *gateway) makeRequest(req Request) (*Response, error) {
-	r, err := http.PostForm(svc.endpoint(req.Method()), req.Parameters())
+func (svc *gateway) makeRequest(request Request) (*Response, error) {
+	req, err := http.PostForm(svc.endpoint(request.Method()), request.Parameters())
 	if err != nil {
 		sawmill.Error("makeRequest", sawmill.Fields{
-			"req.Method":     req.Method(),
-			"req.Parameters": req.Parameters(),
+			"request.Method":     request.Method(),
+			"request.Parameters": request.Parameters(),
 			"Error":          err,
 		})
 
 		return nil, err
 	}
 
-	defer r.Body.Close()
+	defer req.Body.Close()
 
 	resp := new(Response)
-	err = json.NewDecoder(r.Body).Decode(resp)
+	err = json.NewDecoder(req.Body).Decode(resp)
 	if err != nil {
 		sawmill.Error("makeRequest", sawmill.Fields{
-			"req.Method":     req.Method(),
-			"req.Parameters": req.Parameters(),
+			"request.Method":     request.Method(),
+			"request.Parameters": request.Parameters(),
 			"Error":          err,
 		})
 
@@ -219,8 +250,8 @@ func (svc *gateway) makeRequest(req Request) (*Response, error) {
 	}
 
 	sawmill.Debug("makeRequest", sawmill.Fields{
-		"req.Method":       req.Method(),
-		"req.Parameters":   req.Parameters(),
+		"request.Method":       request.Method(),
+		"request.Parameters":   request.Parameters(),
 		"resp.Ok":          resp.Ok,
 		"resp.ErrorCode":   resp.ErrorCode,
 		"resp.Description": resp.Description,

@@ -3,8 +3,11 @@ package main
 import (
 	"github.com/jfk9w/tele2ch/dvach"
 	"github.com/jfk9w/tele2ch/telegram"
+	"net/http"
 	"strings"
 )
+
+var httpClient = new(http.Client)
 
 type controller struct {
 	bot   *telegram.BotAPI
@@ -14,8 +17,8 @@ type controller struct {
 
 func InitController(cfg *Config) *controller {
 	ctl := &controller{
-		bot:   telegram.NewBotAPI(HttpClient, cfg.Token),
-		dvach: dvach.NewAPI(HttpClient),
+		bot:   telegram.NewBotAPI(httpClient, cfg.Token),
+		dvach: dvach.NewAPI(httpClient),
 		stop:  make(chan struct{}, 1),
 	}
 
@@ -35,7 +38,18 @@ func (svc *controller) start() {
 			select {
 			case u := <-svc.bot.GetUpdates(getUpdatesRequest):
 				tokens := svc.parseCommand(u.Message)
+				response := ""
+				for _, t := range tokens {
+					response += t + ", "
+				}
 
+				svc.bot.SendMessage(telegram.SendMessageRequest{
+					Chat: telegram.ChatRef{
+						ID: u.Message.Chat.ID,
+
+					},
+					Text: response,
+				}, nil, true)
 
 			case <-svc.stop:
 				svc.stop <- unit
@@ -46,7 +60,7 @@ func (svc *controller) start() {
 }
 
 func (svc *controller) Stop() <-chan struct{} {
-	svc.bot.Stop(false)
+	<-svc.bot.Stop(false)
 	svc.stop <- unit
 	return svc.stop
 }
