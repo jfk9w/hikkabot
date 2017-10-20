@@ -2,9 +2,9 @@
 
 BUILD=build
 APP=$BUILD/app
+CONFIG=$BUILD/app.conf
 PID=$BUILD/.pid
 LOG=$BUILD/log
-DB=$BUILD/db
 
 CMD=$1
 case "$CMD" in
@@ -17,7 +17,7 @@ case "$CMD" in
 		if [ -f $PID ]; then
 			echo "Already running"
 		else
-			$APP -config=$2 2>&1 > $LOG &
+			$APP -config=$CONFIG 2>&1 > $LOG &
 			echo $! > $PID
 		fi
 		;;

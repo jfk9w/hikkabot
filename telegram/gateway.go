@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"github.com/phemmer/sawmill"
-	"bytes"
-	"bufio"
+	"io/ioutil"
 )
 
 // The response contains a JSON object, which always has a Boolean field ‘ok’
@@ -152,35 +151,6 @@ func (svc *gateway) submit(request Request, handler ResponseHandler, urgent bool
 	}
 }
 
-func (svc *gateway) makeLongRequest(request Request) (*Response, error) {
-	data, err := json.Marshal(&request)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, svc.endpoint(request.Method()), bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := svc.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	response := new(Response)
-	if err = json.Unmarshal(bufio.NewScanner(resp.Body).Bytes(), response); err != nil {
-		return nil, err
-	}
-
-	sawmill.Info("makeLongRequest", sawmill.Fields{
-		"response": response,
-	})
-	return response, nil
-}
-
 func (svc *gateway) retryRequest(request Request, retries int) (*Response, error) {
 	var (
 		resp *Response
@@ -224,41 +194,45 @@ func (svc *gateway) retryRequest(request Request, retries int) (*Response, error
 }
 
 func (svc *gateway) makeRequest(request Request) (*Response, error) {
-	req, err := http.PostForm(svc.endpoint(request.Method()), request.Parameters())
-	if err != nil {
-		sawmill.Error("makeRequest", sawmill.Fields{
+	onSendFailed := func(err error) {
+		sawmill.Warning("makeRequest", sawmill.Fields{
 			"request.Method":     request.Method(),
 			"request.Parameters": request.Parameters(),
-			"Error":          err,
+			"Error":              err,
 		})
+	}
 
+	resp, err := http.PostForm(svc.endpoint(request.Method()), request.Parameters())
+	if err != nil {
+		onSendFailed(err)
 		return nil, err
 	}
 
-	defer req.Body.Close()
+	defer resp.Body.Close()
 
-	resp := new(Response)
-	err = json.NewDecoder(req.Body).Decode(resp)
+	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		sawmill.Error("makeRequest", sawmill.Fields{
-			"request.Method":     request.Method(),
-			"request.Parameters": request.Parameters(),
-			"Error":          err,
-		})
+		onSendFailed(err)
+		return nil, err
+	}
 
+	response := new(Response)
+	err = json.Unmarshal(data, response)
+	if err != nil {
+		onSendFailed(err)
 		return nil, err
 	}
 
 	sawmill.Debug("makeRequest", sawmill.Fields{
 		"request.Method":       request.Method(),
 		"request.Parameters":   request.Parameters(),
-		"resp.Ok":          resp.Ok,
-		"resp.ErrorCode":   resp.ErrorCode,
-		"resp.Description": resp.Description,
-		"resp.Parameters":  resp.Parameters,
+		"response.Ok":          response.Ok,
+		"response.ErrorCode":   response.ErrorCode,
+		"response.Description": response.Description,
+		"response.Parameters":  response.Parameters,
 	})
 
-	return resp, nil
+	return response, nil
 }
 
 func (svc *gateway) endpoint(method string) string {

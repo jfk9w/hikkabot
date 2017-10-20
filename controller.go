@@ -34,11 +34,12 @@ var getUpdatesRequest = telegram.GetUpdatesRequest{
 func (svc *controller) start() {
 	svc.bot.Start()
 	go func() {
+		uc := svc.bot.GetUpdates(getUpdatesRequest)
 		for {
 			select {
-			case u := <-svc.bot.GetUpdates(getUpdatesRequest):
+			case u := <-uc:
 				tokens := svc.parseCommand(u.Message)
-				response := ""
+				response := "reply "
 				for _, t := range tokens {
 					response += t + ", "
 				}
@@ -46,7 +47,6 @@ func (svc *controller) start() {
 				svc.bot.SendMessage(telegram.SendMessageRequest{
 					Chat: telegram.ChatRef{
 						ID: u.Message.Chat.ID,
-
 					},
 					Text: response,
 				}, nil, true)

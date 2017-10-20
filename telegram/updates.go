@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"github.com/phemmer/sawmill"
+	"time"
 )
 
 type updates struct {
@@ -33,9 +34,9 @@ func (svc *updates) start() {
 				return
 
 			default:
-				resp, err := svc.gateway.makeLongRequest(svc.request)
+				resp, err := svc.gateway.makeRequest(svc.request)
 				if err != nil || !resp.Ok {
-					// logging
+					time.Sleep(3 * time.Second)
 					continue
 				}
 

@@ -145,7 +145,7 @@ func (r SendMessageRequest) Parameters() url.Values {
 		v.Set("disable_web_page_preview", "true")
 	}
 	if r.DisableNotification {
-		v.Set("disable_web_page_preview", "true")
+		v.Set("disable_notification", "true")
 	}
 	if r.ReplyToMessageID != 0 {
 		v.Set("reply_to_message_id", strconv.Itoa(int(r.ReplyToMessageID)))
