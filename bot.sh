@@ -12,6 +12,10 @@ case "$CMD" in
 	"build")
 		go build -o $APP -v
 		;;
+		
+	"run")
+		$APP -config=$CONFIG
+		;;
 
 	"start")
 		if [ -f $PID ]; then

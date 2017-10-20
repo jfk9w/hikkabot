@@ -1,7 +1,6 @@
 package telegram
 
 import (
-	"github.com/phemmer/sawmill"
 	"time"
 )
 
@@ -49,10 +48,6 @@ func (svc *updates) start() {
 
 				for _, update := range updates {
 					svc.c <- update
-					sawmill.Debug("Update", sawmill.Fields{
-						"Update": update,
-					})
-
 					offset := update.ID + 1
 					if svc.request.Offset < offset {
 						svc.request.Offset = offset
