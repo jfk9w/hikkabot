@@ -43,7 +43,7 @@ func (svc *Controller) Start() {
 	svc.done = make(chan struct{}, 1)
 	go func() {
 		defer func() {
-			sawmill.Debug("Controller.Stop")
+			sawmill.Info("Controller.Stop")
 			svc.done <- unit
 		}()
 
@@ -70,7 +70,7 @@ func (svc *Controller) Start() {
 		}
 	}()
 
-	sawmill.Debug("Controller.Start")
+	sawmill.Info("Controller.Start")
 }
 
 func (svc *Controller) Stop() {

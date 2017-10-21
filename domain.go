@@ -43,7 +43,7 @@ func (t *Thread) run(
 		for {
 			select {
 			case <-t.stop0:
-				sawmill.Debug("Thread.stop", sawmill.Fields{
+				sawmill.Info("Thread.stop", sawmill.Fields{
 					"mgmt":     mgmt.Key(),
 					"target":   target.Key(),
 					"board":    board,
@@ -151,7 +151,7 @@ func (t *Thread) run(
 		}
 	}()
 
-	sawmill.Debug("Thread.run", sawmill.Fields{
+	sawmill.Info("Thread.run", sawmill.Fields{
 		"Thread.Offset": t.Offset,
 		"mgmt":          mgmt.Key(),
 		"target":        target.Key(),
@@ -477,7 +477,7 @@ func (d *Domains) RunAll() {
 
 		go func() {
 			defer func() {
-				sawmill.Debug("Domains.save unscheduled")
+				sawmill.Info("Domains.save unscheduled")
 				d.done <- unit
 				ticker.Stop()
 			}()
@@ -493,7 +493,7 @@ func (d *Domains) RunAll() {
 			}
 		}()
 
-		sawmill.Debug("Domains.save scheduled")
+		sawmill.Info("Domains.save scheduled")
 	}
 
 	d.mutex.Lock()
@@ -581,5 +581,5 @@ func (d *Domains) save0() {
 		})
 	}
 
-	sawmill.Debug("Domains.save0", sawmill.Fields{"domains": d.domains,})
+	sawmill.Info("Domains.save0", sawmill.Fields{"domains": d.domains,})
 }

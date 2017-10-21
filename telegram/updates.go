@@ -30,7 +30,7 @@ func newUpdates(gateway *gateway, base GetUpdatesRequest) *updates {
 func (svc *updates) start() {
 	go func() {
 		defer func() {
-			sawmill.Debug("telegram.updates.stop")
+			sawmill.Info("telegram.updates.stop")
 			svc.done <- unit
 		}()
 
@@ -64,7 +64,7 @@ func (svc *updates) start() {
 		}
 	}()
 
-	sawmill.Debug("telegram.updates.start")
+	sawmill.Info("telegram.updates.start")
 }
 
 func (svc *updates) stop() <-chan struct{} {

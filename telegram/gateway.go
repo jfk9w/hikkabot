@@ -100,7 +100,7 @@ func (svc *gateway) start() {
 		for {
 			select {
 			case <-svc.choke:
-				sawmill.Debug("telegram.gateway.choke")
+				sawmill.Info("telegram.gateway.choke")
 				return
 
 			case <-ticker.C:
@@ -129,7 +129,7 @@ func (svc *gateway) start() {
 				}
 
 			case <-svc.stop0:
-				sawmill.Debug("telegram.gateway.stop")
+				sawmill.Info("telegram.gateway.stop")
 				return
 			}
 		}
