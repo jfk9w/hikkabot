@@ -82,8 +82,8 @@ func (r GetMeRequest) Parameters() url.Values {
 // Unique identifier for the target chat or
 // username of the target channel (in the format @channelusername)
 type ChatRef struct {
-	ID       ChatID
-	Username string
+	ID       ChatID `json:"id,omitempty"`
+	Username string `json:"username,omitempty`
 }
 
 func (r ChatRef) Parameters() url.Values {
