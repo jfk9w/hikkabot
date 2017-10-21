@@ -92,9 +92,10 @@ func (t *Thread) run(
 								for _, part := range parts {
 									var sent bool
 									bot.SendMessage(telegram.SendMessageRequest{
-										Chat:      target,
-										Text:      part,
-										ParseMode: telegram.Markdown,
+										Chat:                target,
+										Text:                part,
+										ParseMode:           telegram.Markdown,
+										DisableNotification: true,
 									}, func(resp *telegram.Response, err error) {
 										if err != nil || !resp.Ok {
 											var description string
@@ -233,6 +234,48 @@ func (s *Subs) runAll() {
 }
 
 func (s *Subs) subscribe(board string, threadId int) {
+	threadKey := getThreadKey(board, threadId)
+
+	if _, ok := s.Active[threadKey]; ok {
+		s.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: s.mgmt,
+			Text: fmt.Sprintf("%s уже подписан на этот тред.", s.target.Key()),
+		}, nil, true)
+
+		return
+	}
+
+	if _, ok := s.Inactive[threadKey]; ok {
+		s.ensure(board, threadId, "...", func() {
+			s.mutex.Lock()
+			defer s.mutex.Unlock()
+
+			if inactive, ok := s.Inactive[threadKey]; ok {
+				thread := inactive
+				delete(s.Inactive, threadKey)
+				thread.run(s.bot, s.client, s.mgmt, s.target, board, threadId, s.snooze)
+				s.Active[threadKey] = thread
+			}
+		})
+	} else {
+		s.ensure(board, threadId, fmt.Sprintf(
+			"#thread %s", dvach.FormatThreadURL(board, threadId)), func() {
+
+			s.mutex.Lock()
+			defer s.mutex.Unlock()
+
+			if _, ok := s.Active[threadKey]; !ok {
+				if _, ok := s.Inactive[threadKey]; !ok {
+					thread := &Thread{}
+					thread.run(s.bot, s.client, s.mgmt, s.target, board, threadId, s.snooze)
+					s.Active[threadKey] = thread
+				}
+			}
+		})
+	}
+}
+
+func (s *Subs) ensure(board string, threadId int, message string, callback func()) {
 	preview, err := s.client.GetPost(board, threadId)
 	if err != nil {
 		s.bot.SendMessage(telegram.SendMessageRequest{
@@ -245,8 +288,7 @@ func (s *Subs) subscribe(board string, threadId int) {
 
 	s.bot.SendMessage(telegram.SendMessageRequest{
 		Chat: s.target,
-		Text: fmt.Sprintf("#thread %s",
-			dvach.FormatThreadURL(board, threadId)),
+		Text: message,
 	}, func(resp *telegram.Response, err error) {
 		if err != nil || !resp.Ok {
 			var description string
@@ -259,57 +301,19 @@ func (s *Subs) subscribe(board string, threadId int) {
 			s.bot.SendMessage(telegram.SendMessageRequest{
 				Chat: s.mgmt,
 				Text: fmt.Sprintf(
-					"Ошибка при отправке тестового сообщения: %s",
-					description),
+					"Ошибка при отправке сообщения в %s: %s",
+					s.target.Key(), description),
 			}, nil, true)
-
-			return
+		} else {
+			callback()
+			if len(preview) > 0 {
+				s.bot.SetChatTitle(telegram.SetChatTitleRequest{
+					Chat:  s.target,
+					Title: preview[0].Subject,
+				})
+			}
 		}
-
-		if s.target.IsChannel() {
-			s.bot.SetChatTitle(telegram.SetChatTitleRequest{
-				Chat:  s.target,
-				Title: preview[0].Subject,
-			})
-		}
-
-		s.mutex.Lock()
-		defer s.mutex.Unlock()
-
-		s.subscribe0(board, threadId)
 	}, true)
-}
-
-func (s *Subs) subscribe0(board string, threadId int) {
-	threadKey := getThreadKey(board, threadId)
-
-	if _, ok := s.Active[threadKey]; ok {
-		s.bot.SendMessage(telegram.SendMessageRequest{
-			Chat: s.mgmt,
-			Text: fmt.Sprintf("%s уже подписан на этот тред.", s.target.Key()),
-		}, nil, true)
-
-		return
-	}
-
-	var t *Thread
-	if inactive, ok := s.Inactive[threadKey]; ok {
-		delete(s.Inactive, threadKey)
-		t = inactive
-		s.bot.SendMessage(telegram.SendMessageRequest{
-			Chat: s.mgmt,
-			Text: "Возобновлено.",
-		}, nil, true)
-	} else {
-		s.bot.SendMessage(telegram.SendMessageRequest{
-			Chat: s.mgmt,
-			Text: fmt.Sprintf("#thread %s", dvach.FormatThreadURL(board, threadId)),
-		}, nil, true)
-		t = &Thread{}
-	}
-
-	s.Active[threadKey] = t
-	t.run(s.bot, s.client, s.mgmt, s.target, board, threadId, s.snooze)
 }
 
 func (s *Subs) unsubscribe() {

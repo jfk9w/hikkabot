@@ -52,14 +52,16 @@ func (svc *Controller) Start() {
 			select {
 			case u := <-uc:
 				msg := u.Message
-				chatId := msg.Chat.ID
-				cmd, params := svc.parseCommand(msg)
-				switch {
-				case len(cmd) > 0:
-					svc.executor.Run(chatId, cmd, params)
+				if msg != nil {
+					chatId := msg.Chat.ID
+					cmd, params := svc.parseCommand(msg)
+					switch {
+					case len(cmd) > 0:
+						svc.executor.Run(chatId, cmd, params)
 
-				case msg.ReplyToMessage != nil:
-					svc.executor.OnReply(msg)
+					case msg.ReplyToMessage != nil:
+						svc.executor.OnReply(msg)
+					}
 				}
 
 			case <-svc.stop:
