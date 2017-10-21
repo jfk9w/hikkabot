@@ -33,18 +33,22 @@ func (svc *BotAPI) Start() {
 	svc.gateway.start()
 }
 
-func (svc *BotAPI) GetUpdates(updates GetUpdatesRequest) <-chan Update {
-	svc.updates = newUpdates(svc.gateway, updates)
-	svc.updates.start()
+func (svc *BotAPI) GetUpdatesChan(updates GetUpdatesRequest) <-chan Update {
+	if svc.updates == nil {
+		svc.updates = newUpdates(svc.gateway, updates)
+		svc.updates.start()
+	}
+
 	return svc.updates.c
 }
 
-func (svc *BotAPI) Stop(choke bool) <-chan struct{} {
+func (svc *BotAPI) Stop(choke bool) {
 	if svc.updates != nil {
 		<-svc.updates.stop()
 	}
 
-	return svc.gateway.stop(choke)
+	<-svc.gateway.stop(choke)
+	return
 }
 
 func (svc *BotAPI) GetMe() (*User, error) {

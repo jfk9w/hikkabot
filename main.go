@@ -1,7 +1,10 @@
 package main
 
 import (
+	"github.com/jfk9w/tele2ch/dvach"
+	"github.com/jfk9w/tele2ch/telegram"
 	"github.com/phemmer/sawmill"
+	"net/http"
 )
 
 func main() {
@@ -15,9 +18,22 @@ func main() {
 		panic(err)
 	}
 
+	var httpClient = new(http.Client)
+
 	InitLogging(cfg)
 
-	ctl := InitController(cfg)
+	bot := telegram.NewBotAPI(httpClient, cfg.Token)
+	client := dvach.NewAPI(httpClient)
+
+	state := GetDomains(cfg)
+	state.Init(bot, client)
+
+	ctl := NewController(state)
+	ctl.Init(bot, client)
+	ctl.Start()
+
 	SignalHandler().Wait()
-	<-ctl.Stop()
+	ctl.Stop()
+
+	sawmill.Notice("Exit")
 }

@@ -48,7 +48,7 @@ type Post struct {
 	TripType  string `json:"trip_type"`
 }
 
-func (p Post) num() int {
+func (p Post) NumInt() int {
 	if n, err := strconv.Atoi(p.Num); err == nil {
 		return n
 	} else {

@@ -1,32 +1,35 @@
 #!/bin/bash
 
 BUILD=build
-APP=$BUILD/app
-CONFIG=$BUILD/app.conf
-PID=$BUILD/.pid
-LOG=$BUILD/log
+APP=app
+CONFIG=app.conf
+PID=.pid
+LOG=log
 
 CMD=$1
 case "$CMD" in
 
 	"build")
-		go build -o $APP -v
+		go build -o $BUILD/$APP -v
 		;;
 		
 	"run")
-		$APP -config=$CONFIG
+	    cd $BUILD
+		./$APP -config=$CONFIG
 		;;
 
 	"start")
+	    cd $BUILD
 		if [ -f $PID ]; then
 			echo "Already running"
 		else
-			$APP -config=$CONFIG 2>&1 > $LOG &
+			./$APP -config=$CONFIG > $LOG 2>&1 &
 			echo $! > $PID
 		fi
 		;;
 
 	"stop")
+	    cd $BUILD
 		if [ -f $PID ]; then
 			kill `cat $PID`
 			rm $PID

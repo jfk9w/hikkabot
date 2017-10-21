@@ -24,12 +24,7 @@ func NewAPI(client *http.Client) *API {
 	}
 }
 
-func (svc *API) GetThread(url string, offset int) ([]Post, error) {
-	board, threadId, err := parseThreadURL(url)
-	if err != nil {
-		return nil, err
-	}
-
+func (svc *API) GetThread(board string, threadId int, offset int) ([]Post, error) {
 	if offset <= 0 {
 		offset = threadId
 	}
@@ -48,7 +43,11 @@ func (svc *API) GetThread(url string, offset int) ([]Post, error) {
 
 var threadLinkRegexp = regexp.MustCompile(`((http|https):\/\/){0,1}2ch\.hk\/([a-z]+)\/res\/([0-9]+)\.html`)
 
-func parseThreadURL(url string) (string, int, error) {
+func FormatThreadURL(board string, threadId int) string {
+	return fmt.Sprintf("%s/%s/res/%d.html", Endpoint, board, threadId)
+}
+
+func ParseThreadURL(url string) (string, int, error) {
 	groups := threadLinkRegexp.FindSubmatch([]byte(url))
 	if len(groups) == 5 {
 		board := string(groups[3])

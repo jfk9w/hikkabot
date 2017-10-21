@@ -1,44 +1,33 @@
 package main
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/jfk9w/tele2ch/dvach"
 	"github.com/jfk9w/tele2ch/telegram"
+	"github.com/phemmer/sawmill"
 )
 
-var httpClient = new(http.Client)
-
-type controller struct {
+type Controller struct {
 	bot      *telegram.BotAPI
-	dvach    *dvach.API
-	executor *executor
+	client   *dvach.API
+	domains  *Domains
+	executor *Executor
 	stop     chan struct{}
+	done     chan struct{}
 }
 
-func InitController(cfg *Config) *controller {
-	bot := telegram.NewBotAPI(httpClient, cfg.Token)
-
-	var subs *Subs
-	if len(cfg.DBFilename) > 0 {
-		subs, err := LoadSubs(cfg.DBFilename)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		subs := NewSubs()
+func NewController(domains *Domains) *Controller {
+	return &Controller{
+		domains: domains,
 	}
+}
 
-	ctl := &controller{
-		bot:      bot,
-		dvach:    dvach.NewAPI(httpClient),
-		executor: newExecutor(bot, subs),
-		stop:     make(chan struct{}, 1),
-	}
-
-	ctl.start()
-	return ctl
+func (svc *Controller) Init(bot *telegram.BotAPI, client *dvach.API) {
+	svc.bot = bot
+	svc.client = client
+	svc.domains.Init(bot, client)
+	svc.executor = NewExecutor(bot, svc.domains)
 }
 
 var getUpdatesRequest = telegram.GetUpdatesRequest{
@@ -46,38 +35,51 @@ var getUpdatesRequest = telegram.GetUpdatesRequest{
 	AllowedUpdates: []string{"message"},
 }
 
-func (svc *controller) start() {
+func (svc *Controller) Start() {
 	svc.bot.Start()
+	svc.domains.RunAll()
+
+	svc.stop = make(chan struct{}, 1)
+	svc.done = make(chan struct{}, 1)
 	go func() {
-		uc := svc.bot.GetUpdates(getUpdatesRequest)
+		defer func() {
+			sawmill.Debug("Controller.Stop")
+			svc.done <- unit
+		}()
+
+		uc := svc.bot.GetUpdatesChan(getUpdatesRequest)
 		for {
 			select {
 			case u := <-uc:
 				msg := u.Message
+				chatId := msg.Chat.ID
 				cmd, params := svc.parseCommand(msg)
 				switch {
 				case len(cmd) > 0:
-					svc.executor.run(cmd, params)
+					svc.executor.Run(chatId, cmd, params)
 
 				case msg.ReplyToMessage != nil:
-					svc.executor.reply(msg)
+					svc.executor.OnReply(msg)
 				}
 
 			case <-svc.stop:
-				svc.stop <- unit
 				return
 			}
 		}
 	}()
+
+	sawmill.Debug("Controller.Start")
 }
 
-func (svc *controller) Stop() <-chan struct{} {
-	<-svc.bot.Stop(false)
+func (svc *Controller) Stop() {
 	svc.stop <- unit
-	return svc.stop
+	<-svc.done
+
+	svc.bot.Stop(false)
+	svc.domains.Stop()
 }
 
-func (svc *controller) parseCommand(msg *telegram.Message) (string, []string) {
+func (svc *Controller) parseCommand(msg *telegram.Message) (string, []string) {
 	for _, entity := range msg.Entities {
 		if entity.Type == "bot_command" {
 			end := entity.Offset + entity.Length

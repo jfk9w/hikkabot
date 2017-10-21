@@ -96,8 +96,21 @@ func (r ChatRef) Key() string {
 	if len(r.Username) > 0 {
 		return r.Username
 	} else {
-		return strconv.FormatInt(int64(r.ID), 10)
+		return FormatChatID(r.ID)
 	}
+}
+
+func (r ChatRef) IsChannel() bool {
+	return len(r.Username) > 0
+}
+
+func FormatChatID(chatId ChatID) string {
+	return strconv.FormatInt(int64(chatId), 10)
+}
+
+func ParseChatID(value string) ChatID {
+	chatId, _ := strconv.ParseInt(value, 10, 64)
+	return ChatID(chatId)
 }
 
 const (

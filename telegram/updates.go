@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"time"
+	"github.com/phemmer/sawmill"
 )
 
 type updates struct {
@@ -9,6 +10,7 @@ type updates struct {
 	gateway *gateway
 	request GetUpdatesRequest
 	stop0   chan struct{}
+	done    chan struct{}
 }
 
 func (svc *updates) Channel() <-chan Update {
@@ -21,15 +23,20 @@ func newUpdates(gateway *gateway, base GetUpdatesRequest) *updates {
 		gateway: gateway,
 		request: base,
 		stop0:   make(chan struct{}, 1),
+		done:    make(chan struct{}, 1),
 	}
 }
 
 func (svc *updates) start() {
 	go func() {
+		defer func() {
+			sawmill.Debug("telegram.updates.stop")
+			svc.done <- unit
+		}()
+
 		for {
 			select {
 			case <-svc.stop0:
-				svc.stop0 <- unit
 				return
 
 			default:
@@ -56,9 +63,11 @@ func (svc *updates) start() {
 			}
 		}
 	}()
+
+	sawmill.Debug("telegram.updates.start")
 }
 
 func (svc *updates) stop() <-chan struct{} {
 	svc.stop0 <- unit
-	return svc.stop0
+	return svc.done
 }
