@@ -41,6 +41,19 @@ func (svc *API) GetThread(board string, threadId int, offset int) ([]Post, error
 	return posts, nil
 }
 
+func (svc *API) GetPost(board string, num int) ([]Post, error) {
+	endpoint := fmt.Sprintf(
+		"%s/makaba/mobile.fcgi?task=get_post&board=%s&post=%d",
+		Endpoint, board, num)
+
+	posts := make([]Post, 0)
+	if err := httpGetJSON(svc.client, endpoint, &posts); err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
 var threadLinkRegexp = regexp.MustCompile(`((http|https):\/\/){0,1}2ch\.hk\/([a-z]+)\/res\/([0-9]+)\.html`)
 
 func FormatThreadURL(board string, threadId int) string {

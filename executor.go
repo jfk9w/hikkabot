@@ -62,9 +62,9 @@ func (svc *Executor) subscribe(mgmt telegram.ChatRef, params []string) {
 		svc.subscribe0(mgmt, nil, threadLink)
 
 	case 2:
-		threadLink := params[1]
-		channel := &params[2]
-		svc.subscribe0(mgmt, channel, threadLink)
+		threadLink := params[0]
+		channel := params[1]
+		svc.subscribe0(mgmt, &channel, threadLink)
 	}
 }
 
@@ -85,7 +85,7 @@ func (svc *Executor) subscribe0(mgmt telegram.ChatRef, channel *string, threadLi
 func (svc *Executor) unsubscribe(mgmt telegram.ChatRef, params []string) {
 	var channel *string
 	if len(params) == 1 {
-		channel = &params[0]
+		channel = &(params[0])
 	}
 
 	svc.domains.Unsubscribe(mgmt, channel)

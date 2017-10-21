@@ -15,7 +15,7 @@ import (
 	"io/ioutil"
 )
 
-const maxRetries = 3
+const maxGetThreadRetries = 3
 
 type Thread struct {
 	Offset int `json:"offset"`
@@ -65,16 +65,18 @@ func (t *Thread) run(
 					})
 
 					retry++
-					if retry >= maxRetries {
+					if retry >= maxGetThreadRetries {
 						bot.SendMessage(telegram.SendMessageRequest{
 							Chat: mgmt,
 							Text: fmt.Sprintf(
 								"Ошибка при обновлении %s для %s: %s",
 								dvach.FormatThreadURL(board, threadId),
 								target.Key(), err.Error()),
+							DisableWebPagePreview: true,
 						}, nil, true)
 
-						snooze(board, threadId)
+						// this can cause deadlock without goroutine
+						go snooze(board, threadId)
 						return
 					}
 				} else {
@@ -82,23 +84,64 @@ func (t *Thread) run(
 						select {
 						case <-t.stop0:
 							return
+
 						default:
+							done := make(chan struct{}, 1)
 							if post.NumInt() >= t.Offset {
 								parts := html2md.Parse(post)
 								for _, part := range parts {
-									stop := make(chan struct{}, 1)
+									var sent bool
 									bot.SendMessage(telegram.SendMessageRequest{
 										Chat:      target,
 										Text:      part,
 										ParseMode: telegram.Markdown,
 									}, func(resp *telegram.Response, err error) {
-										stop <- unit
+										if err != nil || !resp.Ok {
+											var description string
+											if err != nil {
+												description = err.Error()
+											} else {
+												description = resp.Description
+											}
+
+											sawmill.Error("Thread.send", sawmill.Fields{
+												"Thread.Offset": t.Offset,
+												"mgmt":          mgmt.Key(),
+												"target":        target.Key(),
+												"board":         board,
+												"threadId":      threadId,
+												"description":   description,
+											})
+
+											bot.SendMessage(telegram.SendMessageRequest{
+												Chat: mgmt,
+												Text: fmt.Sprintf(
+													"Ошибка при отправке сообщения в %s: %s",
+													target.Key(), description),
+											}, nil, true)
+										} else {
+											sent = true
+										}
+
+										done <- unit
 									}, false)
 
-									<-stop
+									<-done
+									if !sent {
+										go snooze(board, threadId)
+										return
+									}
 								}
 
 								t.Offset = post.NumInt() + 1
+
+								sawmill.Debug("Thread.send", sawmill.Fields{
+									"Thread.Offset": t.Offset,
+									"mgmt":          mgmt.Key(),
+									"target":        target.Key(),
+									"board":         board,
+									"threadId":      threadId,
+								})
 							}
 						}
 					}
@@ -190,21 +233,48 @@ func (s *Subs) runAll() {
 }
 
 func (s *Subs) subscribe(board string, threadId int) {
+	preview, err := s.client.GetPost(board, threadId)
+	if err != nil {
+		s.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: s.mgmt,
+			Text: fmt.Sprintf("Ошибка при запросе треда: %s", err.Error()),
+		}, nil, true)
+
+		return
+	}
+
 	s.bot.SendMessage(telegram.SendMessageRequest{
 		Chat: s.target,
 		Text: fmt.Sprintf("#thread %s",
 			dvach.FormatThreadURL(board, threadId)),
 	}, func(resp *telegram.Response, err error) {
-		if err != nil {
+		if err != nil || !resp.Ok {
+			var description string
+			if err != nil {
+				description = err.Error()
+			} else {
+				description = resp.Description
+			}
+
 			s.bot.SendMessage(telegram.SendMessageRequest{
 				Chat: s.mgmt,
 				Text: fmt.Sprintf(
 					"Ошибка при отправке тестового сообщения: %s",
-					err.Error()),
+					description),
 			}, nil, true)
 
 			return
 		}
+
+		if s.target.IsChannel() {
+			s.bot.SetChatTitle(telegram.SetChatTitleRequest{
+				Chat:  s.target,
+				Title: preview[0].Subject,
+			})
+		}
+
+		s.mutex.Lock()
+		defer s.mutex.Unlock()
 
 		s.subscribe0(board, threadId)
 	}, true)
@@ -212,9 +282,6 @@ func (s *Subs) subscribe(board string, threadId int) {
 
 func (s *Subs) subscribe0(board string, threadId int) {
 	threadKey := getThreadKey(board, threadId)
-
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
 
 	if _, ok := s.Active[threadKey]; ok {
 		s.bot.SendMessage(telegram.SendMessageRequest{
@@ -229,7 +296,15 @@ func (s *Subs) subscribe0(board string, threadId int) {
 	if inactive, ok := s.Inactive[threadKey]; ok {
 		delete(s.Inactive, threadKey)
 		t = inactive
+		s.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: s.mgmt,
+			Text: "Возобновлено.",
+		}, nil, true)
 	} else {
+		s.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: s.mgmt,
+			Text: fmt.Sprintf("#thread %s", dvach.FormatThreadURL(board, threadId)),
+		}, nil, true)
 		t = &Thread{}
 	}
 
