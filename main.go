@@ -1,10 +1,11 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/jfk9w/tele2ch/dvach"
 	"github.com/jfk9w/tele2ch/telegram"
 	"github.com/phemmer/sawmill"
-	"net/http"
 )
 
 func main() {

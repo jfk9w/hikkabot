@@ -2,17 +2,18 @@ package main
 
 import (
 	"fmt"
+
+	"encoding/json"
+	"io/ioutil"
 	"regexp"
 	"strconv"
 	"sync"
 	"time"
 
-	"encoding/json"
 	"github.com/jfk9w/tele2ch/dvach"
 	"github.com/jfk9w/tele2ch/html2md"
 	"github.com/jfk9w/tele2ch/telegram"
 	"github.com/phemmer/sawmill"
-	"io/ioutil"
 )
 
 const maxGetThreadRetries = 3
@@ -33,7 +34,7 @@ func (t *Thread) run(
 	t.stop0 = make(chan struct{}, 1)
 	t.done = make(chan struct{}, 1)
 	go func() {
-		ticker := time.NewTicker(15 * time.Second)
+		ticker := time.NewTicker(2 * time.Minute)
 		defer func() {
 			t.done <- unit
 			ticker.Stop()
@@ -471,7 +472,7 @@ func (d *Domains) Init(bot *telegram.BotAPI, client *dvach.API) {
 
 func (d *Domains) RunAll() {
 	if d.filename != nil {
-		ticker := time.NewTicker(10 * time.Second)
+		ticker := time.NewTicker(10 * time.Minute)
 		d.stop = make(chan struct{}, 1)
 		d.done = make(chan struct{}, 1)
 
@@ -581,5 +582,5 @@ func (d *Domains) save0() {
 		})
 	}
 
-	sawmill.Info("Domains.save0", sawmill.Fields{"domains": d.domains,})
+	sawmill.Info("Domains.save0")
 }

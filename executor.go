@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/jfk9w/tele2ch/dvach"
 	"github.com/jfk9w/tele2ch/telegram"
-	"strconv"
 )
 
 type listener func(message *telegram.Message)
@@ -17,7 +18,7 @@ type Executor struct {
 
 func NewExecutor(bot *telegram.BotAPI, domains *Domains) *Executor {
 	return &Executor{
-		bot: bot,
+		bot:       bot,
 		domains:   domains,
 		listeners: make(map[string]listener),
 	}
