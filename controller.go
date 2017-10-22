@@ -3,8 +3,8 @@ package main
 import (
 	"strings"
 
-	"github.com/jfk9w/tele2ch/dvach"
-	"github.com/jfk9w/tele2ch/telegram"
+	"github.com/jfk9w/hikkabot/dvach"
+	"github.com/jfk9w/hikkabot/telegram"
 	"github.com/phemmer/sawmill"
 )
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/jfk9w/tele2ch/dvach"
-	"github.com/jfk9w/tele2ch/telegram"
+	"github.com/jfk9w/hikkabot/dvach"
+	"github.com/jfk9w/hikkabot/telegram"
 )
 
 type listener func(message *telegram.Message)

@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jfk9w/tele2ch/dvach"
-	"github.com/jfk9w/tele2ch/html2md"
-	"github.com/jfk9w/tele2ch/telegram"
+	"github.com/jfk9w/hikkabot/dvach"
+	"github.com/jfk9w/hikkabot/html2md"
+	"github.com/jfk9w/hikkabot/telegram"
 	"github.com/phemmer/sawmill"
 )
 

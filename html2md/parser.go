@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/jfk9w/tele2ch/dvach"
+	"github.com/jfk9w/hikkabot/dvach"
 	"golang.org/x/net/html"
 )
 
