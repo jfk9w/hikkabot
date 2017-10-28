@@ -307,7 +307,7 @@ func (s *Subs) ensure(board string, threadId int, message string, callback func(
 			}, nil, true)
 		} else {
 			callback()
-			if len(preview) > 0 {
+			if len(preview) > 0 && s.target.IsChannel() {
 				s.bot.SetChatTitle(telegram.SetChatTitleRequest{
 					Chat:  s.target,
 					Title: preview[0].Subject,
