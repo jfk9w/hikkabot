@@ -11,6 +11,24 @@ type Request interface {
 	Parameters() url.Values
 }
 
+type GenericRequest struct {
+	method string
+	params map[string]string
+}
+
+func (r GenericRequest) Method() string {
+	return r.method
+}
+
+func (r GenericRequest) Parameters() url.Values {
+	p := url.Values{}
+	for k, v := range r.params {
+		p.Set(k, v)
+	}
+
+	return p
+}
+
 // Use this method to receive incoming updates using long polling (wiki).
 // An Array of Update objects is returned.
 type GetUpdatesRequest struct {
@@ -67,18 +85,6 @@ func (r GetUpdatesRequest) Parameters() url.Values {
 	return v
 }
 
-// A simple method for testing your bot's auth token.
-// Requires no parameters. Returns basic information about the bot in form of a User object.
-type GetMeRequest struct{}
-
-func (r GetMeRequest) Method() string {
-	return "getMe"
-}
-
-func (r GetMeRequest) Parameters() url.Values {
-	return url.Values{}
-}
-
 // Unique identifier for the target chat or
 // username of the target channel (in the format @channelusername)
 type ChatRef struct {
@@ -118,7 +124,6 @@ const (
 	HTML     = "HTML"
 )
 
-// Use this method to send text messages. On success, the sent Message is returned.
 type SendMessageRequest struct {
 	Chat ChatRef
 
@@ -169,28 +174,5 @@ func (r SendMessageRequest) Parameters() url.Values {
 			v.Set("reply_markup", string(rm))
 		}
 	}
-	return v
-}
-
-// Use this method to change the title of a chat. Titles can't be changed for private chats.
-// The bot must be an administrator in the chat for this to work
-// and must have the appropriate admin rights. Returns True on success.
-//
-// Note: In regular groups (non-supergroups),
-// this method will only work if the ‘All Members Are Admins’ setting is off in the target group.
-type SetChatTitleRequest struct {
-	Chat ChatRef
-
-	// New chat title, 1-255 characters
-	Title string
-}
-
-func (r SetChatTitleRequest) Method() string {
-	return "setChatTitle"
-}
-
-func (r SetChatTitleRequest) Parameters() url.Values {
-	v := r.Chat.Parameters()
-	v.Set("title", r.Title)
 	return v
 }

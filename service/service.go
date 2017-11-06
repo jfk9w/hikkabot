@@ -4,8 +4,7 @@ type T interface {
 	start()
 	work()
 	stop()
-
-	handle() *Handle
+	handle() Handle
 	deps() []T
 }
 
@@ -16,15 +15,17 @@ func Start(svc T) {
 	}
 
 	for _, dep := range svc.deps() {
-		Start(dep)
+		if dep != nil {
+			Start(dep)
+		}
 	}
 
-	stop := h.start()
+	work := h.start()
 	svc.start()
 	go func() {
 		defer func() {
 			svc.stop()
-			h.notify()
+			h.stopped()
 		}()
 
 		for {
@@ -32,7 +33,7 @@ func Start(svc T) {
 			case <-stop:
 				return
 
-			default:
+			case <-work:
 				svc.work()
 			}
 		}

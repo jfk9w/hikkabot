@@ -70,6 +70,13 @@ func (s *Scenario) Step(svc *Service, payload string) {
 	s.current++
 }
 
+func (s *Scenario) Attach(svc T) {
+	svc.(*Service).scenario = s
+	for _, dep := range svc.deps() {
+		s.Attach(dep)
+	}
+}
+
 type Service struct {
 	id       string
 	scenario *Scenario

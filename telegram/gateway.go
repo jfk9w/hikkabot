@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
 	"github.com/phemmer/sawmill"
-	"io/ioutil"
 )
 
 // The response contains a JSON object, which always has a Boolean field ‘ok’

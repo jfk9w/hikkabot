@@ -170,3 +170,76 @@ type Update struct {
 	// Optional. New version of a channel post that is known to the bot and was edited
 	EditedChannelPost *Message `json:"edited_message_post"`
 }
+
+// This object contains information about one member of a chat.
+type ChatMember struct {
+
+	// Information about the user
+	User `json:"user"`
+
+	// The member's status in the chat.
+	// Can be “creator”, “administrator”, “member”, “restricted”, “left” or “kicked”
+	Status string `json:"status"`
+
+	// Optional. Restictred and kicked only.
+	// Date when restrictions will be lifted for this user, unix time
+	UntilDate string `json:"until_date"`
+
+	// Optional. Administrators only.
+	// True, if the bot is allowed to edit administrator privileges of that user
+	CanBeEdited bool `json:"can_be_edited"`
+
+	// Optional. Administrators only.
+	// True, if the administrator can change the chat title, photo and other settings
+	CanChangeInfo bool `json:"can_change_info"`
+
+	// Optional. Administrators only.
+	// True, if the administrator can post in the channel, channels only
+	CanPostMessages bool `json:"can_post_messages"`
+
+	// Optional. Administrators only.
+	// True, if the administrator can edit messages of other users, channels only
+	CanEditMessages bool `json:"can_edit_messages"`
+
+	// Optional. Administrators only.
+	// True, if the administrator can delete messages of other users
+	CanDeleteMessages bool `json:"can_delete_messages"`
+
+	// Optional. Administrators only.
+	// True, if the administrator can invite new users to the chat
+	CanInviteUsers bool `json:"can_invite_users"`
+
+	// Optional. Administrators only.
+	// True, if the administrator can restrict, ban or unban chat members
+	CanRestrictMembers bool `json:"can_restrict_members"`
+
+	// Optional. Administrators only.
+	// True, if the administrator can pin messages, supergroups only
+	CanPinMessages bool `json:"can_pin_messages"`
+
+	// Optional. Administrators only.
+	// True, if the administrator can add new administrators with a subset
+	// of his own privileges or demote administrators that he has promoted,
+	// directly or indirectly
+	// (promoted by administrators that were appointed by the user)
+	CanPromoteMembers bool `json:"can_promote_members"`
+
+	// Optional. Restricted only.
+	// True, if the user can send text messages, contacts, locations and venues
+	CanSendMessages bool `json:"can_send_messages"`
+
+	// Optional. Restricted only.
+	// True, if the user can send audios, documents, photos, videos,
+	// video notes and voice notes, implies can_send_messages
+	CanSendMediaMessages bool `json:"can_send_media_messages"`
+
+	// Optional. Restricted only.
+	// True, if the user can send animations, games, stickers and
+	// use inline bots, implies can_send_media_messages
+	CanSendOtherMessages bool `json:"can_send_other_messages"`
+
+	// Optional. Restricted only.
+	// True, if user may add web page previews to his messages,
+	// implies can_send_media_messages
+	CanAddWebPagePreviews bool `json:"can_add_web_page_previews"`
+}

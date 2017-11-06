@@ -1,37 +1,24 @@
 package service
 
-type Handle struct {
-	stop0 chan struct{}
-	done  chan struct{}
-}
+import (
+	"time"
+)
 
-func NewHandle() *Handle {
-	return &Handle{
-		done: make(chan struct{}, 1),
-	}
-}
+// Used for service management
+type Handle interface {
 
-func (h *Handle) IsActive() bool {
-	return h.stop0 != nil
-}
+	// Check if service is active
+	IsActive() bool
 
-func (h *Handle) Stop() {
-	h.stop0 <- unit
-}
+	// Send stop signal
+	Stop()
 
-func (h *Handle) Watch() <-chan struct{} {
-	return h.stop0
-}
+	// Wait while service stops
+	Wait()
 
-func (h *Handle) start() <-chan struct{} {
-	h.stop0 = make(chan struct{}, 1)
-	return h.stop0
-}
+	// Prepare and start
+	start() <-chan time.Time
 
-func (h *Handle) notify() {
-	h.done <- unit
-}
-
-func (h *Handle) wait() {
-	<-h.done
+	// Stop listener
+	stopped()
 }
