@@ -8,7 +8,14 @@ import (
 	"strconv"
 )
 
+// Endpoint of `2ch.hk`
 const Endpoint = "https://2ch.hk/"
+
+var (
+
+	// ErrInvalidThreadLink is returned when thread link is malformed
+	ErrInvalidThreadLink = errors.New("invalid thread link")
+)
 
 type API struct {
 	client *http.Client
@@ -24,14 +31,14 @@ func NewAPI(client *http.Client) *API {
 	}
 }
 
-func (svc *API) GetThread(board string, threadId int, offset int) ([]Post, error) {
+func (svc *API) GetThread(board string, threadID string, offset int) ([]Post, error) {
 	if offset <= 0 {
-		offset = threadId
+		offset, _ = strconv.Atoi(threadID)
 	}
 
 	endpoint := fmt.Sprintf(
-		"%s/makaba/mobile.fcgi?task=get_thread&board=%s&thread=%d&num=%d",
-		Endpoint, board, threadId, offset)
+		"%s/makaba/mobile.fcgi?task=get_thread&board=%s&thread=%s&num=%d",
+		Endpoint, board, threadID, offset)
 
 	posts := make([]Post, 0)
 	if err := httpGetJSON(svc.client, endpoint, &posts); err != nil {
@@ -56,21 +63,17 @@ func (svc *API) GetPost(board string, num int) ([]Post, error) {
 
 var threadLinkRegexp = regexp.MustCompile(`((http|https):\/\/){0,1}2ch\.hk\/([a-z]+)\/res\/([0-9]+)\.html`)
 
-func FormatThreadURL(board string, threadId int) string {
-	return fmt.Sprintf("%s/%s/res/%d.html", Endpoint, board, threadId)
+// FormatThreadURL composes thread URL from board code and thread ID
+func FormatThreadURL(board string, threadID string) string {
+	return fmt.Sprintf("%s/%s/res/%s.html", Endpoint, board, threadID)
 }
 
-func ParseThreadURL(url string) (string, int, error) {
+// ParseThreadURL extracts board code and thread ID from thread URL
+func ParseThreadURL(url string) (string, string, error) {
 	groups := threadLinkRegexp.FindSubmatch([]byte(url))
 	if len(groups) == 5 {
-		board := string(groups[3])
-		threadId, err := strconv.Atoi(string(groups[4]))
-		if err != nil {
-			return "", -1, errors.New("invalid thread ID: " + err.Error())
-		}
-
-		return board, threadId, nil
+		return string(groups[3]), string(groups[4]), nil
 	}
 
-	return "", -1, errors.New("invalid thread link")
+	return "", "", ErrInvalidThreadLink
 }

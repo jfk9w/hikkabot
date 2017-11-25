@@ -10,10 +10,18 @@ func NewHook() Hook {
 	return Hook(make(chan UnitType, 1))
 }
 
-func (s Hook) Listen() <-chan UnitType {
-	return chan UnitType(s)
+func (s Hook) Send() {
+	s <- Unit
 }
 
-func (s Hook) Trigger() {
-	chan UnitType(s) <- Unit
+func (s Hook) Wait() {
+	<-s
+}
+
+func MaxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+
+	return b
 }
