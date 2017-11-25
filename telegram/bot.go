@@ -1,11 +1,21 @@
 package telegram
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 )
 
-const Endpoint = "https://api.telegram.org"
+const (
+
+	// Endpoint of Telegram Bot API
+	Endpoint = "https://api.telegram.org"
+
+	// The query contains errors. In the event that a request was created using a form
+	// and contains user generated data, the user should be notified that the data must
+	// be corrected before the query is repeated.
+	ErrorBadRequest = "400"
+)
 
 type BotAPI struct {
 	Me *User
@@ -173,6 +183,10 @@ func (svc *BotAPI) GetChatMembers(chat ChatRef, user UserID) (*ChatMember, error
 
 	if err != nil {
 		return nil, err
+	}
+
+	if !resp.Ok {
+		return nil, fmt.Errorf("%d", resp.ErrorCode)
 	}
 
 	result := new(ChatMember)

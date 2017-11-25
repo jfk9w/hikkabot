@@ -75,7 +75,7 @@ func (svc *Executor) subscribe0(source telegram.ChatRef, channel *string, thread
 	if err != nil {
 		svc.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: source,
-			Text: fmt.Sprintf("Введена некорректная ссылка: %s", threadLink),
+			Text: fmt.Sprintf("Invalid thread URL: %s", threadLink),
 		}, nil, true)
 
 		return
@@ -90,6 +90,15 @@ func (svc *Executor) subscribe0(source telegram.ChatRef, channel *string, thread
 		chat = source
 	}
 
+	if err = service.CheckAccess(source, chat); err != nil {
+		svc.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: source,
+			Text: "Operation forbidden. Reason: " + err.Error(),
+		}, nil, true)
+
+		return
+	}
+
 	service.Subscribe(chat, board, threadID)
 }
 
@@ -101,6 +110,15 @@ func (svc *Executor) unsubscribe(source telegram.ChatRef, params []string) {
 		}
 	} else {
 		chat = source
+	}
+
+	if err := service.CheckAccess(source, chat); err != nil {
+		svc.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: source,
+			Text: "Operation forbidden. Reason: " + err.Error(),
+		}, nil, true)
+
+		return
 	}
 
 	service.Unsubscribe(chat)
