@@ -48,9 +48,9 @@ func (svc *API) GetThread(board string, threadID string, offset int) ([]Post, er
 	return posts, nil
 }
 
-func (svc *API) GetPost(board string, num int) ([]Post, error) {
+func (svc *API) GetPost(board string, num string) ([]Post, error) {
 	endpoint := fmt.Sprintf(
-		"%s/makaba/mobile.fcgi?task=get_post&board=%s&post=%d",
+		"%s/makaba/mobile.fcgi?task=get_post&board=%s&post=%s",
 		Endpoint, board, num)
 
 	posts := make([]Post, 0)

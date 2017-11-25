@@ -58,7 +58,7 @@ func Start() {
 			newOffset, err := onEvent(chat, board, threadID, offset)
 			if err != nil {
 				go onAlertAdministrators(chat,
-					"An error has occured. Subscription suspended.\nChat: %s\nThread: %s\nError: %s",
+					"#info\nAn error has occured. Subscription suspended.\nChat: %s\nThread: %s\nError: %s",
 					chat.Key(), dv.FormatThreadURL(board, threadID), err.Error())
 
 				return 0, err
@@ -95,15 +95,37 @@ func Subscribe(chat telegram.ChatRef, board string, threadID string) {
 	err := sub.newActiveThread(board, threadID)
 	if err != nil {
 		go onAlertAdministrators(chat,
-			"Subscription failed.\nChat: %s\nThread: %s\nError: %s",
+			"#info\nSubscription failed.\nChat: %s\nThread: %s\nError: %s",
 			chat.Key(), dv.FormatThreadURL(board, threadID), err.Error())
 
 		return
 	}
 
-	go onAlertAdministrators(chat,
-		"Subscription OK.\nChat: %s\nThread: %s",
-		chat.Key(), dv.FormatThreadURL(board, threadID))
+	go func() {
+		onAlertAdministrators(chat,
+			"#info\nSubscription OK.\nChat: %s\nThread: %s",
+			chat.Key(), dv.FormatThreadURL(board, threadID))
+
+		preview, err := _runtime.dvach.GetPost(board, threadID)
+		if err != nil {
+			return
+		}
+
+		threadURL := dv.FormatThreadURL(board, threadID)
+		text := ""
+		if len(preview) > 0 {
+			text = fmt.Sprintf(
+				"#thread %s %s",
+				preview[0].Subject, threadURL)
+		} else {
+			text = fmt.Sprintf("#thread %s", threadURL)
+		}
+
+		_runtime.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: chat,
+			Text: text,
+		}, nil, true)
+	}()
 }
 
 // Unsubscribe chat from all threads
