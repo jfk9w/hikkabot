@@ -4,16 +4,16 @@ type UnitType = struct{}
 
 var Unit UnitType
 
-type Signal chan UnitType
+type Hook chan UnitType
 
-func NewSignal() Signal {
-	return Signal(make(chan UnitType, 1))
+func NewHook() Hook {
+	return Hook(make(chan UnitType, 1))
 }
 
-func (s Signal) Read() <-chan UnitType {
+func (s Hook) Listen() <-chan UnitType {
 	return chan UnitType(s)
 }
 
-func (s Signal) Send() {
+func (s Hook) Trigger() {
 	chan UnitType(s) <- Unit
 }
