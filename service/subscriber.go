@@ -72,6 +72,7 @@ func (sub *Subscriber) queue(key ThreadKey) {
 }
 
 func (sub *Subscriber) start(alert alert) {
+	sub.enqueueAll()
 	go func() {
 		ticker := time.NewTicker(subscriberTimeout)
 		defer func() {
@@ -94,6 +95,19 @@ func (sub *Subscriber) start(alert alert) {
 			}
 		}
 	}()
+}
+
+func (sub *Subscriber) enqueueAll() {
+	_mutex.RLock()
+	sub.mutex().RLock()
+	defer func() {
+		sub.mutex().RUnlock()
+		_mutex.RUnlock()
+	}()
+
+	for key := range sub.Active {
+		sub.queue(key)
+	}
 }
 
 func (sub *Subscriber) next(alert alert, key ThreadKey) {

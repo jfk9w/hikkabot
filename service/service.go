@@ -91,12 +91,14 @@ func Stop() {
 
 // Subscribe to a thread
 func Subscribe(chat telegram.ChatRef, board string, threadID string) {
+	threadURL := dv.FormatThreadURL(board, threadID)
+
 	sub := subscriber(chat)
 	err := sub.newActiveThread(board, threadID)
 	if err != nil {
 		go onAlertAdministrators(chat,
 			"#info\nSubscription failed.\nChat: %s\nThread: %s\nError: %s",
-			chat.Key(), dv.FormatThreadURL(board, threadID), err.Error())
+			chat.Key(), threadURL, err.Error())
 
 		return
 	}
@@ -111,7 +113,6 @@ func Subscribe(chat telegram.ChatRef, board string, threadID string) {
 			return
 		}
 
-		threadURL := dv.FormatThreadURL(board, threadID)
 		text := ""
 		if len(preview) > 0 {
 			text = fmt.Sprintf(

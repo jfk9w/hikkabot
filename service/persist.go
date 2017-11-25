@@ -90,4 +90,6 @@ func (p *persister) init() {
 	}
 
 	_subs = subs
+
+	sawmill.Notice("load ok")
 }
