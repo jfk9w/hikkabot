@@ -234,9 +234,10 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 			done := util.NewHook()
 			var err error
 			_runtime.bot.SendMessage(telegram.SendMessageRequest{
-				Chat:      chat,
-				Text:      msg,
-				ParseMode: telegram.Markdown,
+				Chat:                chat,
+				Text:                msg,
+				ParseMode:           telegram.Markdown,
+				DisableNotification: true,
 			}, func(resp *telegram.Response, err0 error) {
 				if err0 != nil {
 					err = fmt.Errorf("unable to send message (%s)", err0.Error())
