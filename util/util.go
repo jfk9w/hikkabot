@@ -18,8 +18,8 @@ func (s Hook) Wait() {
 	<-s
 }
 
-func MaxInt(a, b int) int {
-	if a > b {
+func MinInt(a, b int) int {
+	if a < b {
 		return a
 	}
 

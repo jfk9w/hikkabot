@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jfk9w/hikkabot/util"
+	"github.com/phemmer/sawmill"
 )
 
 const (
@@ -160,6 +161,10 @@ func (sub *Subscriber) newActiveThread(board string, threadID string) error {
 
 	sub.queue(key)
 
+	sawmill.Debug("thread started", sawmill.Fields{
+		"key": key,
+	})
+
 	return nil
 }
 
@@ -168,6 +173,19 @@ func (sub *Subscriber) deleteActiveThread(key ThreadKey) {
 	defer sub.mutex().Unlock()
 
 	if offset, ok := sub.Active[key]; ok {
+		sub.Inactive[key] = newInactiveThread(offset)
+		delete(sub.Active, key)
+		sawmill.Debug("thread stopped", sawmill.Fields{
+			"key": key,
+		})
+	}
+}
+
+func (sub *Subscriber) deleteAllActiveThreads() {
+	sub.mutex().Lock()
+	defer sub.mutex().Unlock()
+
+	for key, offset := range sub.Active {
 		sub.Inactive[key] = newInactiveThread(offset)
 		delete(sub.Active, key)
 	}

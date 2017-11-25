@@ -12,7 +12,15 @@ import (
 
 const maxMessageLength = 3900
 
-func Parse(post dvach.Post) []string {
+// Parse HTML to Markdown
+func Parse(post dvach.Post) (msgs []string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			msgs = nil
+			err = fmt.Errorf("Reason: %v\nPost: %s", r, post.Comment)
+		}
+	}()
+
 	reader := strings.NewReader(post.Comment)
 	tokenizer := html.NewTokenizer(reader)
 
@@ -71,7 +79,7 @@ func Parse(post dvach.Post) []string {
 	}
 
 	reparted := repartition(lines)
-	msgs := make([]string, len(reparted))
+	msgs = make([]string, len(reparted))
 	fileCount := 0
 	files := len(post.Files)
 	for i, msg := range reparted {
@@ -103,7 +111,7 @@ func Parse(post dvach.Post) []string {
 		msgs = append(msgs, attach(post.Files[fileCount]))
 	}
 
-	return msgs
+	return
 }
 
 func attach(file dvach.File) string {

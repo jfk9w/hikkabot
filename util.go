@@ -39,39 +39,6 @@ func GetConfig() (*Config, error) {
 	return cfg, nil
 }
 
-func GetDomains(cfg *Config) *Domains {
-	filename := cfg.DBFilename
-	if len(cfg.DBFilename) > 0 {
-		data, err := ioutil.ReadFile(filename)
-		if err != nil {
-			sawmill.Warning("GetDomains", sawmill.Fields{
-				"filename": filename,
-				"err":      err.Error(),
-			})
-
-			return NewDomains(&cfg.DBFilename)
-		}
-
-		domains := make(map[DomainKey]*Domain)
-		err = json.Unmarshal(data, &domains)
-		if err != nil {
-			sawmill.Warning("GetDomains", sawmill.Fields{
-				"filename": filename,
-				"err":      err.Error(),
-			})
-
-			return NewDomains(&cfg.DBFilename)
-		}
-
-		return &Domains{
-			domains:  domains,
-			filename: &cfg.DBFilename,
-		}
-	}
-
-	return NewDomains(&cfg.DBFilename)
-}
-
 var logLevels = map[string]event.Level{
 	"debug":     event.Debug,
 	"dbg":       event.Dbg,
@@ -89,6 +56,7 @@ var logLevels = map[string]event.Level{
 	"emerg":     event.Emerg,
 }
 
+// InitLogging configures logging framework
 func InitLogging(config *Config) {
 	var level event.Level
 	if lvl, ok := logLevels[config.LogLevel]; ok {
@@ -105,6 +73,7 @@ func InitLogging(config *Config) {
 	sawmill.AddHandler("stdStreams", std)
 }
 
+// SignalHandler handles SIGTERM and SIGINT signals
 func SignalHandler() *sync.WaitGroup {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
@@ -113,7 +82,7 @@ func SignalHandler() *sync.WaitGroup {
 	wg.Add(1)
 	go func() {
 		<-signals
-		sawmill.Debug("Received exit signal")
+		sawmill.Debug("received exit signal")
 		wg.Done()
 	}()
 

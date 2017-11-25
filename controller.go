@@ -3,31 +3,36 @@ package main
 import (
 	"strings"
 
+	"github.com/jfk9w/hikkabot/service"
+	"github.com/jfk9w/hikkabot/util"
+
 	"github.com/jfk9w/hikkabot/dvach"
 	"github.com/jfk9w/hikkabot/telegram"
 	"github.com/phemmer/sawmill"
 )
 
+// Controller encapsulates all business logic
 type Controller struct {
 	bot      *telegram.BotAPI
 	client   *dvach.API
-	domains  *Domains
 	executor *Executor
-	stop     chan struct{}
-	done     chan struct{}
+	halt     util.Hook
+	done     util.Hook
 }
 
-func NewController(domains *Domains) *Controller {
+// NewController creates an empty controller
+func NewController() *Controller {
 	return &Controller{
-		domains: domains,
+		halt: util.NewHook(),
+		done: util.NewHook(),
 	}
 }
 
+// Init injects necessary dependencies
 func (svc *Controller) Init(bot *telegram.BotAPI, client *dvach.API) {
 	svc.bot = bot
 	svc.client = client
-	svc.domains.Init(bot, client)
-	svc.executor = NewExecutor(bot, svc.domains)
+	svc.executor = NewExecutor(bot)
 }
 
 var getUpdatesRequest = telegram.GetUpdatesRequest{
@@ -35,16 +40,16 @@ var getUpdatesRequest = telegram.GetUpdatesRequest{
 	AllowedUpdates: []string{"message"},
 }
 
+// Start the controller
 func (svc *Controller) Start() {
-	svc.bot.Start()
-	svc.domains.RunAll()
 
-	svc.stop = make(chan struct{}, 1)
-	svc.done = make(chan struct{}, 1)
+	svc.bot.Start()
+	service.Start()
+
 	go func() {
 		defer func() {
 			sawmill.Info("Controller.Stop")
-			svc.done <- unit
+			svc.done.Send()
 		}()
 
 		uc := svc.bot.GetUpdatesChan(getUpdatesRequest)
@@ -53,32 +58,36 @@ func (svc *Controller) Start() {
 			case u := <-uc:
 				msg := u.Message
 				if msg != nil {
-					chatId := msg.Chat.ID
+					chatID := msg.Chat.ID
 					cmd, params := svc.parseCommand(msg)
 					switch {
 					case len(cmd) > 0:
-						svc.executor.Run(chatId, cmd, params)
+						svc.executor.Run(chatID, cmd, params)
 
 					case msg.ReplyToMessage != nil:
 						svc.executor.OnReply(msg)
 					}
 				}
 
-			case <-svc.stop:
+			case <-svc.halt:
 				return
 			}
 		}
 	}()
 
-	sawmill.Info("Controller.Start")
+	sawmill.Notice("controller started")
 }
 
+// Stop the controller
 func (svc *Controller) Stop() {
-	svc.stop <- unit
-	<-svc.done
+
+	svc.halt.Send()
+	svc.done.Wait()
+
+	sawmill.Notice("controller stopped")
 
 	svc.bot.Stop(false)
-	svc.domains.Stop()
+	service.Stop()
 }
 
 func (svc *Controller) parseCommand(msg *telegram.Message) (string, []string) {

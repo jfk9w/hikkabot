@@ -28,10 +28,10 @@ var (
 )
 
 // Init service instance
-func Init(bot *telegram.BotAPI, dvach *dv.API, filename *string) {
+func Init(bot *telegram.BotAPI, dvach *dv.API, filename string) {
 	var persister *persister
-	if filename != nil {
-		persister = newPersister(*filename)
+	if len(filename) > 0 {
+		persister = newPersister(filename)
 		persister.init()
 	}
 
@@ -90,19 +90,7 @@ func Stop() {
 
 // Subscribe to a thread
 func Subscribe(chat telegram.ChatRef, board string, threadID string) {
-	key := FormatSubscriberKey(chat)
-
-	_mutex.Lock()
-	defer _mutex.Unlock()
-
-	sub := _subs[key]
-	if sub == nil {
-		sub = newSubscriber()
-		sub.init()
-
-		_subs[key] = sub
-	}
-
+	sub := subscriber(chat)
 	err := sub.newActiveThread(board, threadID)
 	if err != nil {
 		go onAlertAdministrators(chat,
@@ -115,6 +103,49 @@ func Subscribe(chat telegram.ChatRef, board string, threadID string) {
 	go onAlertAdministrators(chat,
 		"Subscription OK.\nChat: %s\nThread: %s",
 		chat.Key(), dv.FormatThreadURL(board, threadID))
+}
+
+// Unsubscribe chat from all threads
+func Unsubscribe(chat telegram.ChatRef) {
+	key := FormatSubscriberKey(chat)
+
+	_mutex.Lock()
+	defer _mutex.Unlock()
+
+	if sub, ok := _subs[key]; ok {
+		sub.deleteAllActiveThreads()
+		go onAlertAdministrators(chat,
+			"Subscriptions cleared.\nChat: %s",
+			chat.Key())
+	}
+}
+
+func subscriber(chat telegram.ChatRef) *Subscriber {
+	key := FormatSubscriberKey(chat)
+
+	_mutex.Lock()
+	defer _mutex.Unlock()
+
+	if sub, ok := _subs[key]; !ok {
+		sub = newSubscriber()
+		sub.init()
+		sub.start(func(board string, threadID string, offset int) (int, error) {
+			newOffset, err := onEvent(chat, board, threadID, offset)
+			if err != nil {
+				go onAlertAdministrators(chat,
+					"An error has occured. Subscription suspended.\nChat: %s\nThread: %s\nError: %s",
+					chat.Key(), dv.FormatThreadURL(board, threadID), err.Error())
+
+				return 0, err
+			}
+
+			return newOffset, nil
+		})
+
+		_subs[key] = sub
+	}
+
+	return _subs[key]
 }
 
 func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (int, error) {
@@ -132,10 +163,16 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 	resetGetThreadAttempts(key)
 
 	newOffset := offset
-	limit := util.MaxInt(maxPostsPerAlert, len(posts))
+	limit := util.MinInt(maxPostsPerAlert, len(posts))
 	for i := 0; i < limit; i++ {
 		post := posts[i]
-		msgs := html2md.Parse(post)
+		msgs, err := html2md.Parse(post)
+		if err != nil {
+			go onAlertAdministrators(chat, "Parsing post failed, skipping.\n%s", err.Error())
+			newOffset = post.NumInt() + 1
+			continue
+		}
+
 		for _, msg := range msgs {
 			done := util.NewHook()
 			var err error
@@ -176,6 +213,7 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 
 func onAlertAdministrators(chat telegram.ChatRef, pattern string, args ...interface{}) {
 	text := fmt.Sprintf(pattern, args...)
+
 	admins, err0 := _runtime.bot.GetChatAdministrators(chat)
 	if err0 != nil {
 		sawmill.Error("GetChatAdministrators: "+err0.Error(), sawmill.Fields{
@@ -185,30 +223,39 @@ func onAlertAdministrators(chat telegram.ChatRef, pattern string, args ...interf
 		return
 	}
 
-	for _, admin := range admins {
-		go _runtime.bot.SendMessage(telegram.SendMessageRequest{
-			Chat: telegram.ChatRef{
-				ID: telegram.ChatID(admin.ID),
-			},
-			Text: text,
-		}, func(resp *telegram.Response, err error) {
-			if err != nil {
-				sawmill.Error("SendMessage: "+err.Error(), sawmill.Fields{
-					"user": admin.ID,
-				})
-
-				return
-			}
-
-			if !resp.Ok {
-				sawmill.Error("SendMessage", sawmill.Fields{
-					"user":        admin.ID,
-					"errorCode":   resp.ErrorCode,
-					"description": resp.Description,
-				})
-			}
-		}, true)
+	if admins == nil {
+		notify(chat, text)
+		return
 	}
+
+	for _, admin := range admins {
+		notify(telegram.ChatRef{
+			ID: telegram.ChatID(admin.ID),
+		}, text)
+	}
+}
+
+func notify(chat telegram.ChatRef, text string) {
+	go _runtime.bot.SendMessage(telegram.SendMessageRequest{
+		Chat: chat,
+		Text: text,
+	}, func(resp *telegram.Response, err error) {
+		if err != nil {
+			sawmill.Error("notify failed: "+err.Error(), sawmill.Fields{
+				"user": chat.Key(),
+			})
+
+			return
+		}
+
+		if !resp.Ok {
+			sawmill.Error("notify failed", sawmill.Fields{
+				"user":        chat.Key(),
+				"errorCode":   resp.ErrorCode,
+				"description": resp.Description,
+			})
+		}
+	}, true)
 }
 
 func registerGetThreadAttempt(key ThreadKey) error {

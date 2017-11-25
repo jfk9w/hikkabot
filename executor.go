@@ -5,54 +5,55 @@ import (
 	"strconv"
 
 	"github.com/jfk9w/hikkabot/dvach"
+	"github.com/jfk9w/hikkabot/service"
 	"github.com/jfk9w/hikkabot/telegram"
 )
 
 type listener func(message *telegram.Message)
 
+// Executor service for user commands
 type Executor struct {
 	bot       *telegram.BotAPI
-	domains   *Domains
 	listeners map[string]listener
 }
 
-func NewExecutor(bot *telegram.BotAPI, domains *Domains) *Executor {
+// NewExecutor creates a new executor service
+func NewExecutor(bot *telegram.BotAPI) *Executor {
 	return &Executor{
 		bot:       bot,
-		domains:   domains,
 		listeners: make(map[string]listener),
 	}
 }
 
-func (svc *Executor) Run(chatId telegram.ChatID, cmd string, params []string) {
-	mgmt := telegram.ChatRef{ID: chatId}
-
+// Run user command
+func (svc *Executor) Run(chatID telegram.ChatID, cmd string, params []string) {
+	source := telegram.ChatRef{ID: chatID}
 	switch cmd {
 	case "/subscribe":
-		svc.subscribe(mgmt, params)
+		svc.subscribe(source, params)
 
 	case "/unsubscribe":
-		svc.unsubscribe(mgmt, params)
+		svc.unsubscribe(source, params)
 
 	case "/status":
 		svc.bot.SendMessage(telegram.SendMessageRequest{
-			Chat: mgmt,
+			Chat: source,
 			Text: "Я жив.",
 		}, nil, true)
 	}
 }
 
-func (svc *Executor) subscribe(mgmt telegram.ChatRef, params []string) {
+func (svc *Executor) subscribe(source telegram.ChatRef, params []string) {
 	switch len(params) {
 	case 0:
-		svc.ask(mgmt, func(resp *telegram.Response, err error) {
+		svc.ask(source, func(resp *telegram.Response, err error) {
 			if resp.Ok {
 				message := new(telegram.Message)
 				err = resp.Parse(message)
 				if err == nil {
 					svc.listen(message.ID, func(message *telegram.Message) {
 						threadLink := message.Text
-						svc.subscribe0(mgmt, nil, threadLink)
+						svc.subscribe0(source, nil, threadLink)
 					})
 				}
 			}
@@ -60,41 +61,54 @@ func (svc *Executor) subscribe(mgmt telegram.ChatRef, params []string) {
 
 	case 1:
 		threadLink := params[0]
-		svc.subscribe0(mgmt, nil, threadLink)
+		svc.subscribe0(source, nil, threadLink)
 
 	case 2:
 		threadLink := params[0]
 		channel := params[1]
-		svc.subscribe0(mgmt, &channel, threadLink)
+		svc.subscribe0(source, &channel, threadLink)
 	}
 }
 
-func (svc *Executor) subscribe0(mgmt telegram.ChatRef, channel *string, threadLink string) {
-	board, threadId, err := dvach.ParseThreadURL(threadLink)
+func (svc *Executor) subscribe0(source telegram.ChatRef, channel *string, threadLink string) {
+	board, threadID, err := dvach.ParseThreadURL(threadLink)
 	if err != nil {
 		svc.bot.SendMessage(telegram.SendMessageRequest{
-			Chat: mgmt,
+			Chat: source,
 			Text: fmt.Sprintf("Введена некорректная ссылка: %s", threadLink),
 		}, nil, true)
 
 		return
 	}
 
-	svc.domains.Subscribe(mgmt, channel, board, threadId)
-}
-
-func (svc *Executor) unsubscribe(mgmt telegram.ChatRef, params []string) {
-	var channel *string
-	if len(params) == 1 {
-		channel = &(params[0])
+	var chat telegram.ChatRef
+	if channel != nil {
+		chat = telegram.ChatRef{
+			Username: *channel,
+		}
+	} else {
+		chat = source
 	}
 
-	svc.domains.Unsubscribe(mgmt, channel)
+	service.Subscribe(chat, board, threadID)
 }
 
-func (svc *Executor) ask(mgmt telegram.ChatRef, onReply telegram.ResponseHandler) {
+func (svc *Executor) unsubscribe(source telegram.ChatRef, params []string) {
+	var chat telegram.ChatRef
+	if len(params) == 1 {
+		chat = telegram.ChatRef{
+			Username: params[0],
+		}
+	} else {
+		chat = source
+	}
+
+	service.Unsubscribe(chat)
+}
+
+func (svc *Executor) ask(source telegram.ChatRef, onReply telegram.ResponseHandler) {
 	svc.bot.SendMessage(telegram.SendMessageRequest{
-		Chat: mgmt,
+		Chat: source,
 		Text: "Введите ссылку на тред.",
 		ReplyMarkup: telegram.ForceReply{
 			ForceReply: true,
@@ -103,8 +117,8 @@ func (svc *Executor) ask(mgmt telegram.ChatRef, onReply telegram.ResponseHandler
 	}, onReply, true)
 }
 
-func (svc *Executor) listen(messageId telegram.MessageID, l listener) {
-	key := strconv.Itoa(int(messageId))
+func (svc *Executor) listen(messageID telegram.MessageID, l listener) {
+	key := strconv.Itoa(int(messageID))
 	svc.listeners[key] = l
 }
 
