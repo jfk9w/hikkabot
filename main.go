@@ -36,5 +36,5 @@ func main() {
 	SignalHandler().Wait()
 	ctl.Stop()
 
-	sawmill.Notice("Exit")
+	sawmill.Notice("exit")
 }

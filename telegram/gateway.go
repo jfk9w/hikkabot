@@ -130,12 +130,14 @@ func (svc *gateway) start() {
 		}
 	}()
 
-	sawmill.Info("gateway started")
+	sawmill.Notice("gateway started")
 }
 
 func (svc *gateway) stop() {
 	svc.halt.Send()
 	svc.done.Wait()
+
+	sawmill.Notice("gateway stopped")
 }
 
 func (svc *gateway) submit(request Request, handler ResponseHandler, urgent bool) {
