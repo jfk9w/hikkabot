@@ -7,8 +7,6 @@ import (
 	"strconv"
 )
 
-var unit struct{}
-
 func httpGetJSON(client *http.Client, url string, result interface{}) error {
 	resp, err := client.Get(url)
 	if err != nil {

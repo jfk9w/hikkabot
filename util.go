@@ -7,14 +7,12 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
+	"github.com/jfk9w/hikkabot/util"
 	"github.com/phemmer/sawmill"
 	"github.com/phemmer/sawmill/event"
 )
-
-var unit struct{}
 
 type Config struct {
 	Token      string `json:"token"`
@@ -74,17 +72,16 @@ func InitLogging(config *Config) {
 }
 
 // SignalHandler handles SIGTERM and SIGINT signals
-func SignalHandler() *sync.WaitGroup {
+func SignalHandler() util.Hook {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
 
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
+	hook := util.NewHook()
 	go func() {
 		<-signals
+		hook.Send()
 		sawmill.Debug("received exit signal")
-		wg.Done()
 	}()
 
-	return wg
+	return hook
 }

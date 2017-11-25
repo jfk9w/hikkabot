@@ -86,7 +86,7 @@ func (svc *Controller) Stop() {
 
 	sawmill.Notice("controller stopped")
 
-	svc.bot.Stop(false)
+	svc.bot.Stop()
 	service.Stop()
 }
 

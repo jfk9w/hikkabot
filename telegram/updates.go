@@ -2,6 +2,8 @@ package telegram
 
 import (
 	"time"
+
+	"github.com/jfk9w/hikkabot/util"
 	"github.com/phemmer/sawmill"
 )
 
@@ -9,8 +11,9 @@ type updates struct {
 	c       chan Update
 	gateway *gateway
 	request GetUpdatesRequest
-	stop0   chan struct{}
-	done    chan struct{}
+
+	halt util.Hook
+	done util.Hook
 }
 
 func (svc *updates) Channel() <-chan Update {
@@ -22,21 +25,20 @@ func newUpdates(gateway *gateway, base GetUpdatesRequest) *updates {
 		c:       make(chan Update, 20),
 		gateway: gateway,
 		request: base,
-		stop0:   make(chan struct{}, 1),
-		done:    make(chan struct{}, 1),
+		halt:    util.NewHook(),
+		done:    util.NewHook(),
 	}
 }
 
 func (svc *updates) start() {
 	go func() {
 		defer func() {
-			sawmill.Info("telegram.updates.stop")
-			svc.done <- unit
+			svc.done.Send()
 		}()
 
 		for {
 			select {
-			case <-svc.stop0:
+			case <-svc.halt:
 				return
 
 			default:
@@ -64,10 +66,12 @@ func (svc *updates) start() {
 		}
 	}()
 
-	sawmill.Info("telegram.updates.start")
+	sawmill.Notice("updates started")
 }
 
-func (svc *updates) stop() <-chan struct{} {
-	svc.stop0 <- unit
-	return svc.done
+func (svc *updates) stop() {
+	svc.halt.Send()
+	svc.done.Wait()
+
+	sawmill.Notice("updates stopped")
 }
