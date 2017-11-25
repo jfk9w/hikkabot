@@ -47,10 +47,7 @@ func (svc *Controller) Start() {
 	service.Start()
 
 	go func() {
-		defer func() {
-			sawmill.Info("Controller.Stop")
-			svc.done.Send()
-		}()
+		defer svc.done.Send()
 
 		uc := svc.bot.GetUpdatesChan(getUpdatesRequest)
 		for {
