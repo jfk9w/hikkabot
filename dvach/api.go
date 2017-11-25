@@ -9,7 +9,7 @@ import (
 )
 
 // Endpoint of `2ch.hk`
-const Endpoint = "https://2ch.hk/"
+const Endpoint = "https://2ch.hk"
 
 var (
 

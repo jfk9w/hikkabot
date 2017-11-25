@@ -2,12 +2,12 @@ package telegram
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
 
+	"github.com/jfk9w/hikkabot/util"
 	"github.com/phemmer/sawmill"
 )
 
@@ -66,16 +66,17 @@ const (
 type gateway struct {
 	client *http.Client
 	token  string
+
 	urgent chan DeferredRequest
 	queue  chan DeferredRequest
-	stop0  chan struct{}
-	choke  chan struct{}
-	done   chan struct{}
+
+	halt util.Hook
+	done util.Hook
 }
 
 func newGateway(client *http.Client, token string) *gateway {
 	if client == nil {
-		client = &http.Client{}
+		client = new(http.Client)
 	}
 
 	return &gateway{
@@ -83,9 +84,8 @@ func newGateway(client *http.Client, token string) *gateway {
 		token:  token,
 		urgent: make(chan DeferredRequest, 20),
 		queue:  make(chan DeferredRequest, 10000),
-		stop0:  make(chan struct{}, 1),
-		choke:  make(chan struct{}, 1),
-		done:   make(chan struct{}, 1),
+		halt:   util.NewHook(),
+		done:   util.NewHook(),
 	}
 }
 
@@ -93,16 +93,12 @@ func (svc *gateway) start() {
 	go func() {
 		ticker := time.NewTicker(60 * time.Millisecond)
 		defer func() {
-			svc.done <- unit
+			svc.done.Send()
 			ticker.Stop()
 		}()
 
 		for {
 			select {
-			case <-svc.choke:
-				sawmill.Info("telegram.gateway.choke")
-				return
-
 			case <-ticker.C:
 				select {
 				case r := <-svc.urgent:
@@ -128,28 +124,24 @@ func (svc *gateway) start() {
 				default:
 				}
 
-			case <-svc.stop0:
-				sawmill.Info("telegram.gateway.stop")
+			case <-svc.halt:
 				return
 			}
 		}
 	}()
 
-	sawmill.Info("telegram.gateway.start")
+	sawmill.Notice("gateway started")
 }
 
-func (svc *gateway) stop(choke bool) <-chan struct{} {
-	if choke {
-		svc.choke <- unit
-	} else {
-		svc.stop0 <- unit
-	}
+func (svc *gateway) stop() {
+	svc.halt.Send()
+	svc.done.Wait()
 
-	return svc.done
+	sawmill.Notice("gateway stopped")
 }
 
 func (svc *gateway) submit(request Request, handler ResponseHandler, urgent bool) {
-	sawmill.Debug("telegram.gateway.submit", sawmill.Fields{
+	sawmill.Debug("gateway submit", sawmill.Fields{
 		"request": request,
 		"urgent":  urgent,
 	})
@@ -161,10 +153,7 @@ func (svc *gateway) submit(request Request, handler ResponseHandler, urgent bool
 		c = svc.queue
 	}
 
-	c <- DeferredRequest{
-		request,
-		handler,
-	}
+	c <- DeferredRequest{request, handler}
 }
 
 func (svc *gateway) retryRequest(request Request, retries int) (*Response, error) {
@@ -180,12 +169,6 @@ func (svc *gateway) retryRequest(request Request, retries int) (*Response, error
 				timeout := time.Duration(resp.Parameters.RetryAfter)
 				if timeout > 0 {
 					time.Sleep(timeout * time.Second)
-					select {
-					case <-svc.choke:
-						return nil, errors.New(GatewayChoking)
-					default:
-						continue
-					}
 				}
 			}
 
@@ -198,12 +181,6 @@ func (svc *gateway) retryRequest(request Request, retries int) (*Response, error
 
 		retries--
 		time.Sleep(time.Second)
-		select {
-		case <-svc.choke:
-			return nil, errors.New(GatewayChoking)
-		default:
-			continue
-		}
 	}
 
 	return resp, err
@@ -211,10 +188,10 @@ func (svc *gateway) retryRequest(request Request, retries int) (*Response, error
 
 func (svc *gateway) makeRequest(request Request) (*Response, error) {
 	onSendFailed := func(err error) {
-		sawmill.Warning("telegram.gateway.makeRequest", sawmill.Fields{
+		sawmill.Warning("gateway request", sawmill.Fields{
 			"request.Method":     request.Method(),
 			"request.Parameters": request.Parameters(),
-			"err":                err,
+			"error":              err,
 		})
 	}
 
@@ -239,7 +216,7 @@ func (svc *gateway) makeRequest(request Request) (*Response, error) {
 		return nil, err
 	}
 
-	sawmill.Debug("telegram.gateway.makeRequest", sawmill.Fields{
+	sawmill.Debug("gateway request", sawmill.Fields{
 		"request.Method":       request.Method(),
 		"request.Parameters":   request.Parameters(),
 		"response.Ok":          response.Ok,
