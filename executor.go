@@ -26,24 +26,24 @@ func NewExecutor(bot *telegram.BotAPI) *Executor {
 }
 
 // Run user command
-func (svc *Executor) Run(chatID telegram.ChatID, cmd string, params []string) {
+func (svc *Executor) Run(userID telegram.UserID, chatID telegram.ChatID, cmd string, params []string) {
 	source := telegram.ChatRef{ID: chatID}
 	switch cmd {
 	case "/subscribe":
-		svc.subscribe(source, params)
+		svc.subscribe(userID, source, params)
 
 	case "/unsubscribe":
-		svc.unsubscribe(source, params)
+		svc.unsubscribe(userID, source, params)
 
 	case "/status":
 		svc.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: source,
-			Text: "Я жив.",
+			Text: "#info\nWhile you're dying I'll be still alive\nAnd when you're dead I will be still alive\nStill alive\nS T I L L A L I V E",
 		}, nil, true)
 	}
 }
 
-func (svc *Executor) subscribe(source telegram.ChatRef, params []string) {
+func (svc *Executor) subscribe(userID telegram.UserID, source telegram.ChatRef, params []string) {
 	switch len(params) {
 	case 0:
 		svc.ask(source, func(resp *telegram.Response, err error) {
@@ -53,7 +53,7 @@ func (svc *Executor) subscribe(source telegram.ChatRef, params []string) {
 				if err == nil {
 					svc.listen(message.ID, func(message *telegram.Message) {
 						threadLink := message.Text
-						svc.subscribe0(source, nil, threadLink)
+						svc.subscribe0(userID, source, nil, threadLink)
 					})
 				}
 			}
@@ -61,21 +61,21 @@ func (svc *Executor) subscribe(source telegram.ChatRef, params []string) {
 
 	case 1:
 		threadLink := params[0]
-		svc.subscribe0(source, nil, threadLink)
+		svc.subscribe0(userID, source, nil, threadLink)
 
 	case 2:
 		threadLink := params[0]
 		channel := params[1]
-		svc.subscribe0(source, &channel, threadLink)
+		svc.subscribe0(userID, source, &channel, threadLink)
 	}
 }
 
-func (svc *Executor) subscribe0(source telegram.ChatRef, channel *string, threadLink string) {
+func (svc *Executor) subscribe0(userID telegram.UserID, source telegram.ChatRef, channel *string, threadLink string) {
 	board, threadID, err := dvach.ParseThreadURL(threadLink)
 	if err != nil {
 		svc.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: source,
-			Text: fmt.Sprintf("Invalid thread URL: %s", threadLink),
+			Text: fmt.Sprintf("#info\nInvalid thread URL: %s", threadLink),
 		}, nil, true)
 
 		return
@@ -90,10 +90,10 @@ func (svc *Executor) subscribe0(source telegram.ChatRef, channel *string, thread
 		chat = source
 	}
 
-	if err = service.CheckAccess(source, chat); err != nil {
+	if err = service.CheckAccess(userID, chat); err != nil {
 		svc.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: source,
-			Text: "Operation forbidden. Reason: " + err.Error(),
+			Text: "#info\nOperation forbidden. Reason: " + err.Error(),
 		}, nil, true)
 
 		return
@@ -102,7 +102,7 @@ func (svc *Executor) subscribe0(source telegram.ChatRef, channel *string, thread
 	service.Subscribe(chat, board, threadID)
 }
 
-func (svc *Executor) unsubscribe(source telegram.ChatRef, params []string) {
+func (svc *Executor) unsubscribe(userID telegram.UserID, source telegram.ChatRef, params []string) {
 	var chat telegram.ChatRef
 	if len(params) == 1 {
 		chat = telegram.ChatRef{
@@ -112,10 +112,10 @@ func (svc *Executor) unsubscribe(source telegram.ChatRef, params []string) {
 		chat = source
 	}
 
-	if err := service.CheckAccess(source, chat); err != nil {
+	if err := service.CheckAccess(userID, chat); err != nil {
 		svc.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: source,
-			Text: "Operation forbidden. Reason: " + err.Error(),
+			Text: "#info\nOperation forbidden. Reason: " + err.Error(),
 		}, nil, true)
 
 		return
