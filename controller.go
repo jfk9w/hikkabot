@@ -56,10 +56,11 @@ func (svc *Controller) Start() {
 				msg := u.Message
 				if msg != nil {
 					chatID := msg.Chat.ID
+					userID := msg.From.ID
 					cmd, params := svc.parseCommand(msg)
 					switch {
 					case len(cmd) > 0:
-						svc.executor.Run(chatID, cmd, params)
+						svc.executor.Run(userID, chatID, cmd, params)
 
 					case msg.ReplyToMessage != nil:
 						svc.executor.OnReply(msg)

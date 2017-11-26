@@ -168,6 +168,10 @@ func (svc *gateway) retryRequest(request Request, retries int) (*Response, error
 			if resp.Parameters != nil {
 				timeout := time.Duration(resp.Parameters.RetryAfter)
 				if timeout > 0 {
+					sawmill.Warning("gateway sleeping", sawmill.Fields{
+						"timeout": timeout,
+					})
+
 					time.Sleep(timeout * time.Second)
 				}
 			}
