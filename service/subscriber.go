@@ -98,12 +98,8 @@ func (sub *Subscriber) start(alert alert) {
 }
 
 func (sub *Subscriber) enqueueAll() {
-	_mutex.RLock()
 	sub.mutex().RLock()
-	defer func() {
-		sub.mutex().RUnlock()
-		_mutex.RUnlock()
-	}()
+	defer sub.mutex().RUnlock()
 
 	for key := range sub.Active {
 		sub.queue(key)
