@@ -23,7 +23,7 @@ Available at [@h1kkabot](https://t.me/h1kkabot).
 
 ### Navigation and hashtags
 
-Navigation is built entirely upon hashtags. Every detected post number will be replaced by a similar hastag containing the post ID. You can click on any post hashtag and use standard Telegram search features.
+Navigation is built entirely upon hashtags. Every detected post number will be replaced by a similar hashtag. You can click on any post hashtag and use standard Telegram search features.
 
 At the beginning of each thread a message containing a hashtag `#thread`, a thread summary and the URL will be sent to the subscribed chat.
 
