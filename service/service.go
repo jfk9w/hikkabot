@@ -19,9 +19,9 @@ const (
 )
 
 var (
-	errGetThread   = errors.New("GetThread failed")
-	errSendMessage = errors.New("SendMessage failed")
-	errBadRequest  = errors.New("bad request")
+	errGetThread    = errors.New("GetThread failed")
+	errSendMessage  = errors.New("SendMessage failed")
+	errAccessDenied = errors.New("access denied")
 
 	_mutex   = new(sync.RWMutex)
 	_subs    = make(map[SubscriberKey]*Subscriber)
@@ -145,35 +145,26 @@ func Unsubscribe(chat telegram.ChatRef) {
 }
 
 // CheckAccess for operation
-func CheckAccess(userID telegram.UserID, chat telegram.ChatRef) error {
-	admins, err := _runtime.bot.GetChatAdministrators(chat)
-	sawmill.Info("check access", sawmill.Fields{
-		"user":           userID,
-		"chat":           chat.Key(),
-		"administrators": admins,
-		"error":          err,
-	})
-
-	if err != nil {
-		if err.Error() == telegram.ErrorBadRequest {
-			return errBadRequest
-		}
-	}
-
-	if admins == nil {
-		// probably fine
+func CheckAccess(caller telegram.UserID, chat telegram.ChatRef) error {
+	// Special case - private chat
+	if !chat.IsChannel() && int64(chat.ID) == int64(caller) {
 		return nil
 	}
 
+	admins, err := _runtime.bot.GetChatAdministrators(chat)
+	if err != nil {
+		return err
+	}
+
 	for _, admin := range admins {
-		if admin.ID == userID &&
+		if admin.ID == caller &&
 			(admin.Status == "creator" ||
 				admin.Status == "administrator" && admin.CanPostMessages) {
 			return nil
 		}
 	}
 
-	return errBadRequest
+	return errAccessDenied
 }
 
 func subscriber(chat telegram.ChatRef) *Subscriber {
