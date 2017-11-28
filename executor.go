@@ -30,9 +30,11 @@ func (svc *Executor) Run(userID telegram.UserID, chatID telegram.ChatID, cmd str
 	source := telegram.ChatRef{ID: chatID}
 	switch cmd {
 	case "/subscribe":
+	case "/sub":
 		svc.subscribe(userID, source, params)
 
 	case "/unsubscribe":
+	case "/unsub":
 		svc.unsubscribe(userID, source, params)
 
 	case "/status":
