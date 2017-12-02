@@ -39,14 +39,20 @@ func Parse(post dvach.Post) ([]string, error) {
 	messages := ctx.messages
 	attach := parseAttachments(post)
 
-	l := util.MinInt(len(messages), len(attach))
+	messagesLength := len(messages)
+	attachLength := len(attach)
+	l := util.MinInt(messagesLength, attachLength)
 	for i := 0; i < l; i++ {
 		messages[i] = attach[i] + "\n" + messages[i]
 	}
 
-	if messages != nil {
+	for i := messagesLength; i < attachLength; i++ {
+		messages = append(messages, attach[i])
+	}
+
+	if len(messages) > 0 {
 		id := "#P" + post.Num + " /"
-		if attach != nil {
+		if len(attach) > 0 {
 			id += " "
 		} else {
 			id += "\n"
@@ -59,6 +65,10 @@ func Parse(post dvach.Post) ([]string, error) {
 }
 
 func parseAttachments(post dvach.Post) []string {
+	if len(post.Files) == 0 {
+		return nil
+	}
+
 	attach := make([]string, len(post.Files))
 	for i, file := range post.Files {
 		attach[i] = "[(A)](" + file.URL() + ")"
