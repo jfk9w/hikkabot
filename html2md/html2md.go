@@ -45,7 +45,14 @@ func Parse(post dvach.Post) ([]string, error) {
 	}
 
 	if messages != nil {
-		messages[0] = "#P" + post.Num + " / " + messages[0]
+		id := "#P" + post.Num + " /"
+		if attach != nil {
+			id += " "
+		} else {
+			id += "\n"
+		}
+
+		messages[0] = id + messages[0]
 	}
 
 	return messages, nil
