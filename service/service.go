@@ -339,7 +339,7 @@ func registerSendMessageAttempt(key SubscriberKey) error {
 
 	attempts := _runtime.attemptsSendMessage[key]
 	attempts++
-	if attempts > maxGetThreadAttempts {
+	if attempts > maxSendMessageAttempts {
 		delete(_runtime.attemptsSendMessage, key)
 		return errSendMessage
 	}

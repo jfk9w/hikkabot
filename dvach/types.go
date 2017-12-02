@@ -24,7 +24,7 @@ type File struct {
 }
 
 func (f File) URL() string {
-	return fmt.Sprintf("%s/%s", Endpoint, f.Path)
+	return fmt.Sprintf("%s%s", Endpoint, f.Path)
 }
 
 type Post struct {

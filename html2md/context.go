@@ -76,7 +76,7 @@ func (ctx *context) start(token html.Token) {
 			break
 
 		default:
-			return
+			tag = none
 		}
 
 		ctx.tag = tag
@@ -173,7 +173,7 @@ func (ctx *context) end(token html.Token) error {
 		}
 
 		if !check {
-			err = ctx.errInvalidTag(token.Data)
+			err = fmt.Errorf("invalid tag: %s != %d", token.Data, ctx.tag)
 		}
 
 		ctx.writeTag()
@@ -181,10 +181,6 @@ func (ctx *context) end(token html.Token) error {
 	}
 
 	return err
-}
-
-func (ctx *context) errInvalidTag(tag string) error {
-	return fmt.Errorf("invalid tag: %s != %d", tag, ctx.tag)
 }
 
 func (ctx *context) dump() {
