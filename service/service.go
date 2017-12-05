@@ -247,7 +247,7 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 					return 0, err
 				}
 
-				return offset, nil
+				return post.NumInt(), nil
 			}
 
 			resetSendMessageAttempts(key)
