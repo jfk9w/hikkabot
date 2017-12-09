@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"golang.org/x/net/html"
 	"strings"
+
+	"golang.org/x/net/html"
 )
 
 type tagType int32
@@ -93,7 +94,7 @@ func (ctx *context) text(token html.Token) {
 		return
 
 	case link:
-		ctx.buf.WriteString(data)
+		ctx.buf.WriteString(escape(data))
 		return
 
 	default:

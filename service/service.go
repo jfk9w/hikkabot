@@ -199,8 +199,7 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 	key := FormatThreadKey(board, threadID)
 	posts, err := _runtime.dvach.GetThread(board, threadID, offset)
 	if err != nil {
-		err = registerGetThreadAttempt(key)
-		if err != nil {
+		if !registerGetThreadAttempt(key) {
 			return 0, err
 		}
 
@@ -242,8 +241,7 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 
 			key := FormatSubscriberKey(chat)
 			if err != nil {
-				err = registerSendMessageAttempt(key)
-				if err != nil {
+				if !registerSendMessageAttempt(key) {
 					return 0, err
 				}
 
@@ -310,7 +308,7 @@ func notify(chat telegram.ChatRef, text string) {
 	}, true)
 }
 
-func registerGetThreadAttempt(key ThreadKey) error {
+func registerGetThreadAttempt(key ThreadKey) bool {
 	_runtime.mutex.Lock()
 	defer _runtime.mutex.Unlock()
 
@@ -318,12 +316,12 @@ func registerGetThreadAttempt(key ThreadKey) error {
 	attempts++
 	if attempts > maxGetThreadAttempts {
 		delete(_runtime.attemptsGetThread, key)
-		return errGetThread
+		return false
 	}
 
 	_runtime.attemptsGetThread[key] = attempts
 
-	return nil
+	return true
 }
 
 func resetGetThreadAttempts(key ThreadKey) {
@@ -333,7 +331,7 @@ func resetGetThreadAttempts(key ThreadKey) {
 	delete(_runtime.attemptsGetThread, key)
 }
 
-func registerSendMessageAttempt(key SubscriberKey) error {
+func registerSendMessageAttempt(key SubscriberKey) bool {
 	_runtime.mutex.Lock()
 	defer _runtime.mutex.Unlock()
 
@@ -341,12 +339,12 @@ func registerSendMessageAttempt(key SubscriberKey) error {
 	attempts++
 	if attempts > maxSendMessageAttempts {
 		delete(_runtime.attemptsSendMessage, key)
-		return errSendMessage
+		return false
 	}
 
 	_runtime.attemptsSendMessage[key] = attempts
 
-	return nil
+	return true
 }
 
 func resetSendMessageAttempts(key SubscriberKey) {
