@@ -37,5 +37,9 @@ case "$CMD" in
 			echo "Not running"
 		fi
 		;;
+
+	"log")
+		tail -100f $BUILD/$LOG
+		;;
 		
 esac
