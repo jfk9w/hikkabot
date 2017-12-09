@@ -21,6 +21,8 @@ Available at [@h1kkabot](https://t.me/h1kkabot).
 | /unsubscribe channel\_name | Unsubscribe a channel from all threads. A `channel_name` must start with a `@`. |
 | /status | Check if the bot is alive. |
 
+For `/subscribe` and `/unsubscribe` commands shortcuts are available: `/sub` and `/unsub` respectively.
+
 ### Navigation and hashtags
 
 Navigation is built entirely upon hashtags. Every detected post number will be replaced by a similar hashtag. You can click on any post hashtag and use standard Telegram search features.
@@ -56,6 +58,9 @@ cp sample.conf build/app.conf
 # to run in background
 # logs are printed to build/log
 ./bot.sh start
+
+# tail build/log
+./bot.sh log
 
 # to stop background bot process
 ./bot.sh stop
