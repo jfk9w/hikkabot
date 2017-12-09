@@ -242,6 +242,16 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 			key := FormatSubscriberKey(chat)
 			if err != nil {
 				if !registerSendMessageAttempt(key) {
+					files := make([]string, len(post.Files))
+					for i, file := range post.Files {
+						files[i] = file.URL()
+					}
+
+					sawmill.Error("post sending error", sawmill.Fields{
+						"comment": post.Comment,
+						"files":   files,
+					})
+
 					return 0, err
 				}
 
