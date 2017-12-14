@@ -1,4 +1,4 @@
-package html2md
+package screen
 
 import (
 	"strings"
@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func Parse(post dvach.Post) ([]string, error) {
+func Parse(board string, post dvach.Post) ([]string, error) {
 	var (
 		tokenizer = html.NewTokenizer(strings.NewReader(post.Comment))
 		ctx       = newContext()
@@ -27,7 +27,7 @@ func Parse(post dvach.Post) ([]string, error) {
 			break
 
 		case html.TextToken:
-			ctx.text(token)
+			ctx.text(board, token)
 			break
 
 		case html.EndTagToken:
@@ -51,7 +51,7 @@ func Parse(post dvach.Post) ([]string, error) {
 	}
 
 	if len(messages) > 0 {
-		id := "#P" + post.Num + " /"
+		id := "#" + strings.ToUpper(board) + post.Num + " /"
 		if len(attach) > 0 {
 			id += " "
 		} else {
@@ -71,7 +71,7 @@ func parseAttachments(post dvach.Post) []string {
 
 	attach := make([]string, len(post.Files))
 	for i, file := range post.Files {
-		attach[i] = "[(A)](" + file.URL() + ")"
+		attach[i] = `<a href="` + escape(file.URL()) + `">[A]</a>`
 	}
 
 	return attach
