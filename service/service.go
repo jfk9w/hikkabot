@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sync"
 
 	dv "github.com/jfk9w/hikkabot/dvach"
@@ -195,6 +196,8 @@ func subscriber(chat telegram.ChatRef) *Subscriber {
 	return _subs[key]
 }
 
+var space = regexp.MustCompile(`\s`)
+
 func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (int, error) {
 	key := FormatThreadKey(board, threadID)
 	posts, err := _runtime.dvach.GetThread(board, threadID, offset)
@@ -220,6 +223,10 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 		}
 
 		for _, msg := range msgs {
+			if len(space.ReplaceAllString(msg, ``)) == 0 {
+				continue
+			}
+
 			done := util.NewHook()
 			var err error
 			_runtime.bot.SendMessage(telegram.SendMessageRequest{
