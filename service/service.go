@@ -3,10 +3,11 @@ package service
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sync"
 
 	dv "github.com/jfk9w/hikkabot/dvach"
-	"github.com/jfk9w/hikkabot/html2md"
+	"github.com/jfk9w/hikkabot/screen"
 	"github.com/jfk9w/hikkabot/telegram"
 	"github.com/jfk9w/hikkabot/util"
 	"github.com/phemmer/sawmill"
@@ -195,6 +196,8 @@ func subscriber(chat telegram.ChatRef) *Subscriber {
 	return _subs[key]
 }
 
+var space = regexp.MustCompile(`\s`)
+
 func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (int, error) {
 	key := FormatThreadKey(board, threadID)
 	posts, err := _runtime.dvach.GetThread(board, threadID, offset)
@@ -212,7 +215,7 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 	limit := util.MinInt(maxPostsPerAlert, len(posts))
 	for i := 0; i < limit; i++ {
 		post := posts[i]
-		msgs, err := html2md.Parse(post)
+		msgs, err := screen.Parse(board, post)
 		if err != nil {
 			go onAlertAdministrators(chat, "Parsing post failed, skipping.\n%s", err.Error())
 			newOffset = post.NumInt() + 1
@@ -220,12 +223,16 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 		}
 
 		for _, msg := range msgs {
+			if len(space.ReplaceAllString(msg, ``)) == 0 {
+				continue
+			}
+
 			done := util.NewHook()
 			var err error
 			_runtime.bot.SendMessage(telegram.SendMessageRequest{
 				Chat:                chat,
 				Text:                msg,
-				ParseMode:           telegram.Markdown,
+				ParseMode:           telegram.HTML,
 				DisableNotification: true,
 			}, func(resp *telegram.Response, err0 error) {
 				if err0 != nil {

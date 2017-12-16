@@ -1,28 +1,17 @@
-package html2md
+package screen
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
-type tagType int32
-
-var (
-	errInvalidDepth = errors.New("invalid depth")
-
-	replacer = strings.NewReplacer(
-		`*`, `\*`,
-		`_`, `\_`,
-	)
-)
+type tagType int8
 
 const (
-	messageLengthSoftLimit = 3700
-	messageLengthHardLimit = 3800
+	messageLengthSoftLimit = 3800
+	messageLengthHardLimit = 3900
 
 	none tagType = iota
 	bold
@@ -48,7 +37,7 @@ func newContext() *context {
 
 func (ctx *context) start(token html.Token) {
 	if token.Data == "br" {
-		ctx.buf.WriteRune('\n')
+		ctx.buf.WriteString("\n")
 		return
 	}
 
@@ -57,13 +46,11 @@ func (ctx *context) start(token html.Token) {
 
 		switch token.Data {
 		case "strong":
-			ctx.buf.WriteRune('*')
 			tag = bold
 			break
 
 		case "em":
 		case "span":
-			ctx.buf.WriteRune('_')
 			tag = italic
 			break
 
@@ -81,29 +68,27 @@ func (ctx *context) start(token html.Token) {
 		}
 
 		ctx.tag = tag
+		ctx.startTag()
 	}
 
 	ctx.depth++
 }
 
-func (ctx *context) text(token html.Token) {
+func (ctx *context) text(board string, token html.Token) {
 	data := token.Data
 	switch ctx.tag {
 	case reply:
-		ctx.buf.WriteString("#P" + data[2:])
-		return
-
-	case link:
-		ctx.buf.WriteString(escape(data))
+		ctx.write(escape("#" + strings.ToUpper(board) + data[2:]))
 		return
 
 	default:
 		ctx.write(escape(data))
+		return
 	}
 }
 
 func escape(data string) string {
-	return replacer.Replace(data)
+	return html.EscapeString(data)
 }
 
 func (ctx *context) write(data string) {
@@ -112,9 +97,8 @@ func (ctx *context) write(data string) {
 	}
 
 	length := ctx.length + len(data)
-	var current, remainder string
 	if length < messageLengthSoftLimit {
-		ctx.buf.WriteString(data)
+		ctx.writeSafe(data)
 		return
 	}
 
@@ -122,14 +106,16 @@ func (ctx *context) write(data string) {
 	splitWord := -1
 	for i, word := range words {
 		wl := len(word)
-		if ctx.length+wl < messageLengthSoftLimit {
-			ctx.length++
+		total := ctx.length
+		if total+wl < messageLengthSoftLimit {
+			total += wl
 			splitWord = i
 		} else {
 			break
 		}
 	}
 
+	var current, remainder string
 	if splitWord == -1 && length > messageLengthHardLimit {
 		split := messageLengthHardLimit - ctx.length + 1
 		current = data[:split]
@@ -140,65 +126,58 @@ func (ctx *context) write(data string) {
 		remainder = strings.Join(words[splitWord:], " ")
 	}
 
-	ctx.buf.WriteString(current)
+	ctx.writeSafe(current)
 	ctx.dump()
 	ctx.write(remainder)
 }
 
-func (ctx *context) end(token html.Token) error {
+func (ctx *context) writeSafe(data string) {
+	ctx.buf.WriteString(data)
+	ctx.length += len(data)
+}
+
+func (ctx *context) end(token html.Token) {
 	ctx.depth--
 	if ctx.depth < 0 {
 		ctx.depth = 0
-		return errInvalidDepth
+		return
 	}
 
-	var err error
 	if ctx.depth == 0 {
-		var check bool
-		switch token.Data {
-		case "strong":
-			check = ctx.tag == bold
-			break
-
-		case "em":
-		case "span":
-			check = ctx.tag == italic
-			break
-
-		case "a":
-			check = ctx.tag == reply || ctx.tag == link
-			break
-
-		default:
-			check = ctx.tag == none
-		}
-
-		if !check {
-			err = fmt.Errorf("invalid tag: %s != %d", token.Data, ctx.tag)
-		}
-
-		ctx.writeTag()
+		ctx.endTag()
 		ctx.tag = none
 	}
-
-	return err
 }
 
 func (ctx *context) dump() {
-	ctx.writeTag()
+	ctx.endTag()
 	ctx.messages = append(ctx.messages, ctx.buf.String())
 	ctx.buf = bytes.Buffer{}
 	ctx.length = 0
-	ctx.writeTag()
+	ctx.startTag()
 }
 
-func (ctx *context) writeTag() {
-	if ctx.tag == bold {
-		ctx.buf.WriteRune('*')
-		ctx.length++
-	} else if ctx.tag == italic {
-		ctx.buf.WriteRune('_')
-		ctx.length++
+func (ctx *context) startTag() {
+	switch ctx.tag {
+	case bold:
+		ctx.writeSafe("<strong>")
+		return
+
+	case italic:
+		ctx.writeSafe("<em>")
+		return
+	}
+}
+
+func (ctx *context) endTag() {
+	switch ctx.tag {
+	case bold:
+		ctx.writeSafe("</strong>")
+		return
+
+	case italic:
+		ctx.writeSafe("</em>")
+		return
 	}
 }
 
