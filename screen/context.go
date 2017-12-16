@@ -76,10 +76,14 @@ func (ctx *context) start(token html.Token) {
 
 func (ctx *context) text(board string, token html.Token) {
 	data := token.Data
-	if ctx.tag == reply {
-		ctx.write("#" + strings.ToUpper(board) + data[2:])
-	} else {
-		ctx.write(data)
+	switch ctx.tag {
+	case reply:
+		ctx.write(escape("#" + strings.ToUpper(board) + data[2:]))
+		return
+
+	default:
+		ctx.write(escape(data))
+		return
 	}
 }
 
@@ -91,8 +95,6 @@ func (ctx *context) write(data string) {
 	if data == "" {
 		return
 	}
-
-	data = escape(data)
 
 	length := ctx.length + len(data)
 	if length < messageLengthSoftLimit {
@@ -125,10 +127,14 @@ func (ctx *context) write(data string) {
 		remainder = strings.Join(words[splitWord:], " ")
 	}
 
-	ctx.length += len(current)
-	ctx.buf.WriteString(current)
+	ctx.writeSafe(current)
 	ctx.dump()
 	ctx.write(remainder)
+}
+
+func (ctx *context) writeSafe(data string) {
+	ctx.buf.WriteString(data)
+	ctx.length += len(data)
 }
 
 func (ctx *context) end(token html.Token) {
@@ -153,22 +159,26 @@ func (ctx *context) dump() {
 }
 
 func (ctx *context) startTag() {
-	if ctx.tag == bold {
-		ctx.buf.WriteString("<strong>")
-		ctx.length += 8
-	} else if ctx.tag == italic {
-		ctx.buf.WriteString("<em>")
-		ctx.length += 4
+	switch ctx.tag {
+	case bold:
+		ctx.writeSafe("<strong>")
+		return
+
+	case italic:
+		ctx.writeSafe("<em>")
+		return
 	}
 }
 
 func (ctx *context) endTag() {
-	if ctx.tag == bold {
-		ctx.buf.WriteString("</strong>")
-		ctx.length += 9
-	} else if ctx.tag == italic {
-		ctx.buf.WriteString("</em>")
-		ctx.length += 5
+	switch ctx.tag {
+	case bold:
+		ctx.writeSafe("</strong>")
+		return
+
+	case italic:
+		ctx.writeSafe("</em>")
+		return
 	}
 }
 
