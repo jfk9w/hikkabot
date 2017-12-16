@@ -2,22 +2,16 @@ package screen
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
-type tagType int32
-
-var (
-	errInvalidDepth = errors.New("invalid depth")
-)
+type tagType int8
 
 const (
 	messageLengthSoftLimit = 3800
-	messageLengthHardLimit = 4000
+	messageLengthHardLimit = 3900
 
 	none tagType = iota
 	bold
@@ -82,17 +76,10 @@ func (ctx *context) start(token html.Token) {
 
 func (ctx *context) text(board string, token html.Token) {
 	data := token.Data
-	switch ctx.tag {
-	case reply:
-		ctx.buf.WriteString("#" + strings.ToUpper(board) + data[2:])
-		return
-
-	case link:
-		ctx.buf.WriteString(escape(data))
-		return
-
-	default:
-		ctx.write(escape(data))
+	if ctx.tag == reply {
+		ctx.write("#" + strings.ToUpper(board) + data[2:])
+	} else {
+		ctx.write(data)
 	}
 }
 
@@ -104,6 +91,8 @@ func (ctx *context) write(data string) {
 	if data == "" {
 		return
 	}
+
+	data = escape(data)
 
 	length := ctx.length + len(data)
 	if length < messageLengthSoftLimit {
@@ -142,43 +131,17 @@ func (ctx *context) write(data string) {
 	ctx.write(remainder)
 }
 
-func (ctx *context) end(token html.Token) error {
+func (ctx *context) end(token html.Token) {
 	ctx.depth--
 	if ctx.depth < 0 {
 		ctx.depth = 0
-		return errInvalidDepth
+		return
 	}
 
-	var err error
 	if ctx.depth == 0 {
-		var check bool
-		switch token.Data {
-		case "strong":
-			check = ctx.tag == bold
-			break
-
-		case "em":
-		case "span":
-			check = ctx.tag == italic
-			break
-
-		case "a":
-			check = ctx.tag == reply || ctx.tag == link
-			break
-
-		default:
-			check = ctx.tag == none
-		}
-
-		if !check {
-			err = fmt.Errorf("invalid tag: %s != %d", token.Data, ctx.tag)
-		}
-
 		ctx.endTag()
 		ctx.tag = none
 	}
-
-	return err
 }
 
 func (ctx *context) dump() {
