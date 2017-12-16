@@ -98,8 +98,7 @@ func (ctx *context) write(data string) {
 
 	length := ctx.length + len(data)
 	if length < messageLengthSoftLimit {
-		ctx.length += len(data)
-		ctx.buf.WriteString(data)
+		ctx.writeSafe(data)
 		return
 	}
 
