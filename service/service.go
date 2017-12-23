@@ -217,7 +217,7 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 	limit := util.MinInt(dv.BatchPostCount, len(posts))
 	for i := 0; i < limit; i++ {
 		post := posts[i]
-		webms := _runtime.dvach.GetFiles(post)
+		webms := _runtime.dvach.GetFiles(post, false)
 		sawmill.Debug("sending post", sawmill.Fields{
 			"post":     post,
 			"chat":     chat.Key(),

@@ -16,16 +16,14 @@ import (
 )
 
 const (
-	aconvertThreshold  = 3
+	aconvertThreshold  = 10
 	maxAconvertRetries = 3
 )
 
 type WebMResult struct {
-	//Server   string `json:"server"`
-	//Filename string `json:"filename"`
-	//State    string `json:"state"`
-	Status string `json:"status"`
-	ID     string `json:"id""`
+	Server   string `json:"server"`
+	Filename string `json:"filename"`
+	State    string `json:"state"`
 }
 
 type WebmCache struct {
@@ -133,32 +131,31 @@ func (svc *WebmCache) convert(webm string, mp4 chan string) {
 		}
 
 		start := time.Now()
-		//resp, err := svc.client.PostForm(
-		//	"https://s17.aconvert.com/convert/convert-batch.php",
-		//	url.Values{
-		//		"file":              {webm},
-		//		"targetformat":      {"mp4"},
-		//		"videooptiontype":   {"1"},
-		//		"videosizetype":     {"640x480"},
-		//		"customvideowidth":  {},
-		//		"customvideoheight": {},
-		//		"videobitratetype":  {"384k"},
-		//		"custombitrate":     {},
-		//		"frameratetype":     {"23.976"},
-		//		"customframerate":   {},
-		//		"videoaspect":       {"0"},
-		//		"code":              {"81000"},
-		//		"filelocation":      {"online"},
-		//	},
-		//)
+		var server int
+		if start.Second()%2 == 0 {
+			server = 17
+		} else {
+			server = 5
+		}
 
 		resp, err := svc.client.PostForm(
-			"https://www.freefileconvert.com/file/url",
+			fmt.Sprintf(
+				"https://s%d.aconvert.com/convert/convert-batch.php",
+				server),
 			url.Values{
-				"_token":        {"wa9T7pVG4stG0iZBdT3M2kE2oDW8vvoa0ji2lIIu"},
-				"url":           {webm},
-				"output_format": {"mp4"},
-				"progress_key":  {"5a3e98e63f329"},
+				"file":              {webm},
+				"targetformat":      {"mp4"},
+				"videooptiontype":   {"1"},
+				"videosizetype":     {"640x480"},
+				"customvideowidth":  {},
+				"customvideoheight": {},
+				"videobitratetype":  {"384k"},
+				"custombitrate":     {},
+				"frameratetype":     {"23.976"},
+				"customframerate":   {},
+				"videoaspect":       {"0"},
+				"code":              {"81000"},
+				"filelocation":      {"online"},
 			},
 		)
 
@@ -174,13 +171,14 @@ func (svc *WebmCache) convert(webm string, mp4 chan string) {
 			continue
 		}
 
-		if result.Status != "success" {
-			err = errors.New(result.Status)
+		if result.State != "SUCCESS" {
+			err = errors.New(result.State)
 			onRetry(err)
 			continue
 		}
 
-		link := fmt.Sprintf("https://www.freefileconvert.com/file/%s/download", result.ID)
+		link := fmt.Sprintf("https://s%s.aconvert.com/convert/p3r68-cdx67/%s",
+			result.Server, result.Filename)
 
 		onSuccess(link, time.Now().Sub(start).Nanoseconds())
 		return
