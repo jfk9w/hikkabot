@@ -110,6 +110,9 @@ func Subscribe(chat telegram.ChatRef, board string, threadID string) {
 			chat.Key(), dv.FormatThreadURL(board, threadID))
 
 		preview, err := _runtime.dvach.GetPost(board, threadID)
+
+		// try to ensure mp4
+		go _runtime.dvach.GetThread(board, threadID, 0)
 		if err != nil {
 			return
 		}

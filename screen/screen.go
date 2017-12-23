@@ -1,16 +1,10 @@
 package screen
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
-	"sync"
 
 	"github.com/jfk9w/hikkabot/dvach"
 	"github.com/jfk9w/hikkabot/util"
-	"github.com/phemmer/sawmill"
 	"golang.org/x/net/html"
 )
 
@@ -75,79 +69,10 @@ func parseAttachments(post dvach.Post) []string {
 		return nil
 	}
 
-	wg := new(sync.WaitGroup)
-	urls := make([]string, len(post.Files))
+	attach := make([]string, len(post.Files))
 	for i, file := range post.Files {
-		u := file.URL()
-		n := i
-		if strings.HasSuffix(strings.ToLower(u), ".webm") {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-
-				resp, err := http.PostForm(
-					"https://s17.aconvert.com/convert/convert-batch.php",
-					url.Values{
-						"file":              {u},
-						"targetformat":      {"mp4"},
-						"videooptiontype":   {"0"},
-						"videosizetype":     {"0"},
-						"customvideowidth":  {},
-						"customvideoheight": {},
-						"videobitratetype":  {"0"},
-						"custombitrate":     {},
-						"frameratetype":     {"0"},
-						"customframerate":   {},
-						"videoaspect":       {"0"},
-						"code":              {"81000"},
-						"filelocation":      {"online"},
-					})
-
-				if err != nil {
-					sawmill.Error(err.Error(), sawmill.Fields{"url": u})
-					return
-				}
-
-				defer resp.Body.Close()
-
-				if resp.StatusCode != 200 {
-					sawmill.Error("webm error", sawmill.Fields{
-						"url":    u,
-						"status": resp.StatusCode,
-					})
-					return
-				}
-
-				result := new(WebMResult)
-				err = json.NewDecoder(resp.Body).Decode(result)
-				if err != nil {
-					sawmill.Error("webm json "+err.Error(), sawmill.Fields{"url": u})
-					return
-				}
-
-				sawmill.Info("webm response", sawmill.Fields{
-					"resp": result,
-				})
-
-				urls[n] = fmt.Sprintf(
-					"https://s%s.aconvert.com/convert/p3r68-cdx67/%s",
-					result.Server, result.Filename)
-			}()
-		}
+		attach[i] = `<a href="` + escape(file.URL()) + `">[A]</a>`
 	}
 
-	wg.Wait()
-
-	for i, url := range urls {
-		urls[i] = `<a href="` + escape(url) + `">[A]</a>`
-	}
-
-	return urls
-}
-
-type WebMResult struct {
-	Filename string `json:"filename"`
-	Ext      string `json:"ext"`
-	Server   string `json:"server"`
-	State    string `json:"state"`
+	return attach
 }
