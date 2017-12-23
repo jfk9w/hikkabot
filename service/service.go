@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	maxPostsPerAlert       = 20
-	maxGetThreadAttempts   = 10
+	maxGetThreadAttempts   = 5
 	maxSendMessageAttempts = 2
 )
 
@@ -215,9 +214,9 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 	resetGetThreadAttempts(key)
 
 	newOffset := offset
-	limit := util.MinInt(maxPostsPerAlert, len(posts))
+	limit := util.MinInt(dv.BatchPostCount, len(posts))
 	for i := 0; i < limit; i++ {
-		post := posts[i]
+		post := _runtime.dvach.GetFiles(posts[i])
 		msgs, err := screen.Parse(board, post)
 		if err != nil {
 			go onAlertAdministrators(chat, "Parsing post failed, skipping.\n%s", err.Error())
