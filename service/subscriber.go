@@ -11,7 +11,7 @@ import (
 
 const (
 	subscriberQueueSize = 15
-	subscriberTimeout   = 10 * time.Second
+	subscriberTimeout   = 20 * time.Second
 )
 
 var (

@@ -109,12 +109,24 @@ func Subscribe(chat telegram.ChatRef, board string, threadID string) {
 			chat.Key(), dv.FormatThreadURL(board, threadID))
 
 		preview, err := _runtime.dvach.GetPost(board, threadID)
-
-		// try to ensure mp4
-		go _runtime.dvach.GetThread(board, threadID, 0)
 		if err != nil {
+			sawmill.Warning("error getting preview", sawmill.Fields{
+				"error": err,
+			})
+
 			return
 		}
+
+		// try to ensure mp4
+		go func() {
+			posts, err := _runtime.dvach.GetThread(board, threadID, 0)
+			if err == nil {
+				sawmill.Info(fmt.Sprintf("ensuring webms for %d posts", len(posts)))
+				for _, post := range posts {
+					go _runtime.dvach.GetFiles(post, true)
+				}
+			}
+		}()
 
 		text := ""
 		if len(preview) > 0 {

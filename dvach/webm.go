@@ -1,7 +1,6 @@
 package dvach
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,27 +8,30 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/semaphore"
-
 	"github.com/jfk9w/hikkabot/util"
 	"github.com/phemmer/sawmill"
 )
 
 const (
-	aconvertThreshold  = 5
+	maxWorkers         = 7
 	maxAconvertRetries = 3
 )
 
-type WebMResult struct {
+type WebmResult struct {
 	Server   string `json:"server"`
 	Filename string `json:"filename"`
 	State    string `json:"state"`
 }
 
+type webmRequest struct {
+	url string
+	out chan string
+}
+
 type WebmCache struct {
 	client *http.Client
 	webms  map[string]chan string
-	sem    *semaphore.Weighted
+	queue  chan webmRequest
 	mu     *sync.Mutex
 	halt   util.Hook
 	done   util.Hook
@@ -39,10 +41,39 @@ func newWebmCache(client *http.Client) *WebmCache {
 	return &WebmCache{
 		client: client,
 		webms:  make(map[string]chan string),
-		sem:    semaphore.NewWeighted(aconvertThreshold),
+		queue:  make(chan webmRequest, 10000),
 		mu:     new(sync.Mutex),
 		halt:   util.NewHook(),
 		done:   util.NewHook(),
+	}
+}
+
+func (svc *WebmCache) Start() {
+	for i := 0; i <= maxWorkers; i++ {
+		go func(server int) {
+			sawmill.Info("webm worker started", sawmill.Fields{
+				"server": server,
+			})
+
+			defer func() {
+				sawmill.Info("webm worker stopped", sawmill.Fields{
+					"server": server,
+				})
+
+				svc.halt.Send()
+				svc.done.Send()
+			}()
+
+			for {
+				select {
+				case <-svc.halt:
+					return
+
+				case req := <-svc.queue:
+					svc.process(server, req)
+				}
+			}
+		}(3 + i*2)
 	}
 }
 
@@ -65,7 +96,10 @@ func (svc *WebmCache) Preload(webms []string) []chan string {
 		output[i] = mp4
 		svc.webms[webm] = mp4
 
-		go svc.convert(webm, mp4)
+		svc.queue <- webmRequest{
+			url: webm,
+			out: mp4,
+		}
 	}
 
 	return output
@@ -83,79 +117,75 @@ func (svc *WebmCache) Get(webm string) string {
 	return link
 }
 
-func (svc *WebmCache) convert(webm string, mp4 chan string) {
-	svc.sem.Acquire(context.TODO(), 1)
-	defer svc.sem.Release(1)
-
-	var lastErr error
-
-	onRetry := func(err error) {
-		lastErr = err
-		sawmill.Warning("webm conversion", sawmill.Fields{
-			"url":   webm,
-			"error": err,
-		})
-
-		time.Sleep(1 * time.Second)
-	}
-
+func (svc *WebmCache) process(server int, req webmRequest) {
+	webm, mp4 := req.url, req.out
+	var last error
 	onError := func(err error) {
 		mp4 <- webm
 		sawmill.Error("webm conversion error", sawmill.Fields{
-			"url":   webm,
-			"error": err,
+			"url":    webm,
+			"error":  err,
+			"server": server,
 		})
 	}
 
-	onSuccess := func(link string, time int64) {
+	onRetry := func(err error) {
+		last = err
+		sawmill.Warning("webm conversion", sawmill.Fields{
+			"url":    webm,
+			"error":  err,
+			"server": server,
+		})
+	}
+
+	onSuccess := func(link string, time float64) {
 		mp4 <- link
 		sawmill.Debug("webm conversion finished", sawmill.Fields{
-			"url":  webm,
-			"mp4":  link,
-			"time": time,
+			"url":    webm,
+			"mp4":    link,
+			"time":   time,
+			"server": server,
 		})
 	}
 
 	sawmill.Debug("webm conversion started", sawmill.Fields{
-		"url": webm,
+		"url":    webm,
+		"server": server,
 	})
 
 	for i := 0; i < maxAconvertRetries; i++ {
 		select {
 		case <-svc.halt:
+			sawmill.Debug("webm conversion interrupted", sawmill.Fields{
+				"url":    webm,
+				"server": server,
+			})
+
 			svc.halt.Send()
-			mp4 <- ""
 			return
 
 		default:
 		}
 
 		start := time.Now()
-		var server int
-		if start.Second()%2 == 0 {
-			server = 17
-		} else {
-			server = 5
-		}
-
 		resp, err := svc.client.PostForm(
 			fmt.Sprintf(
 				"https://s%d.aconvert.com/convert/convert-batch.php",
 				server),
 			url.Values{
-				"file":              {webm},
-				"targetformat":      {"mp4"},
-				"videooptiontype":   {"1"},
-				"videosizetype":     {"640x480"},
-				"customvideowidth":  {},
-				"customvideoheight": {},
-				"videobitratetype":  {"512k"},
-				"custombitrate":     {},
-				"frameratetype":     {"23.976"},
-				"customframerate":   {},
-				"videoaspect":       {"0"},
-				"code":              {"81000"},
-				"filelocation":      {"online"},
+				"file":            {webm},
+				"targetformat":    {"mp4"},
+				"videooptiontype": {"0"},
+				//				"videosizetype":     {"640x480"},
+				//				"customvideowidth":  {},
+				//				"customvideoheight": {},
+				//				"videobitratetype":  {"512k"},
+				//				"custombitrate":     {},
+				//				"frameratetype":     {"23.976"},
+				//				"customframerate":   {},
+				//				"videoaspect":       {"0"},
+				"code":         {"81000"},
+				"filelocation": {"online"},
 			},
 		)
 
@@ -164,7 +194,7 @@ func (svc *WebmCache) convert(webm string, mp4 chan string) {
 			continue
 		}
 
-		result := WebMResult{}
+		result := WebmResult{}
 		err = parseResponseJSON(resp, &result)
 		if err != nil {
 			onRetry(err)
@@ -180,26 +210,31 @@ func (svc *WebmCache) convert(webm string, mp4 chan string) {
 		link := fmt.Sprintf("https://s%s.aconvert.com/convert/p3r68-cdx67/%s",
 			result.Server, result.Filename)
 
-		onSuccess(link, time.Now().Sub(start).Nanoseconds())
+		onSuccess(link, time.Now().Sub(start).Seconds())
 		return
 	}
 
-	onError(lastErr)
+	onError(last)
 }
 
 func (svc *WebmCache) Dump() map[string]string {
 	svc.mu.Lock()
 	defer svc.mu.Unlock()
 
-	webms := make(map[string]string, len(svc.webms))
-	for webm, mp4 := range svc.webms {
-		link := <-mp4
-		if len(link) > 0 {
-			webms[webm] = link
-		}
+	svc.halt.Send()
+	for i := 0; i <= maxWorkers; i++ {
+		svc.done.Wait()
 	}
 
-	svc.halt.Send()
+	webms := make(map[string]string, len(svc.webms))
+	for webm, mp4 := range svc.webms {
+		select {
+		case link := <-mp4:
+			webms[webm] = link
+
+		default:
+		}
+	}
 
 	sawmill.Info("webm cache dumped")
 	return webms

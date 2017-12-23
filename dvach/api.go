@@ -14,7 +14,7 @@ import (
 const (
 	Endpoint       = "https://2ch.hk"
 	TypeWebM       = 6
-	BatchPostCount = 5
+	BatchPostCount = 20
 )
 
 var (
@@ -39,6 +39,14 @@ func NewAPI(client *http.Client) *API {
 	}
 }
 
+func (svc *API) Start() {
+	svc.webm.Start()
+}
+
+func (svc *API) Stop() {
+	svc.webm.Dump()
+}
+
 func (svc *API) GetThread(board string, threadID string, offset int) ([]Post, error) {
 	if offset <= 0 {
 		offset, _ = strconv.Atoi(threadID)
@@ -60,15 +68,6 @@ func (svc *API) GetThread(board string, threadID string, offset int) ([]Post, er
 
 	if err := parseResponseJSON(resp, &posts); err != nil {
 		return nil, err
-	}
-
-	limit := BatchPostCount * 2
-	for i, post := range posts {
-		if i == limit {
-			break
-		}
-
-		go svc.GetFiles(post, true)
 	}
 
 	return posts, nil
@@ -100,15 +99,15 @@ func (svc *API) GetFiles(post Post, writeLog bool) map[string]string {
 	webms := make(map[string]string)
 	for _, file := range post.Files {
 		if file.Type == TypeWebM {
-			if writeLog {
-				sawmill.Info("webm info", sawmill.Fields{
-					"url":      file.URL(),
-					"size":     file.Size,
-					"width":    file.Width,
-					"height":   file.Height,
-					"duration": file.Duration,
-				})
-			}
+			//			if writeLog {
+			//				sawmill.Info("webm info", sawmill.Fields{
+			//					"url":      file.URL(),
+			//					"size":     file.Size,
+			//					"width":    file.Width,
+			//					"height":   file.Height,
+			//					"duration": file.Duration,
+			//				})
+			//			}
 
 			webms[file.URL()] = svc.webm.Get(file.URL())
 		}
