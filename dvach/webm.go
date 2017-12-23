@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	aconvertThreshold  = 10
+	aconvertThreshold  = 5
 	maxAconvertRetries = 3
 )
 
@@ -149,7 +149,7 @@ func (svc *WebmCache) convert(webm string, mp4 chan string) {
 				"videosizetype":     {"640x480"},
 				"customvideowidth":  {},
 				"customvideoheight": {},
-				"videobitratetype":  {"384k"},
+				"videobitratetype":  {"512k"},
 				"custombitrate":     {},
 				"frameratetype":     {"23.976"},
 				"customframerate":   {},
