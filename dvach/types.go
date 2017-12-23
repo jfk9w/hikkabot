@@ -21,14 +21,9 @@ type File struct {
 	ThumbnailWidth  int    `json:"tn_width"`
 	Type            int    `json:"type"`
 	Width           int    `json:"width"`
-	url             string
 }
 
 func (f File) URL() string {
-	if len(f.url) > 0 {
-		return f.url
-	}
-
 	return fmt.Sprintf("%s%s", Endpoint, f.Path)
 }
 

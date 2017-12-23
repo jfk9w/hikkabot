@@ -24,7 +24,7 @@ func TestParse(t *testing.T) {
 	for _, post := range posts {
 		msgs, _ := Parse("tst", dvach.Post{
 			Comment: post,
-		})
+		}, map[string]string{})
 
 		for _, msg := range msgs {
 			done := util.NewHook()

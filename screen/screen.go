@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func Parse(board string, post dvach.Post) ([]string, error) {
+func Parse(board string, post dvach.Post, webms map[string]string) ([]string, error) {
 	var (
 		tokenizer = html.NewTokenizer(strings.NewReader(post.Comment))
 		ctx       = newContext()
@@ -37,7 +37,7 @@ func Parse(board string, post dvach.Post) ([]string, error) {
 
 	ctx.dump()
 	messages := ctx.messages
-	attach := parseAttachments(post)
+	attach := parseAttachments(post, webms)
 
 	messagesLength := len(messages)
 	attachLength := len(attach)
@@ -64,14 +64,19 @@ func Parse(board string, post dvach.Post) ([]string, error) {
 	return messages, nil
 }
 
-func parseAttachments(post dvach.Post) []string {
+func parseAttachments(post dvach.Post, webms map[string]string) []string {
 	if len(post.Files) == 0 {
 		return nil
 	}
 
 	attach := make([]string, len(post.Files))
 	for i, file := range post.Files {
-		attach[i] = `<a href="` + escape(file.URL()) + `">[A]</a>`
+		url := file.URL()
+		if mp4, ok := webms[url]; ok {
+			url = mp4
+		}
+
+		attach[i] = `<a href="` + escape(url) + `">[A]</a>`
 	}
 
 	return attach

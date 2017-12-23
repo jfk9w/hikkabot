@@ -16,6 +16,7 @@ func (s Hook) Send() {
 
 func (s Hook) Wait() {
 	<-s
+	s.Send()
 }
 
 func MinInt(a, b int) int {

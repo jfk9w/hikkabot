@@ -216,8 +216,16 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 	newOffset := offset
 	limit := util.MinInt(dv.BatchPostCount, len(posts))
 	for i := 0; i < limit; i++ {
-		post := _runtime.dvach.GetFiles(posts[i])
-		msgs, err := screen.Parse(board, post)
+		post := posts[i]
+		webms := _runtime.dvach.GetFiles(post)
+		sawmill.Debug("sending post", sawmill.Fields{
+			"post":     post,
+			"chat":     chat.Key(),
+			"board":    board,
+			"threadID": threadID,
+		})
+
+		msgs, err := screen.Parse(board, post, webms)
 		if err != nil {
 			go onAlertAdministrators(chat, "Parsing post failed, skipping.\n%s", err.Error())
 			newOffset = post.NumInt() + 1
