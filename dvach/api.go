@@ -95,20 +95,10 @@ func (svc *API) GetPost(board string, num string) ([]Post, error) {
 	return posts, nil
 }
 
-func (svc *API) GetFiles(post Post, writeLog bool) map[string]string {
+func (svc *API) GetFiles(post Post) map[string]string {
 	webms := make(map[string]string)
 	for _, file := range post.Files {
 		if file.Type == TypeWebM {
-			//			if writeLog {
-			//				sawmill.Info("webm info", sawmill.Fields{
-			//					"url":      file.URL(),
-			//					"size":     file.Size,
-			//					"width":    file.Width,
-			//					"height":   file.Height,
-			//					"duration": file.Duration,
-			//				})
-			//			}
-
 			webms[file.URL()] = svc.webm.Get(file.URL())
 		}
 	}

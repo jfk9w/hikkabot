@@ -117,17 +117,6 @@ func Subscribe(chat telegram.ChatRef, board string, threadID string) {
 			return
 		}
 
-		// try to ensure mp4
-		go func() {
-			posts, err := _runtime.dvach.GetThread(board, threadID, 0)
-			if err == nil {
-				sawmill.Info(fmt.Sprintf("ensuring webms for %d posts", len(posts)))
-				for _, post := range posts {
-					go _runtime.dvach.GetFiles(post, true)
-				}
-			}
-		}()
-
 		text := ""
 		if len(preview) > 0 {
 			text = fmt.Sprintf(
@@ -229,7 +218,7 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 	limit := util.MinInt(dv.BatchPostCount, len(posts))
 	for i := 0; i < limit; i++ {
 		post := posts[i]
-		webms := _runtime.dvach.GetFiles(post, false)
+		webms := _runtime.dvach.GetFiles(post)
 		sawmill.Debug("sending post", sawmill.Fields{
 			"post":     post,
 			"chat":     chat.Key(),
