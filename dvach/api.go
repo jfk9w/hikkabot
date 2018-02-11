@@ -6,10 +6,16 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+
+	"github.com/phemmer/sawmill"
 )
 
 // Endpoint of `2ch.hk`
-const Endpoint = "https://2ch.hk"
+const (
+	Endpoint       = "https://2ch.hk"
+	TypeWebM       = 6
+	BatchPostCount = 20
+)
 
 var (
 
@@ -19,6 +25,7 @@ var (
 
 type API struct {
 	client *http.Client
+	webm   *WebmCache
 }
 
 func NewAPI(client *http.Client) *API {
@@ -28,7 +35,16 @@ func NewAPI(client *http.Client) *API {
 
 	return &API{
 		client: client,
+		webm:   newWebmCache(client),
 	}
+}
+
+func (svc *API) Start() {
+	svc.webm.Start()
+}
+
+func (svc *API) Stop() {
+	svc.webm.Dump()
 }
 
 func (svc *API) GetThread(board string, threadID string, offset int) ([]Post, error) {
@@ -40,8 +56,17 @@ func (svc *API) GetThread(board string, threadID string, offset int) ([]Post, er
 		"%s/makaba/mobile.fcgi?task=get_thread&board=%s&thread=%s&num=%d",
 		Endpoint, board, threadID, offset)
 
+	sawmill.Debug("get thread", sawmill.Fields{
+		"url": endpoint,
+	})
+
 	posts := make([]Post, 0)
-	if err := httpGetJSON(svc.client, endpoint, &posts); err != nil {
+	resp, err := svc.client.Get(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := parseResponseJSON(resp, &posts); err != nil {
 		return nil, err
 	}
 
@@ -53,12 +78,32 @@ func (svc *API) GetPost(board string, num string) ([]Post, error) {
 		"%s/makaba/mobile.fcgi?task=get_post&board=%s&post=%s",
 		Endpoint, board, num)
 
+	sawmill.Debug("get post", sawmill.Fields{
+		"url": endpoint,
+	})
+
 	posts := make([]Post, 0)
-	if err := httpGetJSON(svc.client, endpoint, &posts); err != nil {
+	resp, err := svc.client.Get(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := parseResponseJSON(resp, &posts); err != nil {
 		return nil, err
 	}
 
 	return posts, nil
+}
+
+func (svc *API) GetFiles(post Post) map[string]string {
+	webms := make(map[string]string)
+	for _, file := range post.Files {
+		if file.Type == TypeWebM {
+			webms[file.URL()] = svc.webm.Get(file.URL())
+		}
+	}
+
+	return webms
 }
 
 var threadLinkRegexp = regexp.MustCompile(`((http|https):\/\/){0,1}2ch\.hk\/([a-z]+)\/res\/([0-9]+)\.html`)

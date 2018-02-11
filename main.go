@@ -31,10 +31,12 @@ func main() {
 
 	ctl := NewController()
 	ctl.Init(bot, client)
+	client.Start()
 	ctl.Start()
 
 	SignalHandler().Wait()
 	ctl.Stop()
+	client.Stop()
 
 	sawmill.Notice("exit")
 }

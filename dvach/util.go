@@ -7,19 +7,14 @@ import (
 	"strconv"
 )
 
-func httpGetJSON(client *http.Client, url string, result interface{}) error {
-	resp, err := client.Get(url)
-	if err != nil {
-		return err
-	}
-
+func parseResponseJSON(resp *http.Response, result interface{}) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return errors.New(strconv.Itoa(resp.StatusCode))
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(result)
+	err := json.NewDecoder(resp.Body).Decode(result)
 	if err != nil {
 		return err
 	}
