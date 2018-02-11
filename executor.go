@@ -29,12 +29,10 @@ func NewExecutor(bot *telegram.BotAPI) *Executor {
 func (svc *Executor) Run(userID telegram.UserID, chatID telegram.ChatID, cmd string, params []string) {
 	source := telegram.ChatRef{ID: chatID}
 	switch cmd {
-	case "/subscribe":
-	case "/sub":
+	case "/subscribe", "/sub":
 		svc.subscribe(userID, source, params)
 
-	case "/unsubscribe":
-	case "/unsub":
+	case "/unsubscribe", "/unsub":
 		svc.unsubscribe(userID, source, params)
 
 	case "/status":
