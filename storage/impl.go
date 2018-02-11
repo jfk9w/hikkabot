@@ -20,6 +20,10 @@ type impl struct {
 	db     *badger.DB
 }
 
+func NewStorage(config Config, db *badger.DB) T {
+	return &impl{config, db}
+}
+
 func on(acc AccountID, thr ThreadID) []byte {
 	return []byte(
 		prefixOn + path0 +
@@ -137,7 +141,7 @@ func (s *impl) SuspendAll(acc AccountID) error {
 			it := tx.NewIterator(opts)
 
 			keys := make([][]byte, 0)
-			prefix := []byte(acc.Key())
+			prefix := []byte(prefixOn + path0 + acc.Key())
 			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 				item := it.Item()
 				k := item.Key()
