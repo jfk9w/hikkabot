@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	prefixOn  = "on"
+	prefixOn  = "onn"
 	prefixOff = "off"
-	path0     = "$"
-	path1     = "#"
+	path0     = "!"
+	path1     = ":"
+	path2     = "/"
 )
 
 type impl struct {
@@ -27,8 +28,8 @@ func NewStorage(config Config, db *badger.DB) T {
 func on(acc AccountID, thr ThreadID) []byte {
 	return []byte(
 		prefixOn + path0 +
-			acc.Key() + path1 +
-			NewThreadKey(thr),
+			acc + path1 +
+			thr,
 	)
 }
 
@@ -37,8 +38,8 @@ func off(on []byte) []byte {
 	return []byte(prefixOff + path0 + ts[1])
 }
 
-func (s *impl) SelectAll() (State, error) {
-	state := make(map[AccountKey]map[ThreadKey]int)
+func (s *impl) DumpState() (State, error) {
+	state := make(map[AccountID]map[ThreadID]int)
 	if err := s.db.View(func(tx *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		it := tx.NewIterator(opts)
@@ -61,7 +62,7 @@ func (s *impl) SelectAll() (State, error) {
 			}
 
 			if _, ok := state[acc]; !ok {
-				state[acc] = make(map[ThreadKey]int)
+				state[acc] = make(map[ThreadID]int)
 			}
 
 			state[acc][thr] = offset
@@ -76,7 +77,7 @@ func (s *impl) SelectAll() (State, error) {
 }
 
 func (s *impl) Resume(acc AccountID, thr ThreadID) error {
-	offset := thr[1]
+	_, offset := ReadThreadID(thr)
 	_, err := strconv.Atoi(offset)
 	if err != nil {
 		return errors.Wrap(err, "invalid thread ID")
@@ -88,9 +89,15 @@ func (s *impl) Resume(acc AccountID, thr ThreadID) error {
 			_, err := tx.Get(k)
 			if err == badger.ErrKeyNotFound {
 				var v []byte
-				susp, err := tx.Get(off(k))
+				susp := off(k)
+				item, err := tx.Get(susp)
 				if err == nil {
-					v, err = susp.Value()
+					v, err = item.Value()
+					if err != nil {
+						return err
+					}
+
+					err = tx.Delete(susp)
 					if err != nil {
 						return err
 					}
@@ -141,7 +148,7 @@ func (s *impl) SuspendAll(acc AccountID) error {
 			it := tx.NewIterator(opts)
 
 			keys := make([][]byte, 0)
-			prefix := []byte(prefixOn + path0 + acc.Key())
+			prefix := []byte(prefixOn + path0 + acc)
 			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 				item := it.Item()
 				k := item.Key()
@@ -173,7 +180,7 @@ func (s *impl) SuspendAll(acc AccountID) error {
 	)
 }
 
-func (s *impl) IsActive(acc AccountID, thr ThreadID) (bool, error) {
+func (s *impl) IsActive(acc AccountID, thr AccountID) (bool, error) {
 	k := on(acc, thr)
 	var r bool
 	if err := s.db.View(func(tx *badger.Txn) error {

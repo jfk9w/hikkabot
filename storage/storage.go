@@ -8,20 +8,17 @@ import (
 )
 
 type (
-	AccountID = telegram.ChatRef
-	ThreadID  = [2]string
-
-	AccountKey = string
-	ThreadKey  = string
+	AccountID = string
+	ThreadID  = string
 
 	Config struct {
 		SubscriptionTTL time.Duration `json:"subscription_ttl"`
 	}
 
-	State = map[AccountKey]map[ThreadKey]int
+	State = map[AccountID]map[ThreadID]int
 
 	T interface {
-		SelectAll() (State, error)
+		DumpState() (State, error)
 		Resume(AccountID, ThreadID) error
 		Suspend(AccountID, ThreadID) error
 		SuspendAll(AccountID) error
@@ -30,32 +27,28 @@ type (
 	}
 )
 
-const (
-	threadKeySeparator = "/"
-)
-
-func NewThreadKey(id ThreadID) ThreadKey {
-	return id[0] + threadKeySeparator + id[1]
+func GetThreadID(board string, thread string) ThreadID {
+	return board + path2 + thread
 }
 
-func ParseThreadKey(key ThreadKey) ThreadID {
-	ts := strings.Split(key, threadKeySeparator)
-	return [2]string{ts[0], ts[1]}
+func ReadThreadID(id ThreadID) (string, string) {
+	ts := strings.Split(id, path2)
+	return ts[0], ts[1]
 }
 
-func NewAccountKey(id AccountID) AccountKey {
-	return id.Key()
+func GetAccountID(chat telegram.ChatRef) AccountID {
+	return chat.Key()
 }
 
-func ParseAccountKey(key AccountKey) AccountID {
-	if strings.HasPrefix(key, "@") {
+func ReadAccountID(id AccountID) telegram.ChatRef {
+	if strings.HasPrefix(id, "@") {
 		return telegram.ChatRef{
-			Username: key,
+			Username: id,
 		}
 	}
 
-	id := telegram.ParseChatID(key)
+	id0 := telegram.ParseChatID(id)
 	return telegram.ChatRef{
-		ID: id,
+		ID: id0,
 	}
 }
