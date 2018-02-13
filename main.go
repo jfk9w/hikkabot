@@ -24,7 +24,12 @@ func main() {
 
 	InitLogging(cfg)
 
-	bot := telegram.NewBotAPI(httpClient, cfg.Token)
+	bot, err := telegram.NewBotAPIWithClient(httpClient,
+		cfg.Token, telegram.GetUpdatesRequest{})
+	if err != nil {
+		panic(err)
+	}
+
 	client := dvach.NewAPI(httpClient)
 
 	service.Init(bot, client, cfg.DBFilename)

@@ -4,72 +4,68 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/jfk9w/hikkabot/util"
 )
 
 const (
-
-	// Endpoint of Telegram Bot API
-	Endpoint = "https://api.telegram.org"
-
-	// The query contains errors. In the event that a request was created using a form
-	// and contains user generated data, the user should be notified that the data must
-	// be corrected before the query is repeated.
+	Endpoint        = "https://api.telegram.org"
 	ErrorBadRequest = "400"
 )
 
 type BotAPI struct {
 	Me *User
 
-	updates *updates
-	gateway *gateway
+	ctx      *context
+	qcO, ucO chan<- DeferredRequest
+	cI       <-chan Update
+
+	hs [2]util.Handle
 }
 
-func NewBotAPI(client *http.Client, token string) *BotAPI {
-	if client == nil {
-		client = new(http.Client)
+func NewBotAPIWithClient(client *http.Client,
+	token string, updates GetUpdatesRequest) (*BotAPI, error) {
+
+	ctx := &context{client, token}
+	b := &BotAPI{
+		ctx: ctx,
 	}
 
-	return &BotAPI{
-		gateway: newGateway(client, token),
-	}
-}
-
-func (svc *BotAPI) Start() {
-	me, err := svc.GetMe()
+	_, err := b.GetMe()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	svc.Me = me
-	svc.gateway.start()
+	cI, hI := incoming(ctx, updates)
+	qcO, ucO, hO := outgoing(ctx)
+
+	b.cI = cI
+	b.qcO = qcO
+	b.ucO = ucO
+	b.hs = [2]util.Handle{hI, hO}
+
+	return b, nil
 }
 
-func (svc *BotAPI) GetUpdatesChan(updates GetUpdatesRequest) <-chan Update {
-	if svc.updates == nil {
-		svc.updates = newUpdates(svc.gateway, updates)
-		svc.updates.start()
+func (b *BotAPI) request(req Request) (*Response, error) {
+	return b.ctx.request(req)
+}
+
+func (b *BotAPI) GetUpdatesChan(updates GetUpdatesRequest) <-chan Update {
+	return b.cI
+}
+
+func (b *BotAPI) Stop() {
+	for _, h := range b.hs {
+		h.Ping()
 	}
 
-	return svc.updates.c
+	close(b.ucO)
+	close(b.qcO)
 }
 
-func (svc *BotAPI) Stop() {
-	if svc.updates != nil {
-		svc.updates.stop()
-	}
-
-	svc.gateway.stop()
-	return
-}
-
-func (svc *BotAPI) MakeRequest(r Request) (*Response, error) {
-	return svc.gateway.makeRequest(r)
-}
-
-// A simple method for testing your bot's auth token.
-// Requires no parameters. Returns basic information about the bot in form of a User object.
-func (svc *BotAPI) GetMe() (*User, error) {
-	resp, err := svc.MakeRequest(GenericRequest{
+func (b *BotAPI) GetMe() (*User, error) {
+	resp, err := b.request(GenericRequest{
 		method: "getMe",
 	})
 
@@ -77,30 +73,27 @@ func (svc *BotAPI) GetMe() (*User, error) {
 		return nil, err
 	}
 
-	result := new(User)
-	err = resp.Parse(result)
+	user := new(User)
+	err = resp.Parse(user)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	b.Me = user
+	return user, nil
 }
 
-// Use this method to send text messages. On success, the sent Message is returned.
-func (svc *BotAPI) SendMessage(r SendMessageRequest, handler ResponseHandler, urgent bool) {
-	svc.gateway.submit(r, handler, urgent)
+func (b *BotAPI) SendMessage(r SendMessageRequest, handler ResponseHandler, urgent bool) {
+	req := DeferredRequest{r, handler}
+	if urgent {
+		b.ucO <- req
+	} else {
+		b.qcO <- req
+	}
 }
 
-// Use this method to change the title of a chat. Titles can't be changed for private chats.
-// The bot must be an administrator in the chat for this to work
-// and must have the appropriate admin rights. Returns True on success.
-//
-// Note: In regular groups (non-supergroups),
-// this method will only work if the ‘All Members Are Admins’ setting is off in the target group.
-//
-// title - New chat title, 1-255 characters
-func (svc *BotAPI) SetChatTitle(chat ChatRef, title string) (*bool, error) {
-	resp, err := svc.MakeRequest(GenericRequest{
+func (b *BotAPI) SetChatTitle(chat ChatRef, title string) (*bool, error) {
+	resp, err := b.request(GenericRequest{
 		method: "setChatTitle",
 		params: map[string]string{
 			"chat_id": chat.Key(),
@@ -112,23 +105,20 @@ func (svc *BotAPI) SetChatTitle(chat ChatRef, title string) (*bool, error) {
 		return nil, err
 	}
 
-	result := new(bool)
-	err = resp.Parse(result)
+	isOk := new(bool)
+	err = resp.Parse(isOk)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return isOk, nil
 }
 
-// Use this method to get up to date information about the chat
-// (current name of the user for one-on-one conversations, current username
-// of a user, group or channel, etc.). Returns a Chat object on success.
-func (svc *BotAPI) GetChat(chat ChatRef) (*Chat, error) {
-	resp, err := svc.MakeRequest(GenericRequest{
+func (b *BotAPI) GetChat(ref ChatRef) (*Chat, error) {
+	resp, err := b.request(GenericRequest{
 		method: "getChat",
 		params: map[string]string{
-			"chat_id": chat.Key(),
+			"chat_id": ref.Key(),
 		},
 	})
 
@@ -136,21 +126,17 @@ func (svc *BotAPI) GetChat(chat ChatRef) (*Chat, error) {
 		return nil, err
 	}
 
-	result := new(Chat)
-	err = resp.Parse(result)
+	chat := new(Chat)
+	err = resp.Parse(chat)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return chat, nil
 }
 
-// Use this method to get a list of administrators in a chat.
-// On success, returns an Array of ChatMember objects that contains information
-// about all chat administrators except other bots. If the chat is a group
-// or a supergroup and no administrators were appointed, only the creator will be returned.
-func (svc *BotAPI) GetChatAdministrators(chat ChatRef) ([]ChatMember, error) {
-	resp, err := svc.MakeRequest(GenericRequest{
+func (b *BotAPI) GetChatAdministrators(chat ChatRef) ([]ChatMember, error) {
+	resp, err := b.request(GenericRequest{
 		method: "getChatAdministrators",
 		params: map[string]string{
 			"chat_id": chat.Key(),
@@ -161,19 +147,17 @@ func (svc *BotAPI) GetChatAdministrators(chat ChatRef) ([]ChatMember, error) {
 		return nil, err
 	}
 
-	result := make([]ChatMember, 0)
-	err = resp.Parse(&result)
+	cm := make([]ChatMember, 0)
+	err = resp.Parse(&cm)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return cm, nil
 }
 
-// Use this method to get information about a member of a chat.
-// Returns a ChatMember object on success.
-func (svc *BotAPI) GetChatMembers(chat ChatRef, user UserID) (*ChatMember, error) {
-	resp, err := svc.MakeRequest(GenericRequest{
+func (b *BotAPI) GetChatMembers(chat ChatRef, user UserID) (*ChatMember, error) {
+	resp, err := b.request(GenericRequest{
 		method: "getChatMember",
 		params: map[string]string{
 			"chat_id": chat.Key(),
@@ -189,11 +173,11 @@ func (svc *BotAPI) GetChatMembers(chat ChatRef, user UserID) (*ChatMember, error
 		return nil, fmt.Errorf("%d", resp.ErrorCode)
 	}
 
-	result := new(ChatMember)
-	err = resp.Parse(result)
+	cm := new(ChatMember)
+	err = resp.Parse(cm)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return cm, nil
 }

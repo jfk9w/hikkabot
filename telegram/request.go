@@ -29,38 +29,10 @@ func (r GenericRequest) Parameters() url.Values {
 	return p
 }
 
-// Use this method to receive incoming updates using long polling (wiki).
-// An Array of Update objects is returned.
 type GetUpdatesRequest struct {
-
-	// Identifier of the first update to be returned.
-	// Must be greater by one than the highest among the identifiers
-	// of previously received updates. By default, updates starting
-	// with the earliest unconfirmed update are returned.
-	// An update is considered confirmed as soon as getUpdates is called
-	// with an offset higher than its update_id.
-	// The negative offset can be specified to retrieve updates
-	// starting from -offset update from the end of the updates queue.
-	// All previous updates will forgotten.
-	Offset int
-
-	// Limits the number of updates to be retrieved. Values between 1—100 are accepted. Defaults to 100.
-	Limit int
-
-	// Timeout in seconds for long polling. Defaults to 0, i.e. usual short polling.
-	// Should be positive, short polling should be used for testing purposes only.
-	Timeout int
-
-	// List the types of updates you want your bot to receive.
-	// For example, specify [“message”, “edited_channel_post”, “callback_query”]
-	// to only receive updates of these types.
-	// See Update for a complete list of available update types.
-	// Specify an empty list to receive all updates regardless of type (default).
-	// If not specified, the previous setting will be used.
-	//
-	// Please note that this parameter doesn't affect updates created
-	// before the call to the getUpdates,
-	// so unwanted updates may be received for a short period of time.
+	Offset         int
+	Limit          int
+	Timeout        int
 	AllowedUpdates []string
 }
 
@@ -85,8 +57,6 @@ func (r GetUpdatesRequest) Parameters() url.Values {
 	return v
 }
 
-// Unique identifier for the target chat or
-// username of the target channel (in the format @channelusername)
 type ChatRef struct {
 	ID       ChatID `json:"id,omitempty"`
 	Username string `json:"username,omitempty`
@@ -125,27 +95,12 @@ const (
 )
 
 type SendMessageRequest struct {
-	Chat ChatRef
-
-	// Text of the message to be sent
-	Text string
-
-	// Send Markdown or HTML, if you want Telegram apps
-	// to show bold, italic, fixed-width text or inline URLs in your bot's message.
-	ParseMode string
-
-	// Disables link previews for links in this message
+	Chat                  ChatRef
+	Text                  string
+	ParseMode             string
 	DisableWebPagePreview bool
-
-	// Sends the message silently. Users will receive a notification with no sound.
-	DisableNotification bool
-
-	// If the message is a reply, ID of the original message
-	ReplyToMessageID MessageID
-
-	// Additional interface options.
-	// A JSON-serialized object for an inline keyboard, custom reply keyboard,
-	// instructions to remove reply keyboard or to force a reply from the user.
+	DisableNotification   bool
+	ReplyToMessageID      MessageID
 	ReplyMarkup
 }
 

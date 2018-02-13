@@ -43,7 +43,6 @@ var getUpdatesRequest = telegram.GetUpdatesRequest{
 // Start the controller
 func (svc *Controller) Start() {
 
-	svc.bot.Start()
 	service.Start()
 
 	go func() {
