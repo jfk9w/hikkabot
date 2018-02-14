@@ -161,7 +161,7 @@ func CheckAccess(caller telegram.UserID, chat telegram.ChatRef) error {
 	}
 
 	for _, admin := range admins {
-		if admin.ID == caller &&
+		if admin.User.ID == caller &&
 			(admin.Status == "creator" ||
 				admin.Status == "administrator" && admin.CanPostMessages) {
 			return nil
@@ -307,7 +307,7 @@ func onAlertAdministrators(chat telegram.ChatRef, pattern string, args ...interf
 			(admin.Status == "creator" ||
 				admin.Status == "administrator" && admin.CanPostMessages) {
 			notify(telegram.ChatRef{
-				ID: telegram.ChatID(admin.ID),
+				ID: telegram.ChatID(admin.User.ID),
 			}, text)
 		}
 	}

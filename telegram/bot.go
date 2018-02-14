@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	Endpoint        = "https://api.telegram.org"
-	ErrorBadRequest = "400"
+	Endpoint = "https://api.telegram.org"
 )
 
 type BotAPI struct {
