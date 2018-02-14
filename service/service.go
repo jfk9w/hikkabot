@@ -129,7 +129,7 @@ func Subscribe(chat telegram.ChatRef, board string, threadID string) {
 		_runtime.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: chat,
 			Text: text,
-		}, nil, true)
+		}, true, nil)
 	}()
 }
 
@@ -238,24 +238,12 @@ func onEvent(chat telegram.ChatRef, board string, threadID string, offset int) (
 				continue
 			}
 
-			done := util.NewHook()
-			var err error
-			_runtime.bot.SendMessage(telegram.SendMessageRequest{
+			_, err := _runtime.bot.SendMessageSync(telegram.SendMessageRequest{
 				Chat:                chat,
 				Text:                msg,
 				ParseMode:           telegram.HTML,
 				DisableNotification: true,
-			}, func(resp *telegram.Response, err0 error) {
-				if err0 != nil {
-					err = fmt.Errorf("unable to send message (%s)", err0.Error())
-				} else if !resp.Ok {
-					err = fmt.Errorf("unable to send message (%d, %s)", resp.ErrorCode, resp.Description)
-				}
-
-				done.Send()
 			}, false)
-
-			done.Wait()
 
 			key := FormatSubscriberKey(chat)
 			if err != nil {
@@ -314,10 +302,12 @@ func onAlertAdministrators(chat telegram.ChatRef, pattern string, args ...interf
 }
 
 func notify(chat telegram.ChatRef, text string) {
-	go _runtime.bot.SendMessage(telegram.SendMessageRequest{
-		Chat: chat,
-		Text: text,
-	}, func(resp *telegram.Response, err error) {
+	go func() {
+		resp, err := _runtime.bot.SendMessageSync(telegram.SendMessageRequest{
+			Chat: chat,
+			Text: text,
+		}, true)
+
 		if err != nil {
 			sawmill.Error("notify failed: "+err.Error(), sawmill.Fields{
 				"user": chat.Key(),
@@ -333,7 +323,7 @@ func notify(chat telegram.ChatRef, text string) {
 				"description": resp.Description,
 			})
 		}
-	}, true)
+	}()
 }
 
 func registerGetThreadAttempt(key ThreadKey) bool {

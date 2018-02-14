@@ -39,7 +39,7 @@ func (svc *Executor) Run(userID telegram.UserID, chatID telegram.ChatID, cmd str
 		svc.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: source,
 			Text: "#info\nWhile you're dying I'll be still alive\nAnd when you're dead I will be still alive\nStill alive\nS T I L L A L I V E",
-		}, nil, true)
+		}, true, nil)
 	}
 }
 
@@ -76,7 +76,7 @@ func (svc *Executor) subscribe0(userID telegram.UserID, source telegram.ChatRef,
 		svc.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: source,
 			Text: fmt.Sprintf("#info\nInvalid thread URL: %s", threadLink),
-		}, nil, true)
+		}, true, nil)
 
 		return
 	}
@@ -94,7 +94,7 @@ func (svc *Executor) subscribe0(userID telegram.UserID, source telegram.ChatRef,
 		svc.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: source,
 			Text: "#info\nOperation forbidden. Reason: " + err.Error(),
-		}, nil, true)
+		}, true, nil)
 
 		return
 	}
@@ -116,7 +116,7 @@ func (svc *Executor) unsubscribe(userID telegram.UserID, source telegram.ChatRef
 		svc.bot.SendMessage(telegram.SendMessageRequest{
 			Chat: source,
 			Text: "#info\nOperation forbidden. Reason: " + err.Error(),
-		}, nil, true)
+		}, true, nil)
 
 		return
 	}
@@ -132,7 +132,7 @@ func (svc *Executor) ask(source telegram.ChatRef, onReply telegram.ResponseHandl
 			ForceReply: true,
 			Selective:  true,
 		},
-	}, onReply, true)
+	}, true, onReply)
 }
 
 func (svc *Executor) listen(messageID telegram.MessageID, l listener) {

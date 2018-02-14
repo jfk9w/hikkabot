@@ -82,13 +82,32 @@ func (b *BotAPI) GetMe() (*User, error) {
 	return user, nil
 }
 
-func (b *BotAPI) SendMessage(r SendMessageRequest, handler ResponseHandler, urgent bool) {
+func (b *BotAPI) SendMessage(r SendMessageRequest, urgent bool, handler ResponseHandler) {
 	req := DeferredRequest{r, handler}
 	if urgent {
 		b.ucO <- req
 	} else {
 		b.qcO <- req
 	}
+}
+
+func (b *BotAPI) SendMessageSync(req SendMessageRequest, urgent bool) (*Response, error) {
+	var (
+		resp *Response
+		err  error
+	)
+
+	c := make(chan util.UnitType, 1)
+	handler := func(resp0 *Response, err0 error) {
+		resp = resp0
+		err = err0
+		c <- util.Unit
+	}
+
+	b.SendMessage(req, urgent, handler)
+	<-c
+
+	return resp, err
 }
 
 func (b *BotAPI) SetChatTitle(chat ChatRef, title string) (*bool, error) {
