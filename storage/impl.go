@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"fmt"
 	"github.com/dgraph-io/badger"
 	"github.com/pkg/errors"
 )
@@ -80,7 +81,7 @@ func (s *impl) Resume(acc AccountID, thr ThreadID) error {
 	_, offset := ReadThreadID(thr)
 	_, err := strconv.Atoi(offset)
 	if err != nil {
-		return errors.Wrap(err, "invalid thread ID")
+		return errors.Wrap(err, fmt.Sprintf("[%s] invalid thread ID: %s", acc, thr))
 	}
 
 	k := on(acc, thr)
@@ -112,7 +113,7 @@ func (s *impl) Resume(acc AccountID, thr ThreadID) error {
 
 			return err
 		}),
-		"resume failed",
+		fmt.Sprintf("[%s] resume failed for %s", acc, thr),
 	)
 }
 
@@ -137,7 +138,7 @@ func (s *impl) Suspend(acc AccountID, thr ThreadID) error {
 
 			return tx.Delete(k)
 		}),
-		"suspend failed",
+		fmt.Sprintf("[%s] failed to suspend %s", acc, thr),
 	)
 }
 
@@ -176,7 +177,7 @@ func (s *impl) SuspendAll(acc AccountID) error {
 
 			return nil
 		}),
-		"suspend all failed",
+		fmt.Sprintf("[%s] failed to suspend all", acc),
 	)
 }
 
@@ -195,7 +196,7 @@ func (s *impl) IsActive(acc AccountID, thr AccountID) (bool, error) {
 
 		return err
 	}); err != nil {
-		return false, errors.Wrap(err, "is active failed")
+		return false, errors.Wrap(err, fmt.Sprintf("[%s] status check failed for %s", acc, thr))
 	}
 
 	return r, nil
@@ -215,6 +216,6 @@ func (s *impl) Update(acc AccountID, thr ThreadID, offset int) error {
 			v := []byte(strconv.Itoa(offset))
 			return tx.Set(k, v)
 		}),
-		"update failed",
+		fmt.Sprintf("[%s] offset update failed for %s (%d)", acc, thr, offset),
 	)
 }
