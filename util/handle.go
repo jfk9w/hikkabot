@@ -5,6 +5,19 @@ type Handle struct {
 	bC chan UnitType
 }
 
+func MultiHandle(hs ...Handle) Handle {
+	h := NewHandle()
+	go func() {
+		defer h.Reply()
+		<-h.C
+		for _, h0 := range hs {
+			h0.Ping()
+		}
+	}
+	
+	return h
+}
+
 func NewHandle() Handle {
 	return Handle{
 		C:  make(chan UnitType, 1),

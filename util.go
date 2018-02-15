@@ -10,8 +10,7 @@ import (
 	"syscall"
 
 	"github.com/jfk9w/hikkabot/util"
-	"github.com/phemmer/sawmill"
-	"github.com/phemmer/sawmill/event"
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -37,38 +36,13 @@ func GetConfig() (*Config, error) {
 	return cfg, nil
 }
 
-var logLevels = map[string]event.Level{
-	"debug":     event.Debug,
-	"dbg":       event.Dbg,
-	"info":      event.Info,
-	"notice":    event.Notice,
-	"warning":   event.Warning,
-	"warn":      event.Warn,
-	"error":     event.Error,
-	"err":       event.Err,
-	"critical":  event.Critical,
-	"crit":      event.Crit,
-	"alert":     event.Alert,
-	"alrt":      event.Alrt,
-	"emergency": event.Emergency,
-	"emerg":     event.Emerg,
-}
-
 // InitLogging configures logging framework
 func InitLogging(config *Config) {
-	var level event.Level
-	if lvl, ok := logLevels[config.LogLevel]; ok {
-		level = lvl
-	} else {
-		level = event.Info
-	}
-
-	log.SetOutput(sawmill.NewWriter(level))
-	log.SetFlags(0)
-
-	std := sawmill.GetHandler("stdStreams")
-	std = sawmill.FilterHandler(std).LevelMin(level)
-	sawmill.AddHandler("stdStreams", std)
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.ParseLevel(config.LogLevel))
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
 }
 
 // SignalHandler handles SIGTERM and SIGINT signals

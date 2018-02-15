@@ -2,18 +2,16 @@ package main
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/jfk9w/hikkabot/dvach"
 	"github.com/jfk9w/hikkabot/service"
 	"github.com/jfk9w/hikkabot/telegram"
-	"github.com/phemmer/sawmill"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	defer func() {
-		sawmill.CheckPanic()
-		sawmill.Stop()
-	}()
+	InitLogging(cfg)
 
 	cfg, err := GetConfig()
 	if err != nil {
@@ -21,8 +19,6 @@ func main() {
 	}
 
 	var httpClient = new(http.Client)
-
-	InitLogging(cfg)
 
 	bot, err := telegram.NewBotAPIWithClient(
 		httpClient,
@@ -45,7 +41,6 @@ func main() {
 
 	SignalHandler().Wait()
 	ctl.Ping()
+	bot.Stop()
 	client.Stop()
-
-	sawmill.Notice("exit")
 }

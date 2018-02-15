@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/jfk9w/hikkabot/util"
-	"github.com/phemmer/sawmill"
+	log "github.com/sirupsen/logrus"
 )
 
 const (

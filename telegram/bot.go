@@ -8,6 +8,7 @@ const Endpoint = "https://api.telegram.org"
 
 type (
 	BotAPI interface {
+		Stop()
 		Me() *User
 		In() <-chan Update
 		GetMe() (*User, error)

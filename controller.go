@@ -2,24 +2,27 @@ package main
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/jfk9w/hikkabot/dvach"
 	"github.com/jfk9w/hikkabot/service"
 	"github.com/jfk9w/hikkabot/telegram"
 	"github.com/jfk9w/hikkabot/util"
-	"strings"
+	log "github.com/sirupsen/logrus"
 )
 
 func Controller(bot telegram.BotAPI) util.Handle {
 	h := util.NewHandle()
 	go func() {
 		defer h.Reply()
-
+		log.Debug("CTRL start")
 		for {
 			select {
 			case u := <-bot.In():
 				go handleUpdate(bot, u)
 
 			case <-h.C:
+				log.Debug("CTRL stop")
 				return
 			}
 		}
@@ -33,6 +36,7 @@ func handleUpdate(bot telegram.BotAPI, u telegram.Update) {
 	if msg != nil {
 		cmd, params := parseCommand(bot, msg)
 		ctx := context{
+			bot:    bot,
 			source: telegram.ChatRef{ID: msg.Chat.ID},
 			userID: msg.From.ID,
 			params: params,
@@ -40,12 +44,15 @@ func handleUpdate(bot telegram.BotAPI, u telegram.Update) {
 
 		switch cmd {
 		case "/subscribe", "/sub":
+			ctx.log().Debug("CTRL subscribe")
 			subscribe(ctx)
 
 		case "/unsubscribe", "/unsub":
+			ctx.log().Debug("CTRL unsubscribe")
 			unsubscribe(ctx)
 
 		case "/status":
+			ctx.log().Debug("CTRL status")
 			status(ctx)
 		}
 	}
@@ -58,6 +65,14 @@ type context struct {
 	params []string
 }
 
+func (ctx context) log() *log.Entry {
+	return log.WithFields(log.Fields{
+		"source": ctx.source.Key(),
+		"userID": ctx.userID,
+		"params": ctx.params,
+	})
+}
+
 func subscribe(ctx context) {
 	var chat telegram.ChatRef
 	switch len(ctx.params) {
@@ -67,6 +82,7 @@ func subscribe(ctx context) {
 			ParseMode: telegram.Markdown,
 			Text:      "#info\nUsage: `/subscribe` THREAD_URL",
 		}, true, nil)
+		return
 
 	case 1:
 		chat = ctx.source
