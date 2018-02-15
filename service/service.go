@@ -29,7 +29,7 @@ var (
 )
 
 // Init service instance
-func Init(bot *telegram.BotAPI, dvach *dv.API, filename string) {
+func Init(bot telegram.BotAPI, dvach *dv.API, filename string) {
 	var persister *persister
 	if len(filename) > 0 {
 		persister = newPersister(filename)
@@ -373,7 +373,7 @@ func resetSendMessageAttempts(key SubscriberKey) {
 }
 
 type serviceRT struct {
-	bot       *telegram.BotAPI
+	bot       telegram.BotAPI
 	dvach     *dv.API
 	persister *persister
 

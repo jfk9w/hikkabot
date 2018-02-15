@@ -1,99 +1,137 @@
 package main
 
 import (
-	"strings"
-
-	"github.com/jfk9w/hikkabot/service"
-	"github.com/jfk9w/hikkabot/util"
-
+	"fmt"
 	"github.com/jfk9w/hikkabot/dvach"
+	"github.com/jfk9w/hikkabot/service"
 	"github.com/jfk9w/hikkabot/telegram"
-	"github.com/phemmer/sawmill"
+	"github.com/jfk9w/hikkabot/util"
+	"strings"
 )
 
-// Controller encapsulates all business logic
-type Controller struct {
-	bot      *telegram.BotAPI
-	client   *dvach.API
-	executor *Executor
-	halt     util.Hook
-	done     util.Hook
-}
-
-// NewController creates an empty controller
-func NewController() *Controller {
-	return &Controller{
-		halt: util.NewHook(),
-		done: util.NewHook(),
-	}
-}
-
-// Init injects necessary dependencies
-func (svc *Controller) Init(bot *telegram.BotAPI, client *dvach.API) {
-	svc.bot = bot
-	svc.client = client
-	svc.executor = NewExecutor(bot)
-}
-
-var getUpdatesRequest = telegram.GetUpdatesRequest{
-	Timeout:        60,
-	AllowedUpdates: []string{"message"},
-}
-
-// Start the controller
-func (svc *Controller) Start() {
-
-	service.Start()
-
+func Controller(bot telegram.BotAPI) util.Handle {
+	h := util.NewHandle()
 	go func() {
-		defer svc.done.Send()
+		defer h.Reply()
 
-		uc := svc.bot.GetUpdatesChan(getUpdatesRequest)
 		for {
 			select {
-			case u := <-uc:
-				msg := u.Message
-				if msg != nil {
-					chatID := msg.Chat.ID
-					userID := msg.From.ID
-					cmd, params := svc.parseCommand(msg)
-					switch {
-					case len(cmd) > 0:
-						svc.executor.Run(userID, chatID, cmd, params)
+			case u := <-bot.In():
+				go handleUpdate(bot, u)
 
-					case msg.ReplyToMessage != nil:
-						svc.executor.OnReply(msg)
-					}
-				}
-
-			case <-svc.halt:
+			case <-h.C:
 				return
 			}
 		}
 	}()
 
-	sawmill.Notice("controller started")
+	return h
 }
 
-// Stop the controller
-func (svc *Controller) Stop() {
+func handleUpdate(bot telegram.BotAPI, u telegram.Update) {
+	msg := u.Message
+	if msg != nil {
+		cmd, params := parseCommand(bot, msg)
+		ctx := context{
+			source: telegram.ChatRef{ID: msg.Chat.ID},
+			userID: msg.From.ID,
+			params: params,
+		}
 
-	svc.halt.Send()
-	svc.done.Wait()
+		switch cmd {
+		case "/subscribe", "/sub":
+			subscribe(ctx)
 
-	sawmill.Notice("controller stopped")
+		case "/unsubscribe", "/unsub":
+			unsubscribe(ctx)
 
-	svc.bot.Stop()
-	service.Stop()
+		case "/status":
+			status(ctx)
+		}
+	}
 }
 
-func (svc *Controller) parseCommand(msg *telegram.Message) (string, []string) {
+type context struct {
+	bot    telegram.BotAPI
+	source telegram.ChatRef
+	userID telegram.UserID
+	params []string
+}
+
+func subscribe(ctx context) {
+	var chat telegram.ChatRef
+	switch len(ctx.params) {
+	case 0:
+		ctx.bot.SendMessage(telegram.SendMessageRequest{
+			Chat:      ctx.source,
+			ParseMode: telegram.Markdown,
+			Text:      "#info\nUsage: `/subscribe` THREAD_URL",
+		}, true, nil)
+
+	case 1:
+		chat = ctx.source
+
+	case 2:
+		chat = telegram.ChatRef{Username: ctx.params[1]}
+	}
+
+	board, thread, err := dvach.ParseThreadURL(ctx.params[0])
+	if err != nil {
+		ctx.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: ctx.source,
+			Text: fmt.Sprintf("#info\nInvalid thread URL: %s", ctx.params[0]),
+		}, true, nil)
+		return
+	}
+
+	if err = service.CheckAccess(ctx.userID, chat); err != nil {
+		ctx.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: ctx.source,
+			Text: "#info\nOperation forbidden. Reason: " + err.Error(),
+		}, true, nil)
+
+		return
+	}
+
+	service.Subscribe(chat, board, thread)
+}
+
+func unsubscribe(ctx context) {
+	var chat telegram.ChatRef
+	if len(ctx.params) == 1 {
+		chat = telegram.ChatRef{
+			Username: ctx.params[0],
+		}
+	} else {
+		chat = ctx.source
+	}
+
+	if err := service.CheckAccess(ctx.userID, chat); err != nil {
+		ctx.bot.SendMessage(telegram.SendMessageRequest{
+			Chat: ctx.source,
+			Text: "#info\nOperation forbidden. Reason: " + err.Error(),
+		}, true, nil)
+
+		return
+	}
+
+	service.Unsubscribe(chat)
+}
+
+func status(ctx context) {
+	ctx.bot.SendMessage(telegram.SendMessageRequest{
+		Chat: ctx.source,
+		Text: "#info\nWhile you're dying I'll be still alive\nAnd when you're dead I will be still alive\nStill alive\nS T I L L A L I V E",
+	}, true, nil)
+}
+
+func parseCommand(bot telegram.BotAPI, msg *telegram.Message) (string, []string) {
 	for _, entity := range msg.Entities {
 		if entity.Type == "bot_command" {
 			end := entity.Offset + entity.Length
 
 			cmd := msg.Text[entity.Offset:end]
-			cmd = strings.Replace(cmd, "@"+svc.bot.Me.Username, "", 1)
+			cmd = strings.Replace(cmd, "@"+bot.Me().Username, "", 1)
 
 			params0 := strings.Split(msg.Text[end:], " ")
 			params := make([]string, 0)

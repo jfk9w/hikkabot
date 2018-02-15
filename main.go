@@ -24,8 +24,14 @@ func main() {
 
 	InitLogging(cfg)
 
-	bot, err := telegram.NewBotAPIWithClient(httpClient,
-		cfg.Token, telegram.GetUpdatesRequest{})
+	bot, err := telegram.NewBotAPIWithClient(
+		httpClient,
+		cfg.Token,
+		telegram.GetUpdatesRequest{
+			Timeout:        60,
+			AllowedUpdates: []string{"message"},
+		},
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -34,13 +40,11 @@ func main() {
 
 	service.Init(bot, client, cfg.DBFilename)
 
-	ctl := NewController()
-	ctl.Init(bot, client)
 	client.Start()
-	ctl.Start()
+	ctl := Controller(bot)
 
 	SignalHandler().Wait()
-	ctl.Stop()
+	ctl.Ping()
 	client.Stop()
 
 	sawmill.Notice("exit")

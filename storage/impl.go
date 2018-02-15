@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	prefixOn  = "onn"
-	prefixOff = "off"
+	prefixOn  = "+"
+	prefixOff = "-"
 	path0     = "!"
 	path1     = ":"
 	path2     = "/"
