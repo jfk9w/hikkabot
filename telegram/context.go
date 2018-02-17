@@ -1,11 +1,11 @@
 package telegram
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/jfk9w/hikkabot/util"
 )
 
 type context struct {
@@ -23,19 +23,8 @@ func (ctx *context) request(req Request) (*Response, error) {
 		return nil, err
 	}
 
-	defer r.Body.Close()
-	data, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	resp := new(Response)
-	err = json.Unmarshal(data, resp)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return resp, util.ReadResponse(r, resp)
 }
 
 func (ctx *context) retry(req Request, retries int) (*Response, error) {

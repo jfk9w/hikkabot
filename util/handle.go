@@ -13,8 +13,8 @@ func MultiHandle(hs ...Handle) Handle {
 		for _, h0 := range hs {
 			h0.Ping()
 		}
-	}
-	
+	}()
+
 	return h
 }
 

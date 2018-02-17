@@ -1,19 +1,23 @@
 package webm
 
 import (
-	"sync"
-
 	"github.com/jfk9w/hikkabot/util"
-	log "github.com/sirupsen/logrus"
+)
+
+const (
+	NotFound = "-"
+	Pending  = "*"
+	Marked   = "="
 )
 
 type (
-	Loader interface {
-		Load(string) string
+	Client interface {
+		Load(string, string) (string, error)
 	}
 
 	Cache interface {
-		GetWebM(string, Loader) string
+		GetVideo(string) (string, error)
+		UpdateVideo(string, string) (string, error)
 	}
 
 	Request struct {
@@ -22,49 +26,20 @@ type (
 	}
 )
 
-type result struct {
-	Server   string `json:"server"`
-	Filename string `json:"filename"`
-	State    string `json:"state"`
-}
+func Converter(client Client, cache Cache,
+	workers int, retries int) (chan<- Request, util.Handle) {
 
-type context struct {
-	C     chan Request
-	cache Cache
-}
-
-func Converter(workers int, retries int) (chan<- Request, util.Handle) {
-	ctx := context{
-		C:     make(chan Request, 100),
-		cache: make(map[string]chan string),
-		mu:    new(sync.Mutex),
-	}
-
+	c := make(chan Request, 100)
+	hs := make([]util.Handle, 0)
 	for i := 0; i < workers; i++ {
-		hs[i] = worker(c, 2*i+3)
+		hs[i] = worker(&context{
+			C:       c,
+			client:  client,
+			cache:   cache,
+			srv:     2*i + 3,
+			retries: retries,
+		})
 	}
 
 	return c, util.MultiHandle(hs...)
-}
-
-func worker(ctx context, srv int) util.Handle {
-	h := util.NewHandle()
-	go func() {
-		defer h.Reply()
-		for {
-			select {
-			case req := <-c:
-				go handleRequest(ctx, req)
-
-			case <-h.C:
-				return
-			}
-		}
-	}()
-
-	return h
-}
-
-func handleRequest(ctx context, req Request) {
-
 }
