@@ -12,7 +12,8 @@ type (
 	ThreadID  = string
 
 	Config struct {
-		SubscriptionTTL time.Duration `json:"subscription_ttl"`
+		InactiveTTL time.Duration `json:"inactive_ttl"`
+		VideoTTL    time.Duration `json:"video_ttl"`
 	}
 
 	State = map[AccountID]map[ThreadID]int

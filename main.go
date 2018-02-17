@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/jfk9w/hikkabot/dvach"
+	dv "github.com/jfk9w/hikkabot/dvach"
 	"github.com/jfk9w/hikkabot/service"
+	"github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/telegram"
+	"github.com/jfk9w/hikkabot/webm"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -18,8 +20,10 @@ func main() {
 		panic(err)
 	}
 
-	var httpClient = new(http.Client)
+	db := storage.
 
+	httpc := new(http.Client)
+	dvach := dv.New(httpc)
 	bot, err := telegram.NewBotAPIWithClient(
 		httpClient,
 		cfg.Token,
@@ -28,19 +32,18 @@ func main() {
 			AllowedUpdates: []string{"message"},
 		},
 	)
+
 	if err != nil {
 		panic(err)
 	}
 
-	client := dvach.NewAPI(httpClient)
+	service.Init(bot, dvach, cfg.DBFilename)
 
-	service.Init(bot, client, cfg.DBFilename)
-
-	client.Start()
-	ctl := Controller(bot)
+	conv, hConv = webm.Converter(webm.Wrap(httpc))
+	hCtl := Controller(bot)
 
 	SignalHandler().Wait()
-	ctl.Ping()
+	hCtl.Ping()
 	bot.Stop()
 	client.Stop()
 }

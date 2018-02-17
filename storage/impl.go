@@ -1,10 +1,10 @@
 package storage
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
-	"fmt"
 	"github.com/dgraph-io/badger"
 	"github.com/pkg/errors"
 )
@@ -22,7 +22,7 @@ type impl struct {
 	db     *badger.DB
 }
 
-func NewStorage(config Config, db *badger.DB) T {
+func NewStorage(config Config, db *badger.DB) *impl {
 	return &impl{config, db}
 }
 
@@ -132,7 +132,7 @@ func (s *impl) Suspend(acc AccountID, thr ThreadID) error {
 			}
 
 			if err := tx.SetWithTTL(off(k), v,
-				s.config.SubscriptionTTL); err != nil {
+				s.config.InactiveTTL); err != nil {
 				return err
 			}
 
@@ -160,7 +160,7 @@ func (s *impl) SuspendAll(acc AccountID) error {
 				}
 
 				if err := tx.SetWithTTL(off(k), v,
-					s.config.SubscriptionTTL); err != nil {
+					s.config.InactiveTTL); err != nil {
 					it.Close()
 					return err
 				}
