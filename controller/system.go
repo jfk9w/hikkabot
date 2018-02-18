@@ -35,14 +35,13 @@ func (sys *system) subscribe(acc AccountID, thr ThreadID) {
 	defer sys.mu.Unlock()
 
 	if _, ok := sys.subs[acc]; !ok {
-		r := &(0)
 		q := make(chan storage.ThreadID, 20)
-		qr := make(map[storage.ThreadID]int)
 		h := util.NewHandle()
 		go func(acc storage.AccountID,
-			q chan storage.ThreadID, h util.Handle,
-			r *int, qr map[storage.ThreadID]int) {
+			q chan storage.ThreadID, h util.Handle) {
 
+			r := 0
+			qr := make(map[storage.ThreadID]int)
 			t := time.NewTicker(10 * time.Second)
 			defer func() {
 				t.Stop()
@@ -62,11 +61,37 @@ func (sys *system) subscribe(acc AccountID, thr ThreadID) {
 							continue
 						}
 
+						switch sys.feed(acc, thr, offset, h) {
+						case eok:
+							r = 0
+							qr[thr] = 0
+
+						case ethread:
+							if _, ok := qr[thr]; !ok {
+								qr[thr] = 0
+							}
+
+							qr[thr] += 1
+							if qr[thr] >= 10 {
+								sys.db.Suspend(acc, thr)
+							}
+
+						case echat:
+							r += 1
+							if r >= 3 {
+								sys.db.SuspendAll(acc)
+								return
+							}
+
+						case einterrupt:
+							return
+						}
+
 					default:
 					}
 				}
 			}
-		}(acc, q, h)
+		}(acc)
 	}
 
 	sys.subs[acc].Q <- thr
@@ -87,8 +112,7 @@ func (sys *system) feed(acc storage.AccountID,
 	chat := storage.ReadAccountID(acc)
 	board, thread := storage.ReadThreadID(thr)
 
-	switch offset {
-	case 0:
+	if offset == 0 {
 		preview, err := sys.dvach.GetPost(board, thread)
 		if err != nil || len(preview) == 0 {
 			return ethread
@@ -98,7 +122,7 @@ func (sys *system) feed(acc storage.AccountID,
 			Chat: chat,
 			Text: fmt.Sprintf(
 				"#thread %s %s",
-				preview[0].Subject, threadURL),
+				preview[0].Subject, dv.FormatThreadURL(board, thread)),
 		}, true); err != nil || !resp.Ok {
 			return echat
 		}
