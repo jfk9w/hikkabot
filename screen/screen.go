@@ -5,10 +5,11 @@ import (
 
 	"github.com/jfk9w/hikkabot/dvach"
 	"github.com/jfk9w/hikkabot/util"
+	"github.com/jfk9w/hikkabot/webm"
 	"golang.org/x/net/html"
 )
 
-func Parse(board string, post dvach.Post, webms map[string]string) ([]string, error) {
+func Parse(board string, post dvach.Post, webms map[string]chan string) ([]string, error) {
 	var (
 		tokenizer = html.NewTokenizer(strings.NewReader(post.Comment))
 		ctx       = newContext()
@@ -64,7 +65,7 @@ func Parse(board string, post dvach.Post, webms map[string]string) ([]string, er
 	return messages, nil
 }
 
-func parseAttachments(post dvach.Post, webms map[string]string) []string {
+func parseAttachments(post dvach.Post, webms map[string]chan string) []string {
 	if len(post.Files) == 0 {
 		return nil
 	}
@@ -72,8 +73,9 @@ func parseAttachments(post dvach.Post, webms map[string]string) []string {
 	attach := make([]string, len(post.Files))
 	for i, file := range post.Files {
 		url := file.URL()
-		if mp4, ok := webms[url]; ok {
-			url = mp4
+		v := <-webms[url]
+		if v == webm.Marked {
+			v = url
 		}
 
 		attach[i] = `<a href="` + escape(url) + `">[A]</a>`

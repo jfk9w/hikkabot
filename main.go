@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger"
+	"github.com/jfk9w/hikkabot/controller"
 	dv "github.com/jfk9w/hikkabot/dvach"
 	"github.com/jfk9w/hikkabot/service"
 	"github.com/jfk9w/hikkabot/storage"
@@ -14,14 +15,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Config struct {
-	Token    string `json:"token"`
-	DB       string `json:"db_filename"`
-	LogLevel string `json:"log_level"`
-}
-
 func main() {
-	InitLogging(cfg)
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.ParseLevel(config.LogLevel))
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
 
 	cfg, err := GetConfig()
 	if err != nil {
@@ -56,13 +55,23 @@ func main() {
 		panic(err)
 	}
 
-	service.Init(bot, dvach, cfg.DB)
+	defer bot.Stop()
 
-	conv, hConv = webm.Converter(webm.Wrap(httpc))
-	hCtl := Controller(bot)
+	conv, hConv = webm.Converter(webm.Wrap(httpc), 7, 6)
+	defer hConv.Ping()
 
-	SignalHandler().Wait()
-	hCtl.Ping()
-	bot.Stop()
-	client.Stop()
+	hCtl := controller.Start(bot)
+	defer hCtl.Pind()
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
+
+	exit := make(chan util.UnitType, 1)
+	go func(c chan<- util.UnitType) {
+		<-signals
+		c <- Unit
+	}(exit)
+
+	<-exit
+	log.Debug("MAIN exit")
 }

@@ -19,11 +19,11 @@ type (
 	State = map[AccountID]map[ThreadID]int
 
 	T interface {
-		DumpState() (State, error)
+		Load() (State, error)
 		Resume(AccountID, ThreadID) error
 		Suspend(AccountID, ThreadID) error
 		SuspendAll(AccountID) error
-		IsActive(AccountID, ThreadID) (bool, error)
+		GetOffset(AccountID, ThreadID) (int, error)
 		Update(AccountID, ThreadID, int) error
 	}
 )

@@ -26,6 +26,13 @@ type (
 	}
 )
 
+func NewRequest(url string) Request {
+	return Request{
+		URL: url,
+		C:   make(chan string, 1),
+	}
+}
+
 func Converter(client Client, cache Cache,
 	workers int, retries int) (chan<- Request, util.Handle) {
 

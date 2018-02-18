@@ -41,7 +41,7 @@ func inactiveKey(active []byte) []byte {
 	return []byte(prefixInactive + path0 + ts[1])
 }
 
-func (s *impl) DumpState() (State, error) {
+func (s *impl) Load() (State, error) {
 	state := make(map[AccountID]map[ThreadID]int)
 	if err := s.db.View(func(tx *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -105,7 +105,7 @@ func (s *impl) Resume(acc AccountID, thr ThreadID) error {
 						return err
 					}
 				} else if err == badger.ErrKeyNotFound {
-					v = []byte(offset)
+					v = []byte("0")
 				} else {
 					return err
 				}
@@ -183,22 +183,28 @@ func (s *impl) SuspendAll(acc AccountID) error {
 	)
 }
 
-func (s *impl) IsActive(acc AccountID, thr AccountID) (bool, error) {
+func (s *impl) GetOffset(acc AccountID, thr AccountID) (int, error) {
 	k := activeKey(acc, thr)
-	var r bool
+	var r int
 	if err := s.db.View(func(tx *badger.Txn) error {
-		_, err := tx.Get(k)
+		item, err := tx.Get(k)
 		if err == nil {
-			r = true
-			return nil
+			var v []byte
+			v, err = item.Value()
+			if err == nil {
+				r, err = strconv.Atoi(string(v))
+				if err == nil {
+					return nil
+				}
+			}
 		} else if err == badger.ErrKeyNotFound {
-			r = false
+			r = -1
 			return nil
 		}
 
 		return err
 	}); err != nil {
-		return false, errors.Wrap(err, fmt.Sprintf("[%s] status check failed for %s", acc, thr))
+		return r, errors.Wrap(err, fmt.Sprintf("[%s] get offset failed for %s", acc, thr))
 	}
 
 	return r, nil
