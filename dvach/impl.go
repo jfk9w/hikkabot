@@ -11,8 +11,8 @@ import (
 
 type defaultImpl http.Client
 
-func New(client *http.Client) API {
-	return (*defaultImpl)(client)
+func New(httpc *http.Client) API {
+	return (*defaultImpl)(httpc)
 }
 
 func (c *defaultImpl) GetThread(board string,

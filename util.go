@@ -13,11 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Config struct {
-	Token      string `json:"token"`
-	DBFilename string `json:"db_filename"`
-	LogLevel   string `json:"log_level"`
-}
+
 
 func GetConfig() (*Config, error) {
 	filename := flag.String("config", "", "Configuration file")

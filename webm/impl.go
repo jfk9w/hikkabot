@@ -1,7 +1,6 @@
 package webm
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	u "net/url"
@@ -27,8 +26,8 @@ func (e internalServerError) Error() string {
 
 type defaultClient http.Client
 
-func Wrap(client *http.Client) Client {
-	return (*defaultClient)(client)
+func Wrap(httpc *http.Client) Client {
+	return (*defaultClient)(httpc)
 }
 
 func (c *defaultClient) Load(endpoint string, url string) (string, error) {
@@ -124,37 +123,31 @@ func handleRequest(ctx *context, h util.Handle, req Request) bool {
 
 		switch v {
 		case NotFound:
-			v, err = ctx.cache.UpdateVideo(req.URL, Pending)
-			if err != nil {
-				l.Debug("WEBM handleRequest UpdateVideo", err)
-				continue
-			}
+			if ctx.cache.CompareAndSwapVideo(req.URL, NotFound, Pending) {
+				for i := 0; i < ctx.retries; i++ {
+					v, err = ctx.client.Load(ctx.endpoint(), req.URL)
+					if err == nil {
+						break
+					}
 
-			if v != NotFound {
-				continue
-			}
+					select {
+					case <-h.C:
+						req.C <- Marked
+						return false
 
-			for i := 0; i < ctx.retries; i++ {
-				v, err = ctx.client.Load(ctx.endpoint(), req.URL)
-				if err == nil {
-					break
+					default:
+						time.Sleep(3 * time.Second)
+					}
 				}
-
-				select {
-				case <-h.C:
-					req.C <- Marked
-					return false
-
-				default:
-					time.Sleep(3 * time.Second)
-				}
+			} else {
+				continue
 			}
 
 			if err != nil {
 				v = Marked
 			}
 
-			ctx.cache.UpdateVideo(req.URL, v)
+			ctx.cache.CompareAndSwapVideo(req.URL, Pending, v)
 			req.C <- v
 			return true
 
@@ -169,7 +162,7 @@ func handleRequest(ctx *context, h util.Handle, req Request) bool {
 			}
 
 		default:
-			req.C <- Marked
+			req.C <- v
 			return true
 		}
 	}

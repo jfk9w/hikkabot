@@ -17,7 +17,7 @@ type (
 
 	Cache interface {
 		GetVideo(string) (string, error)
-		UpdateVideo(string, string) (string, error)
+		CompareAndSwapVideo(string, string, string) bool
 	}
 
 	Request struct {

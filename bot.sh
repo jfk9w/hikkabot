@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BUILD=build
+BUILD=bin
 APP=app
 CONFIG=app.conf
 PID=.pid

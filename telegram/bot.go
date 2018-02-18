@@ -21,10 +21,9 @@ type (
 	}
 )
 
-func NewBotAPIWithClient(client *http.Client,
-	token string, updates GetUpdatesRequest) (BotAPI, error) {
-
-	ctx := &context{client, token}
+func New(httpc *http.Client, token string,
+	updates GetUpdatesRequest) (BotAPI, error) {
+	ctx := &context{httpc, token}
 	b := &impl{
 		ctx: ctx,
 	}

@@ -6,15 +6,17 @@ import (
 	"strings"
 
 	"github.com/dgraph-io/badger"
+	"github.com/jfk9w/hikkabot/webm"
 	"github.com/pkg/errors"
 )
 
 const (
-	prefixOn  = "+"
-	prefixOff = "-"
-	path0     = "!"
-	path1     = ":"
-	path2     = "/"
+	prefixActive   = "active"
+	prefixInactive = "inactive"
+	prefixWebm     = "webm"
+	path0          = "!"
+	path1          = ":"
+	path2          = "/"
 )
 
 type impl struct {
@@ -22,21 +24,21 @@ type impl struct {
 	db     *badger.DB
 }
 
-func NewStorage(config Config, db *badger.DB) *impl {
+func New(config Config, db *badger.DB) *impl {
 	return &impl{config, db}
 }
 
-func on(acc AccountID, thr ThreadID) []byte {
+func activeKey(acc AccountID, thr ThreadID) []byte {
 	return []byte(
-		prefixOn + path0 +
+		prefixActive + path0 +
 			acc + path1 +
 			thr,
 	)
 }
 
-func off(on []byte) []byte {
-	ts := strings.Split(string(on), path0)
-	return []byte(prefixOff + path0 + ts[1])
+func inactiveKey(active []byte) []byte {
+	ts := strings.Split(string(active), path0)
+	return []byte(prefixInactive + path0 + ts[1])
 }
 
 func (s *impl) DumpState() (State, error) {
@@ -45,7 +47,7 @@ func (s *impl) DumpState() (State, error) {
 		opts := badger.DefaultIteratorOptions
 		it := tx.NewIterator(opts)
 		defer it.Close()
-		prefix := []byte(prefixOn)
+		prefix := []byte(prefixActive)
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			k := item.Key()
@@ -84,13 +86,13 @@ func (s *impl) Resume(acc AccountID, thr ThreadID) error {
 		return errors.Wrap(err, fmt.Sprintf("[%s] invalid thread ID: %s", acc, thr))
 	}
 
-	k := on(acc, thr)
+	k := activeKey(acc, thr)
 	return errors.Wrap(
 		s.db.Update(func(tx *badger.Txn) error {
 			_, err := tx.Get(k)
 			if err == badger.ErrKeyNotFound {
 				var v []byte
-				susp := off(k)
+				susp := inactiveKey(k)
 				item, err := tx.Get(susp)
 				if err == nil {
 					v, err = item.Value()
@@ -118,7 +120,7 @@ func (s *impl) Resume(acc AccountID, thr ThreadID) error {
 }
 
 func (s *impl) Suspend(acc AccountID, thr ThreadID) error {
-	k := on(acc, thr)
+	k := activeKey(acc, thr)
 	return errors.Wrap(
 		s.db.Update(func(tx *badger.Txn) error {
 			item, err := tx.Get(k)
@@ -131,7 +133,7 @@ func (s *impl) Suspend(acc AccountID, thr ThreadID) error {
 				return err
 			}
 
-			if err := tx.SetWithTTL(off(k), v,
+			if err := tx.SetWithTTL(inactiveKey(k), v,
 				s.config.InactiveTTL); err != nil {
 				return err
 			}
@@ -149,7 +151,7 @@ func (s *impl) SuspendAll(acc AccountID) error {
 			it := tx.NewIterator(opts)
 
 			keys := make([][]byte, 0)
-			prefix := []byte(prefixOn + path0 + acc)
+			prefix := []byte(prefixActive + path0 + acc)
 			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 				item := it.Item()
 				k := item.Key()
@@ -159,7 +161,7 @@ func (s *impl) SuspendAll(acc AccountID) error {
 					return err
 				}
 
-				if err := tx.SetWithTTL(off(k), v,
+				if err := tx.SetWithTTL(inactiveKey(k), v,
 					s.config.InactiveTTL); err != nil {
 					it.Close()
 					return err
@@ -182,7 +184,7 @@ func (s *impl) SuspendAll(acc AccountID) error {
 }
 
 func (s *impl) IsActive(acc AccountID, thr AccountID) (bool, error) {
-	k := on(acc, thr)
+	k := activeKey(acc, thr)
 	var r bool
 	if err := s.db.View(func(tx *badger.Txn) error {
 		_, err := tx.Get(k)
@@ -203,7 +205,7 @@ func (s *impl) IsActive(acc AccountID, thr AccountID) (bool, error) {
 }
 
 func (s *impl) Update(acc AccountID, thr ThreadID, offset int) error {
-	k := on(acc, thr)
+	k := activeKey(acc, thr)
 	return errors.Wrap(
 		s.db.Update(func(tx *badger.Txn) error {
 			_, err := tx.Get(k)
@@ -218,4 +220,60 @@ func (s *impl) Update(acc AccountID, thr ThreadID, offset int) error {
 		}),
 		fmt.Sprintf("[%s] offset update failed for %s (%d)", acc, thr, offset),
 	)
+}
+
+func webmKey(url string) []byte {
+	return []byte(prefixWebm + path0 + url)
+}
+
+func (s *impl) GetVideo(url string) (string, error) {
+	var r string
+	if err := s.db.View(func(tx *badger.Txn) error {
+		item, err := tx.Get(webmKey(url))
+		switch err {
+		case badger.ErrKeyNotFound:
+			r = webm.NotFound
+		case nil:
+			v, err := item.Value()
+			if err == nil {
+				r = string(v)
+			} else {
+				r = webm.Marked
+			}
+		default:
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf(
+			"get video failed for %s", url))
+	}
+
+	return r, nil
+}
+
+func (s *impl) CompareAndSwapVideo(url string, prev string, curr string) bool {
+	r := false
+	key := webmKey(url)
+	s.db.Update(func(tx *badger.Txn) error {
+		item, err := tx.Get(key)
+		if err != nil {
+			return nil
+		}
+
+		v, err := item.Value()
+		if err != nil {
+			return nil
+		}
+
+		if prev == string(v) {
+			tx.SetWithTTL(key, []byte(curr), s.config.VideoTTL)
+			r = true
+		}
+
+		return nil
+	})
+
+	return r
 }
