@@ -37,7 +37,7 @@ func Converter(client Client, cache Cache,
 	workers int, retries int) (chan<- Request, util.Handle) {
 
 	c := make(chan Request, 100)
-	hs := make([]util.Handle, 0)
+	hs := make([]util.Handle, workers)
 	for i := 0; i < workers; i++ {
 		hs[i] = worker(&context{
 			C:       c,

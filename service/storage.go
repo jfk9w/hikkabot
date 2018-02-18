@@ -1,4 +1,4 @@
-package storage
+package service
 
 import (
 	"fmt"
@@ -11,43 +11,51 @@ import (
 )
 
 const (
-	prefixActive   = "active"
-	prefixInactive = "inactive"
-	prefixWebm     = "webm"
-	path0          = "!"
-	path1          = ":"
-	path2          = "/"
+	pTA   = "thrd[a]"
+	pTD   = "thrd[d]"
+	pW    = "webm"
+	path0 = "!"
+	path1 = ":"
+	path2 = "/"
 )
 
-type impl struct {
+type BadgerStorage struct {
 	config Config
 	db     *badger.DB
 }
 
-func New(config Config, db *badger.DB) *impl {
-	return &impl{config, db}
+func NewBadgerStorage(config Config, opts badger.Options) (*BadgerStorage, error) {
+	db, err := badger.Open(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BadgerStorage{
+		config: config,
+		db:     db,
+	}, nil
 }
 
-func activeKey(acc AccountID, thr ThreadID) []byte {
+func kActiveThread(acc AccountID, thr ThreadID) []byte {
 	return []byte(
-		prefixActive + path0 +
+		pTA + path0 +
 			acc + path1 +
 			thr,
 	)
 }
 
-func inactiveKey(active []byte) []byte {
+func kDeletedThread(active []byte) []byte {
 	ts := strings.Split(string(active), path0)
-	return []byte(prefixInactive + path0 + ts[1])
+	return []byte(pTD + path0 + ts[1])
 }
 
-func (s *impl) Load() (State, error) {
+func (s *BadgerStorage) Load() (State, error) {
 	state := make(map[AccountID]map[ThreadID]int)
 	if err := s.db.View(func(tx *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		it := tx.NewIterator(opts)
 		defer it.Close()
-		prefix := []byte(prefixActive)
+		prefix := []byte(pTA)
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			k := item.Key()
@@ -79,20 +87,20 @@ func (s *impl) Load() (State, error) {
 	return state, nil
 }
 
-func (s *impl) Resume(acc AccountID, thr ThreadID) error {
+func (s *BadgerStorage) Resume(acc AccountID, thr ThreadID) error {
 	_, offset := ReadThreadID(thr)
 	_, err := strconv.Atoi(offset)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("[%s] invalid thread ID: %s", acc, thr))
 	}
 
-	k := activeKey(acc, thr)
+	k := kActiveThread(acc, thr)
 	return errors.Wrap(
 		s.db.Update(func(tx *badger.Txn) error {
 			_, err := tx.Get(k)
 			if err == badger.ErrKeyNotFound {
 				var v []byte
-				susp := inactiveKey(k)
+				susp := kDeletedThread(k)
 				item, err := tx.Get(susp)
 				if err == nil {
 					v, err = item.Value()
@@ -119,8 +127,8 @@ func (s *impl) Resume(acc AccountID, thr ThreadID) error {
 	)
 }
 
-func (s *impl) Suspend(acc AccountID, thr ThreadID) error {
-	k := activeKey(acc, thr)
+func (s *BadgerStorage) Suspend(acc AccountID, thr ThreadID) error {
+	k := kActiveThread(acc, thr)
 	return errors.Wrap(
 		s.db.Update(func(tx *badger.Txn) error {
 			item, err := tx.Get(k)
@@ -133,8 +141,8 @@ func (s *impl) Suspend(acc AccountID, thr ThreadID) error {
 				return err
 			}
 
-			if err := tx.SetWithTTL(inactiveKey(k), v,
-				s.config.InactiveTTL); err != nil {
+			if err := tx.SetWithTTL(kDeletedThread(k), v,
+				s.config.ThreadTTL); err != nil {
 				return err
 			}
 
@@ -144,14 +152,14 @@ func (s *impl) Suspend(acc AccountID, thr ThreadID) error {
 	)
 }
 
-func (s *impl) SuspendAll(acc AccountID) error {
+func (s *BadgerStorage) SuspendAll(acc AccountID) error {
 	return errors.Wrap(
 		s.db.Update(func(tx *badger.Txn) error {
 			opts := badger.DefaultIteratorOptions
 			it := tx.NewIterator(opts)
 
 			keys := make([][]byte, 0)
-			prefix := []byte(prefixActive + path0 + acc)
+			prefix := []byte(pTA + path0 + acc)
 			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 				item := it.Item()
 				k := item.Key()
@@ -161,8 +169,8 @@ func (s *impl) SuspendAll(acc AccountID) error {
 					return err
 				}
 
-				if err := tx.SetWithTTL(inactiveKey(k), v,
-					s.config.InactiveTTL); err != nil {
+				if err := tx.SetWithTTL(kDeletedThread(k), v,
+					s.config.ThreadTTL); err != nil {
 					it.Close()
 					return err
 				}
@@ -183,8 +191,8 @@ func (s *impl) SuspendAll(acc AccountID) error {
 	)
 }
 
-func (s *impl) GetOffset(acc AccountID, thr AccountID) (int, error) {
-	k := activeKey(acc, thr)
+func (s *BadgerStorage) GetOffset(acc AccountID, thr AccountID) (int, error) {
+	k := kActiveThread(acc, thr)
 	var r int
 	if err := s.db.View(func(tx *badger.Txn) error {
 		item, err := tx.Get(k)
@@ -210,32 +218,39 @@ func (s *impl) GetOffset(acc AccountID, thr AccountID) (int, error) {
 	return r, nil
 }
 
-func (s *impl) Update(acc AccountID, thr ThreadID, offset int) error {
-	k := activeKey(acc, thr)
-	return errors.Wrap(
-		s.db.Update(func(tx *badger.Txn) error {
-			_, err := tx.Get(k)
-			if err == badger.ErrKeyNotFound {
-				return nil
-			} else if err != nil {
-				return err
-			}
+func (s *BadgerStorage) UpdateOffset(acc AccountID, thr ThreadID,
+	offset int) bool {
+	r := false
+	k := kActiveThread(acc, thr)
+	for s.db.Update(func(tx *badger.Txn) error {
+		_, err := tx.Get(k)
+		if err != nil {
+			return err
+		}
 
-			v := []byte(strconv.Itoa(offset))
-			return tx.Set(k, v)
-		}),
-		fmt.Sprintf("[%s] offset update failed for %s (%d)", acc, thr, offset),
-	)
+		v := []byte(strconv.Itoa(offset))
+
+		err = tx.Set(k, v)
+		if err != nil {
+			return err
+		}
+
+		r = true
+		return nil
+	}) == badger.ErrConflict {
+	}
+
+	return r
 }
 
-func webmKey(url string) []byte {
-	return []byte(prefixWebm + path0 + url)
+func kWebm(url string) []byte {
+	return []byte(pW + path0 + url)
 }
 
-func (s *impl) GetVideo(url string) (string, error) {
+func (s *BadgerStorage) GetVideo(url string) (string, error) {
 	var r string
 	if err := s.db.View(func(tx *badger.Txn) error {
-		item, err := tx.Get(webmKey(url))
+		item, err := tx.Get(kWebm(url))
 		switch err {
 		case badger.ErrKeyNotFound:
 			r = webm.NotFound
@@ -259,11 +274,11 @@ func (s *impl) GetVideo(url string) (string, error) {
 	return r, nil
 }
 
-func (s *impl) CompareAndSwapVideo(url string, prev string, curr string) bool {
+func (s *BadgerStorage) CompareAndSwapVideo(url string, prev string, curr string) bool {
 	r := false
-	key := webmKey(url)
+	k := kWebm(url)
 	s.db.Update(func(tx *badger.Txn) error {
-		item, err := tx.Get(key)
+		item, err := tx.Get(k)
 		if err != nil {
 			return nil
 		}
@@ -274,7 +289,7 @@ func (s *impl) CompareAndSwapVideo(url string, prev string, curr string) bool {
 		}
 
 		if prev == string(v) {
-			tx.SetWithTTL(key, []byte(curr), s.config.VideoTTL)
+			tx.SetWithTTL(k, []byte(curr), s.config.WebmTTL)
 			r = true
 		}
 
@@ -282,4 +297,8 @@ func (s *impl) CompareAndSwapVideo(url string, prev string, curr string) bool {
 	})
 
 	return r
+}
+
+func (s *BadgerStorage) Close() error {
+	return s.db.Close()
 }

@@ -1,30 +1,29 @@
 package controller
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/jfk9w/hikkabot/dvach"
 	"github.com/jfk9w/hikkabot/service"
-	"github.com/jfk9w/hikkabot/storage"
-	"github.com/jfk9w/hikkabot/telegram"
+	tg "github.com/jfk9w/hikkabot/telegram"
 	"github.com/jfk9w/hikkabot/util"
 	log "github.com/sirupsen/logrus"
 )
 
-func Start(db storage.T, bot telegram.BotAPI) util.Handle {
+func Start(bot tg.BotAPI, svc *service.T) util.Handle {
 	h := util.NewHandle()
-	subs := make(users)
 	go func() {
-		defer h.Reply()
+		defer func() {
+			log.Debug("CTRL stop")
+			h.Reply()
+		}()
+
 		log.Debug("CTRL start")
 		for {
 			select {
 			case u := <-bot.In():
-				handleUpdate(db, bot, subs, u)
+				handleUpdate(bot, svc, u)
 
 			case <-h.C:
-				log.Debug("CTRL stop")
 				return
 			}
 		}
@@ -33,26 +32,38 @@ func Start(db storage.T, bot telegram.BotAPI) util.Handle {
 	return h
 }
 
-func handleUpdate(db storage.T, bot telegram.BotAPI, subs users,
-	u telegram.Update) {
+type context struct {
+	svc    *service.T
+	caller service.Caller
+	params []string
+}
 
+func (ctx *context) log() *log.Entry {
+	return log.WithFields(log.Fields{
+		"caller": ctx.caller.UserID,
+		"params": ctx.params,
+	})
+}
+
+func handleUpdate(bot tg.BotAPI, svc *service.T, u tg.Update) {
 	msg := u.Message
 	if msg != nil {
 		cmd, params := parseCommand(bot, msg)
+		caller := service.Caller{
+			Chat:   tg.ChatRef{ID: msg.Chat.ID},
+			UserID: msg.From.ID,
+		}
+
 		ctx := &context{
-			bot:    bot,
-			subs:   subs,
-			source: telegram.ChatRef{ID: msg.Chat.ID},
-			userID: msg.From.ID,
+			svc:    svc,
+			caller: caller,
 			params: params,
 		}
 
 		switch cmd {
 		case "/subscribe", "/sub":
 			ctx.log().Debug("CTRL subscribe")
-			if subscribe(ctx) {
-
-			}
+			subscribe(ctx)
 
 		case "/unsubscribe", "/unsub":
 			ctx.log().Debug("CTRL unsubscribe")
@@ -65,7 +76,7 @@ func handleUpdate(db storage.T, bot telegram.BotAPI, subs users,
 	}
 }
 
-func parseCommand(bot telegram.BotAPI, msg *telegram.Message) (string, []string) {
+func parseCommand(bot tg.BotAPI, msg *tg.Message) (string, []string) {
 	for _, entity := range msg.Entities {
 		if entity.Type == "bot_command" {
 			end := entity.Offset + entity.Length

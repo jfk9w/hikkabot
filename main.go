@@ -3,49 +3,58 @@ package main
 import (
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/dgraph-io/badger"
 	"github.com/jfk9w/hikkabot/controller"
 	dv "github.com/jfk9w/hikkabot/dvach"
 	"github.com/jfk9w/hikkabot/service"
-	"github.com/jfk9w/hikkabot/storage"
-	"github.com/jfk9w/hikkabot/telegram"
+	tg "github.com/jfk9w/hikkabot/telegram"
+	"github.com/jfk9w/hikkabot/util"
 	"github.com/jfk9w/hikkabot/webm"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.ParseLevel(config.LogLevel))
-	log.SetFormatter(&log.TextFormatter{
-		FullTimestamp: true,
-	})
-
 	cfg, err := GetConfig()
 	if err != nil {
 		panic(err)
 	}
 
-	badgerOpts := badger.DefaultOptions
-	badgerOpts.Dir = cfg.DB
-	badgerDB := badger.Open(badgerOpts)
-	defer badgerDB.Close()
+	log.SetOutput(os.Stdout)
+	lvl, err := log.ParseLevel(cfg.LogLevel)
+	if err != nil {
+		panic(err)
+	}
 
-	db := storage.New(
-		storage.Config{
-			InactiveTTL: 3 * 24 * time.Hour,
-			VideoTTL:    3 * 24 * time.Hour,
+	log.SetLevel(lvl)
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+
+	opts := badger.DefaultOptions
+	opts.Dir = cfg.DB
+	opts.ValueDir = cfg.DB
+	db, err := service.NewBadgerStorage(
+		service.Config{
+			ThreadTTL: 3 * 24 * time.Hour,
+			WebmTTL:   3 * 24 * time.Hour,
 		},
-		badgerDB,
+		opts,
 	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer db.Close()
 
 	httpc := new(http.Client)
 	dvach := dv.New(httpc)
-	bot, err := telegram.New(
+	bot, err := tg.New(
 		httpc,
 		cfg.Token,
-		telegram.GetUpdatesRequest{
+		tg.GetUpdatesRequest{
 			Timeout:        60,
 			AllowedUpdates: []string{"message"},
 		},
@@ -57,11 +66,14 @@ func main() {
 
 	defer bot.Stop()
 
-	conv, hConv = webm.Converter(webm.Wrap(httpc), 7, 6)
+	conv, hConv := webm.Converter(webm.Wrap(httpc), db, 7, 6)
 	defer hConv.Ping()
 
-	hCtl := controller.Start(bot)
-	defer hCtl.Pind()
+	svc := service.New(dvach, bot, conv, db)
+	defer svc.Stop()
+
+	hCtl := controller.Start(bot, svc)
+	defer hCtl.Ping()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
@@ -69,7 +81,7 @@ func main() {
 	exit := make(chan util.UnitType, 1)
 	go func(c chan<- util.UnitType) {
 		<-signals
-		c <- Unit
+		c <- util.Unit
 	}(exit)
 
 	<-exit

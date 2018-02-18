@@ -4,13 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"io/ioutil"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
-
-	"github.com/jfk9w/hikkabot/util"
-	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
