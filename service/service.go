@@ -20,10 +20,10 @@ type (
 
 	Storage interface {
 		Load() (State, error)
-		Resume(AccountID, ThreadID) error
-		Suspend(AccountID, ThreadID) error
-		SuspendAll(AccountID) error
-		GetOffset(AccountID, ThreadID) (int, error)
+		InsertThread(AccountID, ThreadID) bool
+		DeleteThread(AccountID, ThreadID)
+		DeleteAccount(AccountID)
+		GetOffset(AccountID, ThreadID) int
 		UpdateOffset(AccountID, ThreadID, int) bool
 	}
 )

@@ -32,6 +32,8 @@ func main() {
 	log.SetLevel(lvl)
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 
+	defer log.Debug("MAIN exit")
+
 	opts := badger.DefaultOptions
 	opts.Dir = cfg.DB
 	opts.ValueDir = cfg.DB
@@ -85,5 +87,4 @@ func main() {
 	}(exit)
 
 	<-exit
-	log.Debug("MAIN exit")
 }

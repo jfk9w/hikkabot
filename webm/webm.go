@@ -16,8 +16,8 @@ type (
 	}
 
 	Cache interface {
-		GetVideo(string) (string, error)
-		CompareAndSwapVideo(string, string, string) bool
+		GetWebm(string) string
+		UpdateWebm(string, string, string) bool
 	}
 
 	Request struct {

@@ -60,12 +60,21 @@ func (x *T) Subscribe(caller Caller, chat tg.ChatRef, url string) {
 		return
 	}
 
-	f := x.ensure(chat)
-	f.Q <- GetThreadID(board, thread)
-	x.notify(chat, `#info
-	Chat: `+chat.Key()+`
-	Thread: `+url+`
-	Subscription OK.`)
+	acc := GetAccountID(chat)
+	thr := GetThreadID(board, thread)
+	if x.db.InsertThread(acc, thr) {
+		f := x.ensure(chat)
+		f.Q <- thr
+		x.notify(chat, `#info
+		Chat: `+chat.Key()+`
+		Thread: `+url+`
+		Subscription OK.`)
+	} else {
+		x.bot.SendMessage(tg.SendMessageRequest{
+			Chat: caller.Chat,
+			Text: "Already subscribed",
+		}, true, nil)
+	}
 }
 
 func (x *T) Unsubscribe(caller Caller, chat tg.ChatRef) {
@@ -73,7 +82,7 @@ func (x *T) Unsubscribe(caller Caller, chat tg.ChatRef) {
 		return
 	}
 
-	x.db.SuspendAll(GetAccountID(chat))
+	x.db.DeleteAccount(GetAccountID(chat))
 	x.notify(chat, `#info
 	Chat: `+chat.Key()+`
 	Subscriptions cleared.`)
@@ -104,7 +113,7 @@ func (x *T) notify(chat tg.ChatRef, text string, args ...interface{}) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"chat": chat.Key(),
-		}).Error("SRVC notify failed", err)
+		}).Error("SRVC notify failed: ", err)
 
 		return
 	}
@@ -255,8 +264,8 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 
 				case thr := <-f.Q:
 					<-ticker.C
-					offset, err := x.db.GetOffset(acc, thr)
-					if err != nil || offset == -1 {
+					offset := x.db.GetOffset(acc, thr)
+					if offset == -1 {
 						continue
 					}
 
@@ -273,7 +282,7 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 
 						qr[thr] += 1
 						if qr[thr] >= 10 {
-							x.db.Suspend(acc, thr)
+							x.db.DeleteThread(acc, thr)
 
 							board, thread := ReadThreadID(thr)
 							x.notify(ReadAccountID(acc), `#info
@@ -285,7 +294,7 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 					case echat:
 						r += 1
 						if r >= 3 {
-							x.db.SuspendAll(acc)
+							x.db.DeleteAccount(acc)
 
 							x.notify(chat, `#info
 							Chat: `+chat.Key()+`

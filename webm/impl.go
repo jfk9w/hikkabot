@@ -114,16 +114,17 @@ func handleRequest(ctx *context, h util.Handle, req Request) bool {
 	})
 
 	for {
-		v, err := ctx.cache.GetVideo(req.URL)
-		if err != nil {
-			l.Error("WEBM handleRequest GetVideo", err)
+		v := ctx.cache.GetWebm(req.URL)
+		if v == "" {
+			l.Error("WEBM unable to load webm from cache")
 			req.C <- Marked
 			return true
 		}
 
+		var err error
 		switch v {
 		case NotFound:
-			if ctx.cache.CompareAndSwapVideo(req.URL, NotFound, Pending) {
+			if ctx.cache.UpdateWebm(req.URL, NotFound, Pending) {
 				for i := 0; i < ctx.retries; i++ {
 					v, err = ctx.client.Load(ctx.endpoint(), req.URL)
 					if err == nil {
@@ -147,7 +148,7 @@ func handleRequest(ctx *context, h util.Handle, req Request) bool {
 				v = Marked
 			}
 
-			ctx.cache.CompareAndSwapVideo(req.URL, Pending, v)
+			ctx.cache.UpdateWebm(req.URL, Pending, v)
 			req.C <- v
 			return true
 

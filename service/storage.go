@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -87,135 +86,95 @@ func (s *BadgerStorage) Load() (State, error) {
 	return state, nil
 }
 
-func (s *BadgerStorage) Resume(acc AccountID, thr ThreadID) error {
-	_, offset := ReadThreadID(thr)
-	_, err := strconv.Atoi(offset)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("[%s] invalid thread ID: %s", acc, thr))
+func (s *BadgerStorage) InsertThread(acc AccountID, thr ThreadID) bool {
+	r := false
+	k := kActiveThread(acc, thr)
+	for s.db.Update(func(tx *badger.Txn) error {
+		_, err := tx.Get(k)
+		if err == nil {
+			return nil
+		}
+
+		var v []byte
+		susp := kDeletedThread(k)
+		item, err := tx.Get(susp)
+		if err == badger.ErrKeyNotFound {
+			v = []byte("0")
+		} else {
+			v, _ = item.Value()
+			tx.Delete(susp)
+		}
+
+		r = true
+		tx.Set(k, v)
+
+		return nil
+	}) == badger.ErrConflict {
 	}
 
-	k := kActiveThread(acc, thr)
-	return errors.Wrap(
-		s.db.Update(func(tx *badger.Txn) error {
-			_, err := tx.Get(k)
-			if err == badger.ErrKeyNotFound {
-				var v []byte
-				susp := kDeletedThread(k)
-				item, err := tx.Get(susp)
-				if err == nil {
-					v, err = item.Value()
-					if err != nil {
-						return err
-					}
-
-					err = tx.Delete(susp)
-					if err != nil {
-						return err
-					}
-				} else if err == badger.ErrKeyNotFound {
-					v = []byte("0")
-				} else {
-					return err
-				}
-
-				return tx.Set(k, v)
-			}
-
-			return err
-		}),
-		fmt.Sprintf("[%s] resume failed for %s", acc, thr),
-	)
+	return r
 }
 
-func (s *BadgerStorage) Suspend(acc AccountID, thr ThreadID) error {
+func (s *BadgerStorage) DeleteThread(acc AccountID, thr ThreadID) {
 	k := kActiveThread(acc, thr)
-	return errors.Wrap(
-		s.db.Update(func(tx *badger.Txn) error {
-			item, err := tx.Get(k)
-			if err != nil && err != badger.ErrKeyNotFound {
-				return err
-			}
-
-			v, err := item.Value()
-			if err != nil {
-				return err
-			}
-
-			if err := tx.SetWithTTL(kDeletedThread(k), v,
-				s.config.ThreadTTL); err != nil {
-				return err
-			}
-
-			return tx.Delete(k)
-		}),
-		fmt.Sprintf("[%s] failed to suspend %s", acc, thr),
-	)
-}
-
-func (s *BadgerStorage) SuspendAll(acc AccountID) error {
-	return errors.Wrap(
-		s.db.Update(func(tx *badger.Txn) error {
-			opts := badger.DefaultIteratorOptions
-			it := tx.NewIterator(opts)
-
-			keys := make([][]byte, 0)
-			prefix := []byte(pTA + path0 + acc)
-			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-				item := it.Item()
-				k := item.Key()
-				v, err := item.Value()
-				if err != nil {
-					it.Close()
-					return err
-				}
-
-				if err := tx.SetWithTTL(kDeletedThread(k), v,
-					s.config.ThreadTTL); err != nil {
-					it.Close()
-					return err
-				}
-
-				keys = append(keys, k)
-			}
-
-			it.Close()
-			for _, k := range keys {
-				if err := tx.Delete(k); err != nil {
-					return err
-				}
-			}
-
+	for s.db.Update(func(tx *badger.Txn) error {
+		item, err := tx.Get(k)
+		if err == badger.ErrKeyNotFound {
 			return nil
-		}),
-		fmt.Sprintf("[%s] failed to suspend all", acc),
-	)
+		}
+
+		v, _ := item.Value()
+		tx.SetWithTTL(kDeletedThread(k), v, s.config.ThreadTTL)
+		tx.Delete(k)
+
+		return nil
+	}) == badger.ErrConflict {
+	}
 }
 
-func (s *BadgerStorage) GetOffset(acc AccountID, thr AccountID) (int, error) {
+func (s *BadgerStorage) DeleteAccount(acc AccountID) {
+	for s.db.Update(func(tx *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		it := tx.NewIterator(opts)
+
+		keys := make([][]byte, 0)
+		prefix := []byte(pTA + path0 + acc)
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			k := item.Key()
+			v, _ := item.Value()
+			tx.SetWithTTL(kDeletedThread(k), v, s.config.ThreadTTL)
+			keys = append(keys, k)
+		}
+
+		it.Close()
+		for _, k := range keys {
+			tx.Delete(k)
+		}
+
+		return nil
+	}) == badger.ErrConflict {
+	}
+}
+
+func (s *BadgerStorage) GetOffset(acc AccountID, thr AccountID) int {
 	k := kActiveThread(acc, thr)
 	var r int
-	if err := s.db.View(func(tx *badger.Txn) error {
+	for s.db.View(func(tx *badger.Txn) error {
 		item, err := tx.Get(k)
-		if err == nil {
-			var v []byte
-			v, err = item.Value()
-			if err == nil {
-				r, err = strconv.Atoi(string(v))
-				if err == nil {
-					return nil
-				}
-			}
-		} else if err == badger.ErrKeyNotFound {
+		if err == badger.ErrKeyNotFound {
 			r = -1
 			return nil
 		}
 
-		return err
-	}); err != nil {
-		return r, errors.Wrap(err, fmt.Sprintf("[%s] get offset failed for %s", acc, thr))
+		v, _ := item.Value()
+		r, _ = strconv.Atoi(string(v))
+
+		return nil
+	}) == badger.ErrConflict {
 	}
 
-	return r, nil
+	return r
 }
 
 func (s *BadgerStorage) UpdateOffset(acc AccountID, thr ThreadID,
@@ -225,7 +184,7 @@ func (s *BadgerStorage) UpdateOffset(acc AccountID, thr ThreadID,
 	for s.db.Update(func(tx *badger.Txn) error {
 		_, err := tx.Get(k)
 		if err != nil {
-			return err
+			return nil
 		}
 
 		v := []byte(strconv.Itoa(offset))
@@ -247,9 +206,9 @@ func kWebm(url string) []byte {
 	return []byte(pW + path0 + url)
 }
 
-func (s *BadgerStorage) GetVideo(url string) (string, error) {
+func (s *BadgerStorage) GetWebm(url string) string {
 	var r string
-	if err := s.db.View(func(tx *badger.Txn) error {
+	for s.db.View(func(tx *badger.Txn) error {
 		item, err := tx.Get(kWebm(url))
 		switch err {
 		case badger.ErrKeyNotFound:
@@ -266,18 +225,16 @@ func (s *BadgerStorage) GetVideo(url string) (string, error) {
 		}
 
 		return nil
-	}); err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf(
-			"get video failed for %s", url))
+	}) == badger.ErrConflict {
 	}
 
-	return r, nil
+	return r
 }
 
-func (s *BadgerStorage) CompareAndSwapVideo(url string, prev string, curr string) bool {
+func (s *BadgerStorage) UpdateWebm(url string, prev string, curr string) bool {
 	r := false
 	k := kWebm(url)
-	s.db.Update(func(tx *badger.Txn) error {
+	for s.db.Update(func(tx *badger.Txn) error {
 		item, err := tx.Get(k)
 		if err != nil {
 			return nil
@@ -294,7 +251,8 @@ func (s *BadgerStorage) CompareAndSwapVideo(url string, prev string, curr string
 		}
 
 		return nil
-	})
+	}) == badger.ErrConflict {
+	}
 
 	return r
 }
