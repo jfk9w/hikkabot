@@ -65,7 +65,7 @@ func (x *T) Subscribe(caller Caller, chat tg.ChatRef, url string) {
 	if x.db.InsertThread(acc, thr) {
 		f := x.ensure(chat)
 		f.Q <- thr
-		x.notify(chat, `#info
+		x.notifyAdmins(chat, `#info
 		Chat: `+chat.Key()+`
 		Thread: `+url+`
 		Subscription OK.`)
@@ -83,7 +83,7 @@ func (x *T) Unsubscribe(caller Caller, chat tg.ChatRef) {
 	}
 
 	x.db.DeleteAccount(GetAccountID(chat))
-	x.notify(chat, `#info
+	x.notifyAdmins(chat, `#info
 	Chat: `+chat.Key()+`
 	Subscriptions cleared.`)
 }
@@ -109,22 +109,31 @@ func (x *T) Stop() {
 }
 
 func (x *T) notify(chat tg.ChatRef, text string, args ...interface{}) {
+	x.bot.SendMessage(tg.SendMessageRequest{
+		Chat: chat,
+		Text: fmt.Sprintf(text, args...),
+	}, true, nil)
+}
+
+func (x *T) notifyAdmins(chat tg.ChatRef, text string, args ...interface{}) {
+	if !chat.IsChannel() {
+		x.notify(chat, text, args)
+		return
+	}
+
 	admins, err := x.bot.GetChatAdministrators(chat)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"chat": chat.Key(),
+			"sub": chat.Key(),
 		}).Error("SRVC notify failed: ", err)
 
 		return
 	}
 
 	for _, admin := range admins {
-		x.bot.SendMessage(tg.SendMessageRequest{
-			Chat: tg.ChatRef{
-				ID: tg.ChatID(admin.User.ID),
-			},
-			Text: fmt.Sprintf(text, args...),
-		}, true, nil)
+		x.notify(tg.ChatRef{
+			ID: tg.ChatID(admin.User.ID),
+		}, text, args)
 	}
 }
 
@@ -285,7 +294,7 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 							x.db.DeleteThread(acc, thr)
 
 							board, thread := ReadThreadID(thr)
-							x.notify(ReadAccountID(acc), `#info
+							x.notifyAdmins(ReadAccountID(acc), `#info
 							Chat: `+chat.Key()+`
 							Thread: `+dv.FormatThreadURL(board, thread)+`
 							An error has occured. Subscription suspended.`)
@@ -296,7 +305,7 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 						if r >= 3 {
 							x.db.DeleteAccount(acc)
 
-							x.notify(chat, `#info
+							x.notifyAdmins(chat, `#info
 							Chat: `+chat.Key()+`
 							Unable to send messages to the chat. All subscriptions suspended.`)
 							return

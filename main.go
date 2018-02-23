@@ -18,6 +18,8 @@ import (
 )
 
 func main() {
+	defer log.Debug("MAIN exit")
+
 	cfg, err := GetConfig()
 	if err != nil {
 		panic(err)
@@ -31,8 +33,6 @@ func main() {
 
 	log.SetLevel(lvl)
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
-
-	defer log.Debug("MAIN exit")
 
 	opts := badger.DefaultOptions
 	opts.Dir = cfg.DB

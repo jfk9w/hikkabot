@@ -7,6 +7,7 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/jfk9w/hikkabot/webm"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -112,6 +113,12 @@ func (s *BadgerStorage) InsertThread(acc AccountID, thr ThreadID) bool {
 	}) == badger.ErrConflict {
 	}
 
+	log.WithFields(log.Fields{
+		"acc": acc,
+		"thr": thr,
+		"r":   r,
+	}).Debug("BDGR insert thread")
+
 	return r
 }
 
@@ -130,6 +137,11 @@ func (s *BadgerStorage) DeleteThread(acc AccountID, thr ThreadID) {
 		return nil
 	}) == badger.ErrConflict {
 	}
+
+	log.WithFields(log.Fields{
+		"acc": acc,
+		"thr": thr,
+	}).Debug("BDGR delete thread")
 }
 
 func (s *BadgerStorage) DeleteAccount(acc AccountID) {
@@ -155,6 +167,10 @@ func (s *BadgerStorage) DeleteAccount(acc AccountID) {
 		return nil
 	}) == badger.ErrConflict {
 	}
+
+	log.WithFields(log.Fields{
+		"acc": acc,
+	}).Debug("BDGR delete account")
 }
 
 func (s *BadgerStorage) GetOffset(acc AccountID, thr AccountID) int {
@@ -173,6 +189,12 @@ func (s *BadgerStorage) GetOffset(acc AccountID, thr AccountID) int {
 		return nil
 	}) == badger.ErrConflict {
 	}
+
+	log.WithFields(log.Fields{
+		"acc": acc,
+		"thr": thr,
+		"r":   r,
+	}).Debug("BDGR get offset")
 
 	return r
 }
@@ -198,6 +220,13 @@ func (s *BadgerStorage) UpdateOffset(acc AccountID, thr ThreadID,
 		return nil
 	}) == badger.ErrConflict {
 	}
+
+	log.WithFields(log.Fields{
+		"acc":    acc,
+		"thr":    thr,
+		"offset": offset,
+		"r":      r,
+	}).Debug("BDGR update offset")
 
 	return r
 }
@@ -228,6 +257,11 @@ func (s *BadgerStorage) GetWebm(url string) string {
 	}) == badger.ErrConflict {
 	}
 
+	log.WithFields(log.Fields{
+		"url": url,
+		"r":   r,
+	}).Debug("BDGR get webm")
+
 	return r
 }
 
@@ -235,13 +269,19 @@ func (s *BadgerStorage) UpdateWebm(url string, prev string, curr string) bool {
 	r := false
 	k := kWebm(url)
 	for s.db.Update(func(tx *badger.Txn) error {
+		var v []byte
 		item, err := tx.Get(k)
-		if err != nil {
-			return nil
-		}
+		switch err {
+		case badger.ErrKeyNotFound:
+			v = []byte(webm.NotFound)
 
-		v, err := item.Value()
-		if err != nil {
+		case nil:
+			v, err = item.Value()
+			if err != nil {
+				return nil
+			}
+
+		default:
 			return nil
 		}
 
@@ -253,6 +293,13 @@ func (s *BadgerStorage) UpdateWebm(url string, prev string, curr string) bool {
 		return nil
 	}) == badger.ErrConflict {
 	}
+
+	log.WithFields(log.Fields{
+		"url":  url,
+		"prev": prev,
+		"curr": curr,
+		"r":    r,
+	}).Debug("BDGR update webm")
 
 	return r
 }
