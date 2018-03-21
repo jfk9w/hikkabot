@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	defer log.Debug("MAIN exit")
+	defer log.Info("MAIN exit")
 
 	cfg, err := GetConfig()
 	if err != nil {

@@ -117,7 +117,7 @@ func (s *BadgerStorage) InsertThread(acc AccountID, thr ThreadID) bool {
 		"acc": acc,
 		"thr": thr,
 		"r":   r,
-	}).Debug("BDGR insert thread")
+	}).Debug("BDGR InsertThread")
 
 	return r
 }
@@ -141,7 +141,7 @@ func (s *BadgerStorage) DeleteThread(acc AccountID, thr ThreadID) {
 	log.WithFields(log.Fields{
 		"acc": acc,
 		"thr": thr,
-	}).Debug("BDGR delete thread")
+	}).Debug("BDGR DeleteThread")
 }
 
 func (s *BadgerStorage) DeleteAccount(acc AccountID) {
@@ -170,7 +170,7 @@ func (s *BadgerStorage) DeleteAccount(acc AccountID) {
 
 	log.WithFields(log.Fields{
 		"acc": acc,
-	}).Debug("BDGR delete account")
+	}).Debug("BDGR DeleteAccount")
 }
 
 func (s *BadgerStorage) GetOffset(acc AccountID, thr AccountID) int {
@@ -194,7 +194,7 @@ func (s *BadgerStorage) GetOffset(acc AccountID, thr AccountID) int {
 		"acc": acc,
 		"thr": thr,
 		"r":   r,
-	}).Debug("BDGR get offset")
+	}).Debug("BDGR GetOffset")
 
 	return r
 }
@@ -226,7 +226,7 @@ func (s *BadgerStorage) UpdateOffset(acc AccountID, thr ThreadID,
 		"thr":    thr,
 		"offset": offset,
 		"r":      r,
-	}).Debug("BDGR update offset")
+	}).Debug("BDGR UpdateOffset")
 
 	return r
 }
@@ -260,7 +260,7 @@ func (s *BadgerStorage) GetWebm(url string) string {
 	log.WithFields(log.Fields{
 		"url": url,
 		"r":   r,
-	}).Debug("BDGR get webm")
+	}).Debug("BDGR GetWebm")
 
 	return r
 }
@@ -299,7 +299,7 @@ func (s *BadgerStorage) UpdateWebm(url string, prev string, curr string) bool {
 		"prev": prev,
 		"curr": curr,
 		"r":    r,
-	}).Debug("BDGR update webm")
+	}).Debug("BDGR UpdateWebm")
 
 	return r
 }

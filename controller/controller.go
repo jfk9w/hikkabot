@@ -13,11 +13,11 @@ func Start(bot tg.BotAPI, svc *service.T) util.Handle {
 	h := util.NewHandle()
 	go func() {
 		defer func() {
-			log.Debug("CTRL stop")
+			log.Info("CTRL stop")
 			h.Reply()
 		}()
 
-		log.Debug("CTRL start")
+		log.Info("CTRL start")
 		for {
 			select {
 			case u := <-bot.In():
@@ -62,15 +62,15 @@ func handleUpdate(bot tg.BotAPI, svc *service.T, u tg.Update) {
 
 		switch cmd {
 		case "/subscribe", "/sub":
-			ctx.log().Debug("CTRL subscribe")
+			ctx.log().Info("CTRL subscribe")
 			subscribe(ctx)
 
 		case "/unsubscribe", "/unsub":
-			ctx.log().Debug("CTRL unsubscribe")
+			ctx.log().Info("CTRL unsubscribe")
 			unsubscribe(ctx)
 
 		case "/status":
-			ctx.log().Debug("CTRL status")
+			ctx.log().Info("CTRL status")
 			status(ctx)
 		}
 	}
