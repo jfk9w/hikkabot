@@ -117,7 +117,7 @@ func (x *T) notify(chat tg.ChatRef, text string, args ...interface{}) {
 
 func (x *T) notifyAdmins(chat tg.ChatRef, text string, args ...interface{}) {
 	if !chat.IsChannel() {
-		x.notify(chat, text, args)
+		x.notify(chat, text, args...)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (x *T) notifyAdmins(chat tg.ChatRef, text string, args ...interface{}) {
 	for _, admin := range admins {
 		x.notify(tg.ChatRef{
 			ID: tg.ChatID(admin.User.ID),
-		}, text, args)
+		}, text, args...)
 	}
 }
 

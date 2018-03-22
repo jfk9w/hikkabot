@@ -36,13 +36,6 @@ func (ctx *context) retry(req Request, retries int) (*Response, error) {
 
 	for {
 		resp, err = ctx.request(req)
-		log.WithFields(log.Fields{
-			"req": req,
-			"resp": resp,
-			"err": err,
-			"retry": retries,
-		}).Debug("COMM retry")
-
 		if err == nil {
 			if resp.Parameters != nil {
 				timeout := time.Duration(resp.Parameters.RetryAfter)
@@ -54,6 +47,13 @@ func (ctx *context) retry(req Request, retries int) (*Response, error) {
 			break
 		}
 
+		log.WithFields(log.Fields{
+			"req_params": req.Parameters(),
+			"req_method": req.Method(),
+			"err": err,
+			"retries_left": retries,
+		}).Warn("COMM retry")
+
 		if retries == 0 {
 			break
 		}
@@ -61,6 +61,13 @@ func (ctx *context) retry(req Request, retries int) (*Response, error) {
 		retries--
 		time.Sleep(time.Second)
 	}
+
+	log.WithFields(log.Fields{
+		"req_params": req.Parameters(),
+		"req_method": req.Method(),
+		"resp_ok": resp.Ok,
+		"resp_error_code": resp.ErrorCode,
+	}).Debug(fmt.Sprintf("%s", resp.Result))
 
 	return resp, err
 }
