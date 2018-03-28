@@ -9,13 +9,27 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var validStatusCodes = []int{
+	http.StatusOK,
+	http.StatusSeeOther,
+	http.StatusBadRequest,
+	http.StatusUnauthorized,
+	http.StatusForbidden,
+	http.StatusNotFound,
+	420, // FLOOD
+	http.StatusInternalServerError,
+}
+
 type context struct {
 	client *http.Client
-	token  string
+	tokenQ chan string
 }
 
 func (ctx *context) path(method string) string {
-	return fmt.Sprintf("%s/bot%s/%s", Endpoint, ctx.token, method)
+	token := <-ctx.tokenQ
+	ctx.tokenQ <- token
+	path := fmt.Sprintf("%s/bot%s/%s", Endpoint, token, method)
+	return path
 }
 
 func (ctx *context) request(req Request) (*Response, error) {
@@ -25,7 +39,7 @@ func (ctx *context) request(req Request) (*Response, error) {
 	}
 
 	resp := new(Response)
-	return resp, util.ReadResponse(r, resp)
+	return resp, util.ReadResponse(r, resp, validStatusCodes...)
 }
 
 func (ctx *context) retry(req Request, retries int) (*Response, error) {
@@ -67,6 +81,7 @@ func (ctx *context) retry(req Request, retries int) (*Response, error) {
 		"req_method": req.Method(),
 		"resp_ok": resp.Ok,
 		"resp_error_code": resp.ErrorCode,
+		"resp_description": resp.Description,
 	}).Debug(fmt.Sprintf("%s", resp.Result))
 
 	return resp, err

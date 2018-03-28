@@ -53,8 +53,7 @@ func (x *T) Subscribe(caller Caller, chat tg.ChatRef, url string) {
 		x.bot.SendMessage(tg.SendMessageRequest{
 			Chat:      caller.Chat,
 			ParseMode: tg.Markdown,
-			Text: `#info
-			Usage: ` + "`/subscribe`" + ` THREAD_URL`,
+			Text:      "Usage: `/subscribe THREAD_URL`",
 		}, true, nil)
 
 		return
@@ -65,10 +64,9 @@ func (x *T) Subscribe(caller Caller, chat tg.ChatRef, url string) {
 	if x.db.InsertThread(acc, thr) {
 		f := x.ensure(chat)
 		f.Q <- thr
-		x.notifyAdmins(chat, `#info
-		Chat: `+chat.Key()+`
-		Thread: `+url+`
-		Subscription OK.`)
+		x.notifyAdmins(chat,
+			"Chat: %s\nThread: %s\nSubscription OK.",
+			chat.Key(), url)
 	} else {
 		x.bot.SendMessage(tg.SendMessageRequest{
 			Chat: caller.Chat,
@@ -83,19 +81,15 @@ func (x *T) Unsubscribe(caller Caller, chat tg.ChatRef) {
 	}
 
 	x.db.DeleteAccount(GetAccountID(chat))
-	x.notifyAdmins(chat, `#info
-	Chat: `+chat.Key()+`
-	Subscriptions cleared.`)
+	x.notifyAdmins(chat,
+		"Chat: %s\nSubscriptions cleared.",
+		chat.Key())
 }
 
 func (x *T) Status(caller Caller) {
 	x.bot.SendMessage(tg.SendMessageRequest{
 		Chat: caller.Chat,
-		Text: `#info
-		While you're dying I'll be still alive
-		And when you're dead I will be still alive
-		Still alive
-		S T I L L A L I V E`,
+		Text: "While you're dying I'll be still alive\nAnd when you're dead I will be still alive\nStill alive\nS T I L L A L I V E",
 	}, true, nil)
 }
 
@@ -116,6 +110,7 @@ func (x *T) notify(chat tg.ChatRef, text string, args ...interface{}) {
 }
 
 func (x *T) notifyAdmins(chat tg.ChatRef, text string, args ...interface{}) {
+	text = "#info\n" + text
 	if !chat.IsChannel() {
 		x.notify(chat, text, args...)
 		return
@@ -166,7 +161,7 @@ func (x *T) access(caller Caller, chat tg.ChatRef) bool {
 type ferror uint8
 
 const (
-	eok ferror = iota
+	eok        ferror = iota
 	ethread
 	echat
 	einterrupt
@@ -295,8 +290,8 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 
 							board, thread := ReadThreadID(thr)
 							x.notifyAdmins(ReadAccountID(acc), `#info
-							Chat: `+chat.Key()+`
-							Thread: `+dv.FormatThreadURL(board, thread)+`
+							Chat: `+ chat.Key()+ `
+							Thread: `+ dv.FormatThreadURL(board, thread)+ `
 							An error has occured. Subscription suspended.`)
 						}
 
@@ -306,7 +301,7 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 							x.db.DeleteAccount(acc)
 
 							x.notifyAdmins(chat, `#info
-							Chat: `+chat.Key()+`
+							Chat: `+ chat.Key()+ `
 							Unable to send messages to the chat. All subscriptions suspended.`)
 							return
 						}

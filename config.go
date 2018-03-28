@@ -7,7 +7,7 @@ import (
 )
 
 type Config struct {
-	Token    string `json:"token"`
+	Tokens   []string `json:"tokens"`
 	DB       string `json:"db"`
 	LogLevel string `json:"log_level"`
 }

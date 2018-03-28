@@ -20,8 +20,20 @@ func MinInt(a, b int) int {
 	return b
 }
 
-func ReadResponse(resp *http.Response, r interface{}) error {
-	if resp.StatusCode != http.StatusOK {
+func ReadResponse(resp *http.Response, r interface{}, validStatusCodes ...int) error {
+	if len(validStatusCodes) == 0 {
+		validStatusCodes = []int{http.StatusOK}
+	}
+
+	ok := false
+	for _, code := range validStatusCodes {
+		if resp.StatusCode == code {
+			ok = true
+			break
+		}
+	}
+
+	if !ok {
 		return errors.Errorf("invalid HTTP status: %d", resp.StatusCode)
 	}
 

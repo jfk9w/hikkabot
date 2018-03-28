@@ -55,7 +55,7 @@ func main() {
 	dvach := dv.New(httpc)
 	bot, err := tg.New(
 		httpc,
-		cfg.Token,
+		cfg.Tokens,
 		tg.GetUpdatesRequest{
 			Timeout:        60,
 			AllowedUpdates: []string{"message"},

@@ -21,9 +21,14 @@ type (
 	}
 )
 
-func New(httpc *http.Client, token string,
+func New(httpc *http.Client, tokens []string,
 	updates GetUpdatesRequest) (BotAPI, error) {
-	ctx := &context{httpc, token}
+	tokenQ := make(chan string, len(tokens))
+	for _, token := range tokens {
+		tokenQ <- token
+	}
+
+	ctx := &context{httpc, tokenQ}
 	b := &impl{
 		ctx: ctx,
 	}
@@ -34,7 +39,7 @@ func New(httpc *http.Client, token string,
 	}
 
 	b.in, b.hs[0] = incoming(ctx, updates)
-	b.outQ, b.outU, b.hs[1] = outgoing(ctx)
+	b.outQ, b.outU, b.hs[1] = outgoing(ctx, len(tokens))
 
 	return b, nil
 }

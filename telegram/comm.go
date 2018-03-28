@@ -36,13 +36,13 @@ type DeferredRequest struct {
 	handler ResponseHandler
 }
 
-func outgoing(ctx *context) (
+func outgoing(ctx *context, par int) (
 	qc chan DeferredRequest, uc chan DeferredRequest, h util.Handle) {
 
 	qc = make(chan DeferredRequest, 1000)
 	uc = make(chan DeferredRequest, 20)
 	h = util.NewHandle()
-	t := time.NewTicker(60 * time.Millisecond)
+	t := time.NewTicker(time.Duration(60 / par + 1) * time.Millisecond)
 
 	go func() {
 		defer func() {
