@@ -298,7 +298,7 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 						}
 
 						qr[thr] += 1
-						if qr[thr] >= 10 {
+						if qr[thr] >= 3 {
 							x.db.DeleteThread(acc, thr)
 
 							board, thread := ReadThreadID(thr)
