@@ -1,45 +1,43 @@
 #!/bin/bash
 
-BUILD=build
-APP=app
-CONFIG=app.conf
-PID=.pid
-LOG=log
+RUNFILE=$HOME/.hikkabot
 
-CMD=$1
-case "$CMD" in
+start() {
+    if [[ -f ${RUNFILE} ]]; then
+        echo "Hikkabot instance already running, PID: `cat ${RUNFILE}`"
+    else
+        CONFIG=$1
+        LOGFILE=$2
+        if [[ -n ${LOGFILE} ]]; then
+            hikkabot -config=${CONFIG} 2>&1 > ${LOGFILE} &
+            echo -e "PID=$!\nLOGFILE=${LOGFILE}" > ${RUNFILE}
+        else
+            hikkabot -config=${CONFIG}
+        fi
+    fi
+}
 
-	"build")
-		go build -o $BUILD/$APP -v
-		;;
-		
-	"run")
-	    cd $BUILD
-		./$APP -config=$CONFIG
-		;;
+stop() {
+    if [[ -f ${RUNFILE} ]]; then
+        source ${RUNFILE}
+        kill ${PID}
+        echo "Waiting for Hikkabot instance death, PID: ${PID}"
+        tail -f ${LOGFILE} | while read LOGLINE; do
+            [[ "${LOGLINE}" == *"MAIN exit"* ]] && pkill -P $$ tail
+        done
+        rm ${RUNFILE}
+        echo "OK"
+    else
+        echo "Hikkabot instance not running"
+    fi
+}
 
-	"start")
-	    cd $BUILD
-		if [ -f $PID ]; then
-			echo "Already running"
-		else
-			./$APP -config=$CONFIG > $LOG 2>&1 &
-			echo $! > $PID
-		fi
-		;;
+case $1 in
+    "start")
+        start $2 $3
+        ;;
 
-	"stop")
-	    cd $BUILD
-		if [ -f $PID ]; then
-			kill `cat $PID`
-			rm $PID
-		else
-			echo "Not running"
-		fi
-		;;
-
-	"log")
-		tail -100f $BUILD/$LOG
-		;;
-		
+    "stop")
+        stop
+        ;;
 esac
