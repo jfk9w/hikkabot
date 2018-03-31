@@ -32,36 +32,28 @@ At the beginning of each thread a message containing a hashtag `#thread`, a thre
 All service messages begin with a hashtag `#info`.
 
 
-## Usage
+## Installation and execution
 
-You can use `go build` to build the bot.
+Install using Go package manager:
 
-To run type `./hikkabot -config=your_config_file` (see [sample.conf](https://github.com/jfk9w/hikkabot/blob/master/sample.conf))
+```bash
+$ go install github.com/jfk9w/hikkabot
+$ hikkabot -config=YOUR_CONFIG_FILE
+```
+
+You can use [this skeleton](https://github.com/jfk9w/hikkabot/blob/master/config.json) to build the configuration upon.
 
 ### <span>bot.sh</span>
 
-This is a utility script provided for easy build and deploy.
+This is a utility script provided for bot control.
 
 ```bash
-cd hikkabot
+# Starts an instance of Hikkabot.
+# If LOG_FILE is specified, the instance will
+# be run in background printing its output to
+# LOG_FILE.
+$ ./bot.sh start YOUR_CONFIG_FILE [LOG_FILE]
 
-# build
-./bot.sh build
-
-# config skeleton
-cp sample.conf build/app.conf
-
-# to run in foreground
-# logs are printed to stdout
-./bot.sh run
-
-# to run in background
-# logs are printed to build/log
-./bot.sh start
-
-# tail build/log
-./bot.sh log
-
-# to stop background bot process
-./bot.sh stop
+# Stops the background instance of Hikkabot.
+$ ./bot.sh stop
 ```
