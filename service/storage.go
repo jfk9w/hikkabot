@@ -11,12 +11,11 @@ import (
 )
 
 const (
-	pTA   = "thrd[a]"
-	pTD   = "thrd[d]"
-	pW    = "webm"
-	path0 = "!"
-	path1 = ":"
-	path2 = "/"
+	pTA = "thrd[a]"
+	pTD = "thrd[d]"
+	pW  = "webm"
+	sP  = "\t"
+	sT  = "/"
 )
 
 type BadgerStorage struct {
@@ -38,15 +37,15 @@ func NewBadgerStorage(config Config, opts badger.Options) (*BadgerStorage, error
 
 func kActiveThread(acc AccountID, thr ThreadID) []byte {
 	return []byte(
-		pTA + path0 +
-			acc + path1 +
+		pTA + sP +
+			acc + sP +
 			thr,
 	)
 }
 
 func kDeletedThread(active []byte) []byte {
-	ts := strings.Split(string(active), path0)
-	return []byte(pTD + path0 + ts[1])
+	ts := strings.Split(string(active), sP)
+	return []byte(pTD + sP + ts[1] + sP + ts[2])
 }
 
 func (s *BadgerStorage) Load() (State, error) {
@@ -60,9 +59,8 @@ func (s *BadgerStorage) Load() (State, error) {
 			item := it.Item()
 			k := item.Key()
 
-			t0 := strings.Split(string(k), path0)
-			ts := strings.Split(t0[1], path1)
-			acc, thr := ts[0], ts[1]
+			ts := strings.Split(string(k), sP)
+			acc, thr := ts[1], ts[2]
 
 			if _, ok := state[acc]; !ok {
 				state[acc] = make([]ThreadID, 0)
@@ -142,7 +140,7 @@ func (s *BadgerStorage) DeleteAccount(acc AccountID) {
 		it := tx.NewIterator(opts)
 
 		keys := make([][]byte, 0)
-		prefix := []byte(pTA + path0 + acc)
+		prefix := []byte(pTA + sP + acc)
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			k := item.Key()
@@ -224,7 +222,7 @@ func (s *BadgerStorage) UpdateOffset(acc AccountID, thr ThreadID,
 }
 
 func kWebm(url string) []byte {
-	return []byte(pW + path0 + url)
+	return []byte(pW + sP + url)
 }
 
 func (s *BadgerStorage) GetWebm(url string) string {

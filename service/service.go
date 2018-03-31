@@ -29,11 +29,11 @@ type (
 )
 
 func GetThreadID(board string, thread string) ThreadID {
-	return board + path2 + thread
+	return board + sT + thread
 }
 
 func ReadThreadID(id ThreadID) (string, string) {
-	ts := strings.Split(id, path2)
+	ts := strings.Split(id, sT)
 	return ts[0], ts[1]
 }
 
