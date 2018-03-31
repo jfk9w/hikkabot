@@ -45,7 +45,7 @@ You can use [this skeleton](https://github.com/jfk9w/hikkabot/blob/master/config
 
 ### <span>bot.sh</span>
 
-This is a utility script provided for bot control.
+This is a [utility script](https://github.com/jfk9w/hikkabot/blob/master/bot.sh) provided for bot control.
 
 ```bash
 # Starts an instance of Hikkabot.
