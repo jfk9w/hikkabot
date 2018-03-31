@@ -106,6 +106,31 @@ func (x *T) Status(caller Caller) {
 	}, true, nil)
 }
 
+func (x *T) Front(caller Caller, board string, limit int) {
+	c, err := x.dvach.GetFront(board)
+	if err != nil {
+		x.bot.SendMessage(tg.SendMessageRequest{
+			Chat: caller.Chat,
+			Text: fmt.Sprintf(
+				"Unable to get the front page of /%s: %s",
+				board, err.Error()),
+		}, true, nil)
+
+		return
+	}
+
+	limit = util.MinInt(limit, len(c.Threads))
+	for i, post := range c.Threads[0:limit] {
+		message, preview := screen.Thread(board, post)
+		x.bot.SendMessageSync(tg.SendMessageRequest{
+			Chat:                  caller.Chat,
+			Text:                  fmt.Sprintf("<b>%d</b> / %s", i+1, message),
+			ParseMode:             tg.HTML,
+			DisableWebPagePreview: !preview,
+		}, true)
+	}
+}
+
 func (x *T) Stop() {
 	x.mu.Lock()
 	defer x.mu.Unlock()
@@ -223,7 +248,7 @@ func (x *T) process(acc AccountID, thr ThreadID, offset int, h util.Handle) ferr
 		default:
 		}
 
-		msgs, err := screen.Parse(board, post, reqs)
+		msgs, err := screen.Post(board, post, reqs)
 		if err != nil {
 			return ethread
 		}

@@ -22,7 +22,7 @@ func TestParse(t *testing.T) {
 	bot := telegram.NewBotAPI(client, token)
 	bot.Start()
 	for _, post := range posts {
-		msgs, _ := Parse("tst", dvach.Post{
+		msgs, _ := Post("tst", dvach.Post{
 			Comment: post,
 		}, map[string]string{})
 

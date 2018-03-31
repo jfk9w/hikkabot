@@ -12,15 +12,16 @@ type (
 	API interface {
 		GetThread(string, string, int) ([]Post, error)
 		GetPost(string, string) ([]Post, error)
+		GetFront(string) (*Catalog, error)
 	}
 )
 
-const webmType = 6
+const WebmType = 6
 
 func GetWebms(post Post) []string {
 	webms := make([]string, 0)
 	for _, file := range post.Files {
-		if file.Type == webmType {
+		if file.Type == WebmType {
 			webms = append(webms, file.URL())
 		}
 	}

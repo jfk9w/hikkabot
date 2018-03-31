@@ -31,7 +31,7 @@ func (c *defaultImpl) GetThread(board string,
 	if err != nil {
 		log.WithFields(log.Fields{
 			"url": url,
-		}).Debug("DVCH GetThread", err)
+		}).Warn("DVCH GetThread", err)
 
 		return nil, err
 	}
@@ -53,9 +53,29 @@ func (c *defaultImpl) GetPost(board string, post string) ([]Post, error) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"url": url,
-		}).Debug("DVCH GetPost", err)
+		}).Warn("DVCH GetPost", err)
 
 		return nil, err
+	}
+
+	if err = util.ReadResponse(r, &resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (c *defaultImpl) GetFront(board string) (*Catalog, error) {
+	url := fmt.Sprintf(
+		"%s/%s/catalog.json",
+		Endpoint, board)
+
+	resp := new(Catalog)
+	r, err := (*http.Client)(c).Get(url)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"url": url,
+		}).Warn("DVCH GetFront", err)
 	}
 
 	if err = util.ReadResponse(r, &resp); err != nil {

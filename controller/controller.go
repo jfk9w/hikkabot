@@ -72,6 +72,10 @@ func handleUpdate(bot tg.BotAPI, svc *service.T, u tg.Update) {
 		case "/status":
 			ctx.log().Info("CTRL status")
 			status(ctx)
+
+		case "/front":
+			ctx.log().Info("CTRL front")
+			front(ctx)
 		}
 	}
 }

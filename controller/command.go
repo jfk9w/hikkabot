@@ -2,6 +2,7 @@ package controller
 
 import (
 	tg "github.com/jfk9w/hikkabot/telegram"
+	"strconv"
 )
 
 func subscribe(ctx *context) {
@@ -32,4 +33,15 @@ func unsubscribe(ctx *context) {
 
 func status(ctx *context) {
 	ctx.svc.Status(ctx.caller)
+}
+
+func front(ctx *context) {
+	board := ctx.params[0]
+
+	limit := 10
+	if len(ctx.params) == 2 {
+		limit, _ = strconv.Atoi(ctx.params[1])
+	}
+
+	ctx.svc.Front(ctx.caller, board, limit)
 }
