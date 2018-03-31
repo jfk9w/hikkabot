@@ -37,6 +37,7 @@ All service messages begin with a hashtag `#info`.
 Install using Go package manager:
 
 ```bash
+$ go get -u github.com/jfk9w/hikkabot
 $ go install github.com/jfk9w/hikkabot
 $ hikkabot -config=YOUR_CONFIG_FILE
 ```

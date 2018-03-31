@@ -32,7 +32,7 @@ func main() {
 	}
 
 	log.SetLevel(lvl)
-	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true, ForceColors: true})
 
 	opts := badger.DefaultOptions
 	opts.Dir = cfg.DB
