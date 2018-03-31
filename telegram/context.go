@@ -50,12 +50,12 @@ func (ctx *context) retry(req Request, retries int) (*Response, error) {
 		resp, err = ctx.request(req)
 		if err == nil {
 			if resp.Parameters != nil {
-				timeout := time.Duration(resp.Parameters.RetryAfter)
+				timeout := resp.Parameters.RetryAfter
 				if timeout > 0 {
 					log.WithFields(log.Fields{
 						"timeout": timeout,
 					}).Debug("COMM sleep")
-					time.Sleep(timeout * time.Second)
+					time.Sleep(time.Duration(timeout) * time.Second)
 				}
 			}
 

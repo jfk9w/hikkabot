@@ -42,7 +42,7 @@ func outgoing(ctx *context) (
 	qc = make(chan DeferredRequest, 1000)
 	uc = make(chan DeferredRequest, 20)
 	h = util.NewHandle()
-	t := time.NewTicker(100 * time.Millisecond)
+	t := time.NewTicker(250 * time.Millisecond)
 
 	go func() {
 		defer func() {

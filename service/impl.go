@@ -129,6 +129,12 @@ func (x *T) Front(caller Caller, board string, limit int) {
 			DisableWebPagePreview: !preview,
 		}, true)
 	}
+
+	x.bot.SendMessage(tg.SendMessageRequest{
+		Chat:      caller.Chat,
+		Text:      "<b>END</b>",
+		ParseMode: tg.HTML,
+	}, true, nil)
 }
 
 func (x *T) Stop() {
