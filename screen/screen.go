@@ -76,15 +76,14 @@ func parseAttachments(post dvach.Post, webms map[string]chan string) []string {
 		var v string
 		if w, ok := webms[url]; ok {
 			v = <-w
+			if v == webm.Marked {
+				v = url
+			}
 		} else {
 			v = url
 		}
 
-		if v == webm.Marked {
-			v = url
-		}
-
-		attach[i] = `<a href="` + escape(url) + `">[A]</a>`
+		attach[i] = `<a href="` + escape(v) + `">[A]</a>`
 	}
 
 	return attach
