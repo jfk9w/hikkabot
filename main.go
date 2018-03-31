@@ -49,13 +49,18 @@ func main() {
 		panic(err)
 	}
 
+	state, err := db.Load()
+	if err != nil {
+		panic(err)
+	}
+
 	defer db.Close()
 
 	httpc := new(http.Client)
 	dvach := dv.New(httpc)
 	bot, err := tg.New(
 		httpc,
-		cfg.Tokens,
+		cfg.Token,
 		tg.GetUpdatesRequest{
 			Timeout:        60,
 			AllowedUpdates: []string{"message"},
@@ -72,6 +77,7 @@ func main() {
 	defer hConv.Ping()
 
 	svc := service.New(dvach, bot, conv, db)
+	svc.Init(state)
 	defer svc.Stop()
 
 	hCtl := controller.Start(bot, svc)

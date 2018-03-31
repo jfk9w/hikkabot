@@ -17,19 +17,17 @@ var validStatusCodes = []int{
 	http.StatusForbidden,
 	http.StatusNotFound,
 	420, // FLOOD
+	http.StatusTooManyRequests,
 	http.StatusInternalServerError,
 }
 
 type context struct {
 	client *http.Client
-	tokenQ chan string
+	token  string
 }
 
 func (ctx *context) path(method string) string {
-	token := <-ctx.tokenQ
-	ctx.tokenQ <- token
-	path := fmt.Sprintf("%s/bot%s/%s", Endpoint, token, method)
-	return path
+	return fmt.Sprintf("%s/bot%s/%s", Endpoint, ctx.token, method)
 }
 
 func (ctx *context) request(req Request) (*Response, error) {
@@ -54,6 +52,9 @@ func (ctx *context) retry(req Request, retries int) (*Response, error) {
 			if resp.Parameters != nil {
 				timeout := time.Duration(resp.Parameters.RetryAfter)
 				if timeout > 0 {
+					log.WithFields(log.Fields{
+						"timeout": timeout,
+					}).Debug("COMM sleep")
 					time.Sleep(timeout * time.Second)
 				}
 			}
@@ -62,9 +63,9 @@ func (ctx *context) retry(req Request, retries int) (*Response, error) {
 		}
 
 		log.WithFields(log.Fields{
-			"req_params": req.Parameters(),
-			"req_method": req.Method(),
-			"err": err,
+			"req_params":   req.Parameters(),
+			"req_method":   req.Method(),
+			"err":          err,
 			"retries_left": retries,
 		}).Warn("COMM retry")
 
@@ -77,12 +78,12 @@ func (ctx *context) retry(req Request, retries int) (*Response, error) {
 	}
 
 	log.WithFields(log.Fields{
-		"req_params": req.Parameters(),
-		"req_method": req.Method(),
-		"resp_ok": resp.Ok,
-		"resp_error_code": resp.ErrorCode,
+		"req_params":       req.Parameters(),
+		"req_method":       req.Method(),
+		"resp_ok":          resp.Ok,
+		"resp_error_code":  resp.ErrorCode,
 		"resp_description": resp.Description,
-	}).Debug(fmt.Sprintf("%s", resp.Result))
+	}).Debug("COMM response")
 
 	return resp, err
 }

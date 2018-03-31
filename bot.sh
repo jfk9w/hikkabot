@@ -41,5 +41,9 @@ case "$CMD" in
 	"log")
 		tail -100f $BUILD/$LOG
 		;;
+
+	"clear")
+	    rm -rf $2
+	    ;;
 		
 esac

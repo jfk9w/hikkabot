@@ -1,0 +1,5 @@
+{
+    "token": "your_bot_token_here",
+    "db": "path_to_db_folder",
+    "log_level": "debug/info/warn/..."
+}

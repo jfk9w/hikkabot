@@ -50,7 +50,7 @@ func kDeletedThread(active []byte) []byte {
 }
 
 func (s *BadgerStorage) Load() (State, error) {
-	state := make(map[AccountID]map[ThreadID]int)
+	state := make(map[AccountID][]ThreadID)
 	if err := s.db.View(func(tx *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		it := tx.NewIterator(opts)
@@ -59,29 +59,21 @@ func (s *BadgerStorage) Load() (State, error) {
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			k := item.Key()
-			v, err := item.Value()
-			if err != nil {
-				return err
-			}
 
 			t0 := strings.Split(string(k), path0)
 			ts := strings.Split(t0[1], path1)
 			acc, thr := ts[0], ts[1]
-			offset, err := strconv.Atoi(string(v))
-			if err != nil {
-				return err
-			}
 
 			if _, ok := state[acc]; !ok {
-				state[acc] = make(map[ThreadID]int)
+				state[acc] = make([]ThreadID, 0)
 			}
 
-			state[acc][thr] = offset
+			state[acc] = append(state[acc], thr)
 		}
 
 		return nil
 	}); err != nil {
-		return nil, errors.Wrap(err, "select all failed")
+		return nil, errors.Wrap(err, "init failed")
 	}
 
 	return state, nil
@@ -302,6 +294,29 @@ func (s *BadgerStorage) UpdateWebm(url string, prev string, curr string) bool {
 	}).Debug("BDGR UpdateWebm")
 
 	return r
+}
+
+func (s *BadgerStorage) DeleteOrphanWebms() {
+	s.db.Update(func(tx *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		it := tx.NewIterator(opts)
+		defer it.Close()
+		prefix := []byte(pW)
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			k := item.Key()
+			v, err := item.Value()
+			if err != nil {
+				return err
+			}
+
+			if string(v) == webm.Pending {
+				tx.Delete(k)
+			}
+		}
+
+		return nil
+	})
 }
 
 func (s *BadgerStorage) Close() error {

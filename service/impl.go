@@ -43,6 +43,19 @@ func New(dvach dv.API, bot tg.BotAPI, conv chan<- webm.Request, db Storage) *T {
 	}
 }
 
+func (x *T) Init(state State) {
+	for acc, thrs := range state {
+		f := x.ensure(ReadAccountID(acc))
+		for _, thr := range thrs {
+			f.Q <- thr
+			log.WithFields(log.Fields{
+				"acc": acc,
+				"thr": thr,
+			}).Debug("SRVC init")
+		}
+	}
+}
+
 func (x *T) Subscribe(caller Caller, chat tg.ChatRef, url string) {
 	if !x.access(caller, chat) {
 		return
@@ -161,7 +174,7 @@ func (x *T) access(caller Caller, chat tg.ChatRef) bool {
 type ferror uint8
 
 const (
-	eok        ferror = iota
+	eok ferror = iota
 	ethread
 	echat
 	einterrupt
@@ -290,8 +303,8 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 
 							board, thread := ReadThreadID(thr)
 							x.notifyAdmins(ReadAccountID(acc), `#info
-							Chat: `+ chat.Key()+ `
-							Thread: `+ dv.FormatThreadURL(board, thread)+ `
+							Chat: `+chat.Key()+`
+							Thread: `+dv.FormatThreadURL(board, thread)+`
 							An error has occured. Subscription suspended.`)
 						}
 
@@ -301,7 +314,7 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 							x.db.DeleteAccount(acc)
 
 							x.notifyAdmins(chat, `#info
-							Chat: `+ chat.Key()+ `
+							Chat: `+chat.Key()+`
 							Unable to send messages to the chat. All subscriptions suspended.`)
 							return
 						}

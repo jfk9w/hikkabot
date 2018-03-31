@@ -73,7 +73,13 @@ func parseAttachments(post dvach.Post, webms map[string]chan string) []string {
 	attach := make([]string, len(post.Files))
 	for i, file := range post.Files {
 		url := file.URL()
-		v := <-webms[url]
+		var v string
+		if w, ok := webms[url]; ok {
+			v = <-w
+		} else {
+			v = url
+		}
+
 		if v == webm.Marked {
 			v = url
 		}

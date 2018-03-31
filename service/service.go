@@ -16,7 +16,7 @@ type (
 		WebmTTL   time.Duration `json:"webm_ttl"`
 	}
 
-	State = map[AccountID]map[ThreadID]int
+	State = map[AccountID][]ThreadID
 
 	Storage interface {
 		Load() (State, error)

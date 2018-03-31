@@ -18,6 +18,7 @@ type (
 	Cache interface {
 		GetWebm(string) string
 		UpdateWebm(string, string, string) bool
+		DeleteOrphanWebms()
 	}
 
 	Request struct {
@@ -36,6 +37,7 @@ func NewRequest(url string) Request {
 func Converter(client Client, cache Cache,
 	workers int, retries int) (chan<- Request, util.Handle) {
 
+	cache.DeleteOrphanWebms()
 	c := make(chan Request, 100)
 	hs := make([]util.Handle, workers)
 	for i := 0; i < workers; i++ {
