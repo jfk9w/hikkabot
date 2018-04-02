@@ -333,10 +333,9 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 							x.db.DeleteThread(acc, thr)
 
 							board, thread := ReadThreadID(thr)
-							x.notifyAdmins(ReadAccountID(acc), `#info
-							Chat: `+chat.Key()+`
-							Thread: `+dv.FormatThreadURL(board, thread)+`
-							An error has occured. Subscription suspended.`)
+							x.notifyAdmins(ReadAccountID(acc),
+								"Chat: %s\nThread: %s\nAn error has occured.Subscription suspended.",
+								chat.Key(), dv.FormatThreadURL(board, thread))
 						}
 
 					case echat:
@@ -344,9 +343,9 @@ func (x *T) ensure(chat tg.ChatRef) feed {
 						if r >= 3 {
 							x.db.DeleteAccount(acc)
 
-							x.notifyAdmins(chat, `#info
-							Chat: `+chat.Key()+`
-							Unable to send messages to the chat. All subscriptions suspended.`)
+							x.notifyAdmins(chat,
+								"Chat: %s\nUnable to send messages to the chat. All subscriptions suspended.",
+								chat.Key())
 							return
 						}
 
