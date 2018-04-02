@@ -36,12 +36,14 @@ func status(ctx *context) {
 }
 
 func front(ctx *context) {
-	board := ctx.params[0]
+    if len(ctx.params) > 0 {
+        board := ctx.params[0]
 
-	limit := 10
-	if len(ctx.params) == 2 {
-		limit, _ = strconv.Atoi(ctx.params[1])
-	}
+        limit := 10
+        if len(ctx.params) == 2 {
+        	limit, _ = strconv.Atoi(ctx.params[1])
+        }
 
-	ctx.svc.Front(ctx.caller, board, limit)
+       	ctx.svc.Front(ctx.caller, board, limit)
+    }
 }
