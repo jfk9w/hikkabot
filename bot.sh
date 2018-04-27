@@ -35,9 +35,9 @@ notify() {
     CONFIG=$1 CHAT=$2 NOTIFY=$4
     TEXT=`echo $3 | sed -r 's/\s+/%20/g;s/\./%2E/g'`
     TOKEN=`cat ${CONFIG} | jq -r ".token"`
-    FORM="chat_id=${CHAT}&text=#health%0A${TEXT}"
+    FORM="chat_id=${CHAT}&text=${TEXT}"
     if [[ ! ${NOTIFY} ]]; then
-        FORM="${FORM}&disable_notifications=true"
+        FORM="${FORM}&disable_notification=true"
     fi
 
     curl -s -d ${FORM} -X POST https://api.telegram.org/bot${TOKEN}/sendMessage > /dev/null
