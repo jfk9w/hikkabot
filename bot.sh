@@ -32,14 +32,15 @@ stop() {
 }
 
 notify() {
-    CONFIG=$1 CHAT=$2 TEXT=$3 NOTIFY=$4
+    CONFIG=$1 CHAT=$2 NOTIFY=$4
+    TEXT=`echo $3 | sed -r 's/\s+/%20/g;s/\./%2E/g'`
     TOKEN=`cat ${CONFIG} | jq -r ".token"`
     FORM="chat_id=${CHAT}&text=#health%0A${TEXT}"
     if [[ ! ${NOTIFY} ]]; then
         FORM="${FORM}&disable_notifications=true"
     fi
 
-    curl -s -d ${FORM} -H "Content-Type: application/x-www-form-urlencoded" -X POST https://api.telegram.org/bot${TOKEN}/sendMessage > /dev/null
+    curl -s -d ${FORM} -X POST https://api.telegram.org/bot${TOKEN}/sendMessage > /dev/null
 }
 
 check() {
@@ -53,7 +54,7 @@ check() {
             notify ${CONFIG} ${CHAT} "Instance is not running." 1
         else
             STATS=`ps -p ${PID} -o %cpu,%mem | tail -1`
-            notify ${CONFIG} ${CHAT} ${STATS}
+            notify ${CONFIG} ${CHAT} "${STATS}"
         fi
     else
         notify ${CONFIG} ${CHAT} "Runfile not found." 1
