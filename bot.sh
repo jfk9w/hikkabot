@@ -39,7 +39,7 @@ notify() {
         FORM="${FORM}&disable_notifications=true"
     fi
 
-    curl -s -d  -H "Content-Type: application/x-www-form-urlencoded" -X POST https://api.telegram.org/bot${TOKEN}/sendMessage > /dev/null
+    curl -s -d ${FORM} -H "Content-Type: application/x-www-form-urlencoded" -X POST https://api.telegram.org/bot${TOKEN}/sendMessage > /dev/null
 }
 
 check() {
