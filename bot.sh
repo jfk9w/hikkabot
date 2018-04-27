@@ -29,12 +29,12 @@ start() {
 stop() {
     if [[ -f ${RUNFILE} ]]; then
         source ${RUNFILE}
+        rm ${RUNFILE}
         kill ${PID}
         echo "Waiting for Hikkabot instance death, PID: ${PID}"
         tail -f ${LOGFILE} | while read LOGLINE; do
             [[ "${LOGLINE}" == *"MAIN exit"* ]] && pkill -P $$ tail
         done
-        rm ${RUNFILE}
         archive_logs
         echo "OK"
     else
@@ -67,9 +67,9 @@ check() {
             start $CONFIG
             sleep 5
             check $CONFIG $CHAT
-        else
-            STATS=`ps -p ${PID} -o %cpu,%mem | tail -1`
-            notify ${CONFIG} ${CHAT} "${STATS}"
+#        else
+#            STATS=`ps -p ${PID} -o %cpu,%mem | tail -1`
+#            notify ${CONFIG} ${CHAT} "${STATS}"
         fi
     else
         notify ${CONFIG} ${CHAT} "Runfile not found." 1
