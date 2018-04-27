@@ -68,4 +68,8 @@ case $1 in
     "stop")
         stop
         ;;
+
+    "check")
+        check $2 $3
+        ;;
 esac
