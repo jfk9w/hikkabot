@@ -65,6 +65,8 @@ check() {
             notify ${CONFIG} ${CHAT} "Instance is not running. Restarting." 1
             archive_logs
             start $CONFIG
+            sleep 5
+            check $CONFIG $CHAT
         else
             STATS=`ps -p ${PID} -o %cpu,%mem | tail -1`
             notify ${CONFIG} ${CHAT} "${STATS}"
