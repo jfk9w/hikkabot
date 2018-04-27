@@ -1,15 +1,24 @@
 #!/bin/bash
 
+PACKAGE=github.com/jfk9w/hikkabot
 RUNFILE=$HOME/.hikkabot
+LOGFILE=$HOME/logs/hikkabot.log
+
+archive_logs() {
+    if [[ -f ${LOGFILE} ]]; then
+        SUFFIX=`date +%F_%R`
+        mv ${LOGFILE} "${LOGFILE}.${SUFFIX}"
+    fi
+}
 
 start() {
     if [[ -f ${RUNFILE} ]]; then
         echo "Hikkabot instance already running, PID: `cat ${RUNFILE}`"
     else
-        CONFIG=$1 LOGFILE=`realpath $2`
+        CONFIG=$1
         if [[ -n ${LOGFILE} ]]; then
             hikkabot -config=${CONFIG} 2>&1 > ${LOGFILE} &
-            echo -e "PID=$!\nLOGFILE=${LOGFILE}" > ${RUNFILE}
+            echo -e "PID=$!" > ${RUNFILE}
         else
             hikkabot -config=${CONFIG}
         fi
@@ -25,6 +34,7 @@ stop() {
             [[ "${LOGLINE}" == *"MAIN exit"* ]] && pkill -P $$ tail
         done
         rm ${RUNFILE}
+        archive_logs
         echo "OK"
     else
         echo "Hikkabot instance not running"
@@ -51,7 +61,10 @@ check() {
         kill -0 ${PID}
         if [[ $? -ne 0 ]]; then
             rm ${RUNFILE}
-            notify ${CONFIG} ${CHAT} "Instance is not running." 1
+            notify ${CONFIG} ${CHAT} "Instance is not running. Restarting." 1
+            archive_logs
+            start $CONFIG
+            check $CONFIG $CHAT
         else
             STATS=`ps -p ${PID} -o %cpu,%mem | tail -1`
             notify ${CONFIG} ${CHAT} "${STATS}"
@@ -63,7 +76,7 @@ check() {
 
 case $1 in
     "start")
-        start $2 $3
+        start $2
         ;;
 
     "stop")
