@@ -18,7 +18,13 @@ import (
 )
 
 func main() {
-	defer log.Info("MAIN exit")
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("MAIN exit error", r)
+		} else {
+			log.Info("MAIN exit")
+		}
+	}()
 
 	cfg, err := GetConfig()
 	if err != nil {
