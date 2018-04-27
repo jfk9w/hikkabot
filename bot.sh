@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PATH=PATH:$HOME/Go/bin
+PATH=$PATH:$HOME/Go/bin
 
 RUNFILE=$HOME/.hikkabot
 LOGFILE=$HOME/logs/hikkabot.log
