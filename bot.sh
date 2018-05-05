@@ -19,7 +19,7 @@ start() {
         CONFIG=$1
         TOKEN=`cat ${CONFIG} | jq -r ".token"`
         if [[ -n ${LOGFILE} ]]; then
-            hikkabot 2>&1 > ${LOGFILE} &
+            env TOKEN=${TOKEN} hikkabot 2>&1 > ${LOGFILE} &
             echo -e "PID=$!" > ${RUNFILE}
         else
             hikkabot -config=${CONFIG}
