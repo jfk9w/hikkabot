@@ -10,7 +10,6 @@ import (
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/html"
 	"github.com/jfk9w-go/httpx"
-	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/misc"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
@@ -116,11 +115,6 @@ func (b *bot) SendFiles(chat telegram.ChatRef, files []dvach.File) {
 
 func (b *bot) SendPost(chat telegram.ChatRef, post dvach.Post) error {
 	text := html.Chunk(post, chunkSize)
-	log.WithFields(logrus.Fields{
-		"Post":   post,
-		"Chunks": text,
-	}).Debugf("Sending post to %s", chat)
-
 	for _, part := range text {
 		err := <-b.Send(telegram.SendMessageRequest{
 			Chat:      chat,
