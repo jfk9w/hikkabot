@@ -46,7 +46,7 @@ func (b *backend) Subscribe(
 
 	if feed.Subscribe(admins, thread, offset) {
 		go b.NotifyAll(admins,
-			"#info\nSubscription OK.\nChat: %s\nThread: %s\nOffset: 0",
+			"#info\nSubscription OK.\nChat: %s\nThread: %s\nOffset: %d",
 			chat, thread.URL(), offset)
 
 		return

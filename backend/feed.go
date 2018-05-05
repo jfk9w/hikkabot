@@ -71,53 +71,53 @@ func NewFeed(bot Bot, dvch dvach.Api, webm aconvert.CacheService, chat telegram.
 			case <-main.C:
 				feed.gc()
 
-				entry, ok := <-feed.queue
-				if !ok {
-					continue main
-				}
-
-				thread, err := dvch.Thread(entry.Thread, entry.Offset)
-				switch e := err.(type) {
-				case dvach.Error:
-					log.Warningf("Failed to update thread %s: %s", entry.Thread.URL(), e)
-					if feed.Unsubscribe(entry.Thread) {
-						go bot.NotifyAll(entry.Admins,
-							"#info\nAn error has occured. Subscription deleted.\nChat: %s\nThread: %s\nCode: %d\nError: %s",
-							feed.chat, entry.Thread.URL(), e.Code, e.Err)
-
-						continue main
-					}
-				}
-
-				for _, post := range thread {
-					for _, file := range post.Files {
-						if file.Type == dvach.Webm {
-							go webm.Convert(file.URL(), nil)
-						}
-					}
-				}
-
-				offset := entry.Offset
-				for _, post := range thread {
-					err := bot.SendPost(chat, post.WithBoard(entry.Thread.Board))
-					if err != nil {
-						log.WithFields(logrus.Fields{
-							"Post": post,
-						}).Errorf("Failed to send post to %s", feed.chat)
-
+				select {
+				case entry := <-feed.queue:
+					thread, err := dvch.Thread(entry.Thread, entry.Offset)
+					switch e := err.(type) {
+					case dvach.Error:
+						log.Warningf("Failed to update thread %s: %s", entry.Thread.URL(), e)
 						if feed.Unsubscribe(entry.Thread) {
 							go bot.NotifyAll(entry.Admins,
-								"#info\nFailed to send post. Subscription deleted.\nChat: %s\nThread: %s\nPost: %s\nError: %s",
-								feed.chat, entry.Thread.URL(), post.Num, err)
+								"#info\nAn error has occured. Subscription deleted.\nChat: %s\nThread: %s\nCode: %d\nError: %s",
+								feed.chat, entry.Thread.URL(), e.Code, e.Err)
 
 							continue main
 						}
 					}
 
-					offset = post.NumInt() + 1
-				}
+					for _, post := range thread {
+						for _, file := range post.Files {
+							if file.Type == dvach.Webm {
+								go webm.Convert(file.URL(), nil)
+							}
+						}
+					}
 
-				feed.queue <- entry.WithOffset(offset)
+					offset := entry.Offset
+					for _, post := range thread {
+						err := bot.SendPost(chat, post.WithBoard(entry.Thread.Board))
+						if err != nil {
+							log.WithFields(logrus.Fields{
+								"Post": post,
+							}).Errorf("Failed to send post to %s", feed.chat)
+
+							if feed.Unsubscribe(entry.Thread) {
+								go bot.NotifyAll(entry.Admins,
+									"#info\nFailed to send post. Subscription deleted.\nChat: %s\nThread: %s\nPost: %s\nError: %s",
+									feed.chat, entry.Thread.URL(), post.Num, err)
+
+								continue main
+							}
+						}
+
+						offset = post.NumInt() + 1
+					}
+
+					feed.queue <- entry.WithOffset(offset)
+
+				default:
+				}
 			}
 		}
 	}()
