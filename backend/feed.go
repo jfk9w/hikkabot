@@ -94,6 +94,8 @@ func NewFeed(bot Bot, dvch dvach.Api, webm aconvert.CacheService, chat telegram.
 						}
 					}
 
+					log.Debugf("%d new posts for %s %s", len(thread), feed.chat, entry.Thread.URL())
+
 					for _, post := range thread {
 						for _, file := range post.Files {
 							if file.Type == dvach.Webm {
