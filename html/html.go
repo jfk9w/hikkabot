@@ -29,9 +29,7 @@ func Chunk(post dvach.Post, chunkSize int) []string {
 		skip      = false
 	)
 
-	builder.WriteHashtag(num(post.Board, post.Num))
-	builder.WriteText(" /\n")
-
+	builder.WriteHashtag(num(post.Board, post.Num) + " /\n")
 	for {
 		tokenType := tokenizer.Next()
 		if tokenType == html.ErrorToken {

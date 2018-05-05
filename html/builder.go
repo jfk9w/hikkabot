@@ -22,7 +22,6 @@ func NewBuilder(chunkSize int) *Builder {
 }
 
 func (b *Builder) writeText(text string) {
-	text = strings.Trim(text, " \n")
 	b.sb.WriteString(text)
 	b.size += len(text)
 }
@@ -106,7 +105,8 @@ func (b *Builder) WriteText(text string) {
 	for left := b.left(text); left > 0; left = b.left(text[offset:]) {
 		start := offset
 		offset = size - left
-		b.writeText(text[start:offset])
+		part := text[start:offset]
+		b.writeText(strings.Trim(part, " \n"))
 		b.makeRoom()
 	}
 
