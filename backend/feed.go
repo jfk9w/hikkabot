@@ -128,13 +128,13 @@ func NewFeed(bot Bot, dvch dvach.Api, webm aconvert.CacheService, chat telegram.
 func (feed *Feed) gc(items ...dvach.Thread) {
 	del := make([]dvach.Thread, len(items))
 	copy(del, items)
-	atomic.AddInt32(feed.delSize, int32(-len(del)))
-	for {
-		if atomic.AddInt32(feed.delSize, -1) == 0 {
-			break
+	if atomic.AddInt32(feed.delSize, int32(-len(del))) > 0 {
+		for {
+			del = append(del, <-feed.del)
+			if atomic.AddInt32(feed.delSize, -1) == 0 {
+				break
+			}
 		}
-
-		del = append(del, <-feed.del)
 	}
 
 	size := int(atomic.LoadInt32(feed.queueSize))
