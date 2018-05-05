@@ -5,6 +5,8 @@ import (
 
 	"strings"
 
+	"strconv"
+
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/backend"
 	"github.com/jfk9w-go/misc"
@@ -59,13 +61,27 @@ func (f *frontend) run() {
 				}
 			}
 
+			offset := 0
+			if len(cmd.Params) > 2 {
+				o, err := strconv.Atoi(cmd.Params[2])
+				if err != nil {
+					f.bot.SendText(chat, "Invalid offset: %s", cmd.Params[2])
+				}
+
+				if o < 0 {
+					f.bot.SendText(chat, "Invalid offset: %d", o)
+				}
+
+				offset = o
+			}
+
 			admins, err := f.bot.GetAdmins(ref, update.Message.From.Ref())
 			if err != nil {
 				f.bot.SendText(chat, "Access denied: %s", err)
 				continue
 			}
 
-			f.back.Subscribe(ref, admins, *thread, 0)
+			f.back.Subscribe(ref, admins, *thread, offset)
 
 		case "unsub", "unsubscribe":
 			ref := chat
@@ -90,6 +106,10 @@ func (f *frontend) run() {
 }
 
 func (f *frontend) ParseCommand(message *telegram.Message) *ParsedCommand {
+	if message == nil {
+		return nil
+	}
+
 	text := message.Text
 	if !misc.IsFirstRune(text, '/') {
 		return nil
