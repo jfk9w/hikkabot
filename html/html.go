@@ -70,6 +70,8 @@ func Chunk(post dvach.Post, chunkSize int) []string {
 			if !skip {
 				builder.WriteEndTag()
 			}
+
+			skip = false
 		}
 	}
 
