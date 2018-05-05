@@ -54,6 +54,12 @@ func NewFeed(bot Bot, dvch dvach.Api, webm aconvert.CacheService, chat telegram.
 	*feed.delSize = 0
 
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Panicf("%s %s", feed.chat, err)
+			}
+		}()
+
 		main := time.NewTicker(1 * time.Minute)
 		defer main.Stop()
 		log.Infof("Started %s feed", feed.chat)
@@ -74,15 +80,17 @@ func NewFeed(bot Bot, dvch dvach.Api, webm aconvert.CacheService, chat telegram.
 				select {
 				case entry := <-feed.queue:
 					thread, err := dvch.Thread(entry.Thread, entry.Offset)
-					switch e := err.(type) {
-					case dvach.Error:
-						log.Warningf("Failed to update thread %s: %s", entry.Thread.URL(), e)
-						if feed.Unsubscribe(entry.Thread) {
-							go bot.NotifyAll(entry.Admins,
-								"#info\nAn error has occured. Subscription deleted.\nChat: %s\nThread: %s\nCode: %d\nError: %s",
-								feed.chat, entry.Thread.URL(), e.Code, e.Err)
+					if err != nil {
+						switch e := err.(type) {
+						case dvach.Error:
+							log.Warningf("Failed to update thread %s: %s", entry.Thread.URL(), e)
+							if feed.Unsubscribe(entry.Thread) {
+								go bot.NotifyAll(entry.Admins,
+									"#info\nAn error has occured. Subscription deleted.\nChat: %s\nThread: %s\nCode: %d\nError: %s",
+									feed.chat, entry.Thread.URL(), e.Code, e.Err)
 
-							continue main
+								continue main
+							}
 						}
 					}
 
