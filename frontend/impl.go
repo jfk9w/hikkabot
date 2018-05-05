@@ -72,7 +72,7 @@ func (f *frontend) run() {
 			if len(cmd.Params) > 0 {
 				channel := cmd.Params[0]
 				if misc.IsFirstRune(channel, '@') {
-					ref = telegram.NewChannelRef(cmd.Params[1])
+					ref = telegram.NewChannelRef(channel)
 				}
 			}
 
