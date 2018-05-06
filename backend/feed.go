@@ -183,7 +183,7 @@ func (feed *Feed) Submit(thread dvach.ID, offset int, admins []telegram.ChatRef)
 			return false
 		}
 
-		if atomic.CompareAndSwapInt32(feed.queueSize, queueSize, 1) {
+		if atomic.CompareAndSwapInt32(feed.queueSize, queueSize, queueSize+1) {
 			feed.queue <- FeedEntry{thread, offset, admins}
 			break
 		}
@@ -201,7 +201,7 @@ func (feed *Feed) Unsubscribe(thread dvach.ID) bool {
 			return false
 		}
 
-		if atomic.CompareAndSwapInt32(feed.delSize, delSize, 1) {
+		if atomic.CompareAndSwapInt32(feed.delSize, delSize, delSize+1) {
 			feed.del <- thread
 			break
 		}

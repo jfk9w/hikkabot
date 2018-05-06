@@ -53,7 +53,7 @@ func (b *Builder) writeStartTag(tag string) {
 }
 
 func (b *Builder) writeEndTag() {
-	tag := strings.Split((*b.startTag)[1:], " ")[0]
+	tag := strings.Split((*b.startTag)[1:len(*b.startTag)-1], " ")[0]
 	b.sb.WriteString("</")
 	b.sb.WriteString(tag)
 	b.sb.WriteRune('>')

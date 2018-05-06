@@ -51,8 +51,8 @@ func (b *backend) ParseID(value string) (*dvach.ID, int, error) {
 			}
 
 			post, err := b.Post(*thread)
-
 			if err != nil {
+				log.Warningf("Unable to load post %s: %s")
 				return nil, 0, err
 			}
 
