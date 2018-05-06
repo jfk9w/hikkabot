@@ -18,7 +18,7 @@ const (
 )
 
 type FeedEntry struct {
-	Thread dvach.Thread
+	Thread dvach.ID
 	Offset int
 	Admins []telegram.ChatRef
 }
@@ -33,7 +33,7 @@ type Feed struct {
 
 	chat  telegram.ChatRef
 	queue chan FeedEntry
-	del   chan dvach.Thread
+	del   chan dvach.ID
 
 	queueSize *int32
 	delSize   *int32
@@ -45,7 +45,7 @@ func NewFeed(bot Bot, dvch dvach.Api, webm aconvert.CacheService, chat telegram.
 		aux,
 		chat,
 		make(chan FeedEntry, 100),
-		make(chan dvach.Thread, 50),
+		make(chan dvach.ID, 50),
 		new(int32),
 		new(int32),
 	}
@@ -82,7 +82,7 @@ func NewFeed(bot Bot, dvch dvach.Api, webm aconvert.CacheService, chat telegram.
 					thread, err := dvch.Thread(entry.Thread, entry.Offset)
 					if err != nil {
 						switch e := err.(type) {
-						case dvach.Error:
+						case *dvach.Error:
 							log.Warningf("Failed to update thread %s: %s", entry.Thread.URL(), e)
 							if feed.Unsubscribe(entry.Thread) {
 								go bot.NotifyAll(entry.Admins,
@@ -135,8 +135,8 @@ func NewFeed(bot Bot, dvch dvach.Api, webm aconvert.CacheService, chat telegram.
 	return feed
 }
 
-func (feed *Feed) gc(items ...dvach.Thread) {
-	del := make([]dvach.Thread, len(items))
+func (feed *Feed) gc(items ...dvach.ID) {
+	del := make([]dvach.ID, len(items))
 	copy(del, items)
 	if atomic.AddInt32(feed.delSize, int32(-len(del))) > 0 {
 		for {
@@ -148,7 +148,7 @@ func (feed *Feed) gc(items ...dvach.Thread) {
 	}
 
 	size := int(atomic.LoadInt32(feed.queueSize))
-	unique := make(map[dvach.Thread]unit.T)
+	unique := make(map[dvach.ID]unit.T)
 	deleted := 0
 
 outer:
@@ -175,7 +175,7 @@ outer:
 	log.Infof("%s garbage collected %d entries (%d unique total)", feed.chat, deleted, len(unique))
 }
 
-func (feed *Feed) Subscribe(admins []telegram.ChatRef, thread dvach.Thread, offset int) bool {
+func (feed *Feed) Submit(thread dvach.ID, offset int, admins []telegram.ChatRef) bool {
 	for {
 		queueSize := atomic.LoadInt32(feed.queueSize)
 		if queueSize >= maxQueueSize {
@@ -193,7 +193,7 @@ func (feed *Feed) Subscribe(admins []telegram.ChatRef, thread dvach.Thread, offs
 	return true
 }
 
-func (feed *Feed) Unsubscribe(thread dvach.Thread) bool {
+func (feed *Feed) Unsubscribe(thread dvach.ID) bool {
 	for {
 		delSize := atomic.LoadInt32(feed.queueSize)
 		if delSize >= maxDelSize {

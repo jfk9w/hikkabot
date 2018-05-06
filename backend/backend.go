@@ -14,7 +14,8 @@ type (
 	}
 
 	Backend interface {
-		Subscribe(telegram.ChatRef, []telegram.ChatRef, dvach.Thread, int)
+		ParseID(string) (*dvach.ID, int, error)
+		Subscribe(telegram.ChatRef, []telegram.ChatRef, dvach.ID, int)
 		UnsubscribeAll(telegram.ChatRef, []telegram.ChatRef) error
 	}
 )

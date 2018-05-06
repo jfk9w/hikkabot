@@ -1,11 +1,9 @@
 package frontend
 
 import (
-	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/backend"
 	"github.com/jfk9w-go/misc"
 	"github.com/jfk9w-go/telegram"
@@ -45,7 +43,7 @@ func (f *frontend) run() {
 			}
 
 			url := cmd.Params[0]
-			thread, err := dvach.ParseThread(url)
+			thread, offset, err := f.back.ParseID(url)
 			if err != nil {
 				f.bot.SendText(chat, "Invalid command: %s", err)
 				continue
@@ -57,20 +55,6 @@ func (f *frontend) run() {
 				if misc.IsFirstRune(channel, '@') {
 					ref = telegram.NewChannelRef(cmd.Params[1])
 				}
-			}
-
-			offset := 0
-			if len(cmd.Params) > 2 {
-				o, err := strconv.Atoi(cmd.Params[2])
-				if err != nil {
-					f.bot.SendText(chat, "Invalid offset: %s", cmd.Params[2])
-				}
-
-				if o < 0 {
-					f.bot.SendText(chat, "Invalid offset: %d", o)
-				}
-
-				offset = o
 			}
 
 			admins, err := f.bot.GetAdmins(ref, update.Message.From.Ref())

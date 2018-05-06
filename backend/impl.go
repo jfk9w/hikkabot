@@ -1,6 +1,12 @@
 package backend
 
 import (
+	"regexp"
+
+	"strings"
+
+	"strconv"
+
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/telegram"
@@ -32,9 +38,41 @@ func (b *backend) gc() {
 	}
 }
 
+var postHashtagRegex = regexp.MustCompile(`#?([A-Za-z]+)(\d+)`)
+
+func (b *backend) ParseID(value string) (*dvach.ID, int, error) {
+	thread, offset, err := dvach.ParseThread(value)
+	if err != nil {
+		groups := postHashtagRegex.FindSubmatch([]byte(value))
+		if len(groups) == 3 {
+			thread := &dvach.ID{
+				Board: strings.ToLower(string(groups[1])),
+				Num:   string(groups[2]),
+			}
+
+			post, err := b.Post(*thread)
+
+			if err != nil {
+				return nil, 0, err
+			}
+
+			if post.Parent != "0" {
+				offset, _ = strconv.Atoi(thread.Num)
+				thread.Num = post.Parent
+			}
+
+			return thread, offset, nil
+		}
+
+		return nil, 0, err
+	}
+
+	return thread, offset, nil
+}
+
 func (b *backend) Subscribe(
 	chat telegram.ChatRef, admins []telegram.ChatRef,
-	thread dvach.Thread, offset int) {
+	thread dvach.ID, offset int) {
 
 	b.gc()
 
@@ -44,7 +82,7 @@ func (b *backend) Subscribe(
 		b.users[chat] = feed
 	}
 
-	if feed.Subscribe(admins, thread, offset) {
+	if feed.Submit(thread, offset, admins) {
 		go b.NotifyAll(admins,
 			"#info\nSubscription OK.\nChat: %s\nThread: %s\nOffset: %d",
 			chat, thread.URL(), offset)
