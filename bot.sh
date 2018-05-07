@@ -9,9 +9,12 @@ PACKAGE=github.com/jfk9w-go/hikkabot
 
 archive_logs() {
     if [[ -f ${LOGDIR} ]]; then
-        DIR=${LOGDIR}/`date +%F_%R`
+        DIR=`date +%F_%R`
+        cd ${LOGDIR}
         mkdir ${DIR}
-        mv ${LOGDIR}/*.log ${DIR}
+        CWD=`pwd`
+        mv *.log ${DIR}
+        cd ${CWD}
     fi
 }
 

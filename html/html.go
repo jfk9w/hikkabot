@@ -15,7 +15,7 @@ type Post struct {
 }
 
 var (
-	spanr = regexp.MustCompile(`<span.*>`)
+	spanr = regexp.MustCompile(`<span.*?>`)
 	tagr  = strings.NewReplacer(
 		"<br>", "\n",
 		"<strong>", "<b>",
