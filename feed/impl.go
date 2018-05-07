@@ -31,11 +31,12 @@ type T struct {
 
 func (feed *T) run() {
 	log.Infof("Run %s", feed.chat)
+	defer log.Infof("Exit %s", feed.chat)
 
 	for {
 		select {
 		case <-feed.aux.C:
-			break
+			return
 
 		case thread := <-feed.queue:
 			entry, ok := feed.get(thread)
@@ -47,12 +48,10 @@ func (feed *T) run() {
 			if feed.aux.Exec(func() {
 				feed.exec(thread, entry)
 			}) == unit.ErrInterrupted {
-				break
+				return
 			}
 		}
 	}
-
-	log.Infof("Exit %s", feed.chat)
 }
 
 func (feed *T) get(thread dvach.ID) (entry, bool) {

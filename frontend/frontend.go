@@ -33,7 +33,7 @@ func Run(bot Bot, dvch Dvach, back Backend) {
 	go front.run()
 }
 
-var log = logrus.GetLogger("T")
+var log = logrus.GetLogger("frontend")
 
 type ParsedCommand struct {
 	Command string
