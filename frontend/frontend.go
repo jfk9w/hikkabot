@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/telegram"
 )
@@ -13,6 +14,7 @@ type (
 		Subscribe(telegram.ChatRef, dvach.ID, string, int) error
 		Unsubscribe(telegram.ChatRef, dvach.ID) error
 		UnsubscribeAll(telegram.ChatRef) error
+		Dump(telegram.ChatRef) map[dvach.ID]feed.Entry
 	}
 
 	Bot interface {
@@ -29,7 +31,7 @@ type (
 )
 
 func Run(bot Bot, dvch Dvach, back Backend) {
-	front := &T{bot, dvch, back}
+	front := &T{bot, dvch, back, nil, nil}
 	go front.run()
 }
 

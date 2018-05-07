@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/jfk9w-go/misc"
+	"golang.org/x/net/html"
 )
 
 type Builder struct {
@@ -100,6 +101,7 @@ func (b *Builder) WriteEndTag() {
 }
 
 func (b *Builder) WriteText(text string) {
+	text = html.EscapeString(text)
 	size := len(text)
 	offset := 0
 	for left := b.left(text); left > 0; left = b.left(text[offset:]) {
@@ -118,11 +120,11 @@ func (b *Builder) WriteMark() {
 }
 
 func (b *Builder) WriteHeader(num string, hash string) {
-	b.writeText(hash + "\n#" + num + "\n-------\n")
+	b.writeText(hash + "\n" + num + "\n---\n")
 }
 
-func (b *Builder) WriteHashtag(tag string) {
-	b.writeText("#" + tag + " ")
+func (b *Builder) WriteNum(num string) {
+	b.writeText(num + " ")
 }
 
 func (b *Builder) WriteLink(link string) {

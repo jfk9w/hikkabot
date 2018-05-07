@@ -25,7 +25,7 @@ type T struct {
 	queue chan dvach.ID
 	err   chan Error
 
-	entries map[dvach.ID]entry
+	entries map[dvach.ID]Entry
 	mu      *sync.RWMutex
 }
 
@@ -45,16 +45,14 @@ func (feed *T) run() {
 				continue
 			}
 
-			if feed.aux.Exec(func() {
-				feed.exec(thread, entry)
-			}) == unit.ErrInterrupted {
+			if feed.exec(thread, entry) == unit.ErrInterrupted {
 				return
 			}
 		}
 	}
 }
 
-func (feed *T) get(thread dvach.ID) (entry, bool) {
+func (feed *T) get(thread dvach.ID) (Entry, bool) {
 	feed.mu.RLock()
 	defer feed.mu.RUnlock()
 	entry, ok := feed.entries[thread]
@@ -71,7 +69,7 @@ func (feed *T) update(thread dvach.ID, offset int) {
 	feed.mu.Lock()
 	defer feed.mu.Unlock()
 	if entry, ok := feed.entries[thread]; ok {
-		feed.entries[thread] = entry.withOffset(offset)
+		feed.entries[thread] = entry.WithOffset(offset)
 	}
 }
 
@@ -81,13 +79,18 @@ func (feed *T) size() int {
 	return len(feed.entries)
 }
 
-func (feed *T) exec(thread dvach.ID, entry entry) {
-	posts, err := feed.dvch.Thread(thread, entry.offset)
+func (feed *T) exec(thread dvach.ID, entry Entry) error {
+	offset := entry.Offset
+	if offset != 0 {
+		offset++
+	}
+
+	posts, err := feed.dvch.Thread(thread, offset)
 	if err != nil {
 		log.Warningf("Unable to get new %s posts for %s: %s", thread.URL(), feed.chat, err)
 		feed.delete(thread)
-		feed.err <- Error{thread, entry.hash, err}
-		return
+		feed.err <- Error{thread, entry.Hash, err}
+		return err
 	}
 
 	for _, post := range posts {
@@ -100,22 +103,26 @@ func (feed *T) exec(thread dvach.ID, entry entry) {
 
 	log.Debugf("%d new posts from %s for %s", len(posts), thread.URL(), feed.chat)
 
-	offset := entry.offset
+	offset = entry.Offset
 	for i, post := range posts {
-		if err := feed.bot.SendPost(feed.chat, html.Post{post, thread.Board, entry.hash}); err != nil {
+		if feed.interrupted() {
+			return unit.ErrInterrupted
+		}
+
+		if err := feed.bot.SendPost(feed.chat, html.Post{post, thread.Board, entry.Hash}); err != nil {
 			log.Debugf("Failed to send post from %s to %s: %s", thread.URL(), feed.chat, err)
 			feed.delete(thread)
-			return
+			return err
 		}
 
 		if i%5 == 0 {
 			if _, ok := feed.get(thread); !ok {
 				log.Debugf("Interrupting %s for %s", thread.URL(), feed.chat)
-				return
+				return nil
 			}
 		}
 
-		offset = post.NumInt() + 1
+		offset = post.NumInt()
 	}
 
 	if len(posts) > 0 {
@@ -125,6 +132,18 @@ func (feed *T) exec(thread dvach.ID, entry entry) {
 
 	feed.queue <- thread
 	time.Sleep(2 * time.Minute)
+
+	return nil
+}
+
+func (feed *T) interrupted() bool {
+	select {
+	case <-feed.aux.C:
+		return true
+
+	default:
+		return false
+	}
 }
 
 func (feed *T) Subscribe(thread dvach.ID, hash string, offset int) error {
@@ -139,7 +158,7 @@ func (feed *T) Subscribe(thread dvach.ID, hash string, offset int) error {
 		return errors.New("too many subscriptions")
 	}
 
-	feed.entries[thread] = entry{offset, hash}
+	feed.entries[thread] = Entry{offset, hash}
 	feed.queue <- thread
 
 	log.Infof("Subscribed %s to %s with offset %d", feed.chat, thread.URL(), offset)
@@ -180,4 +199,16 @@ func (feed *T) Errors() []Error {
 
 func (feed *T) Close() error {
 	return feed.aux.Close()
+}
+
+func (feed *T) Dump() map[dvach.ID]Entry {
+	feed.mu.RLock()
+	defer feed.mu.RUnlock()
+
+	r := make(map[dvach.ID]Entry)
+	for k, v := range feed.entries {
+		r[k] = v
+	}
+
+	return r
 }

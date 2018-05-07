@@ -16,6 +16,8 @@ type T struct {
 	bot  Bot
 	dvch Dvach
 	back Backend
+
+	chat, user telegram.ChatRef
 }
 
 func (front *T) run() {
@@ -25,113 +27,166 @@ func (front *T) run() {
 			continue
 		}
 
-		chat := update.Message.Chat.Ref()
-		user := update.Message.From.Ref()
-		log.Infof("%s %d %s", chat, user, cmd)
+		front.chat = update.Message.Chat.Ref()
+		front.user = update.Message.From.Ref()
+		log.Infof("%s %d %s", front.chat, front.user, cmd)
 
 		switch cmd.Command {
 		case "status":
-			front.bot.SendText(chat, "Alive.")
+			front.status()
 
 		case "sub", "subscribe":
-			if len(cmd.Params) == 0 {
-				front.bot.SendText(chat, "Invalid command.")
-				continue
-			}
-
-			thread, offset, err := front.parseThread(cmd.Params[0])
-			if err != nil {
-				front.bot.SendText(chat, "Invalid command: %s", err)
-				continue
-			}
-
-			hash, err := front.getHash(*thread)
-			if err != nil {
-				front.bot.SendText(chat, "Unable to load thread title: %s", err)
-				continue
-			}
-
-			ref := chat
-			if len(cmd.Params) > 1 {
-				channel := cmd.Params[1]
-				if misc.IsFirstRune(channel, '@') {
-					ref = telegram.NewChannelRef(cmd.Params[1])
-				}
-			}
-
-			admins, err := front.checkAccess(user, ref)
-			if err != nil {
-				front.bot.SendText(chat, "Access denied: %s", err)
-				continue
-			}
-
-			if err := front.back.Subscribe(ref, *thread, hash, offset); err != nil {
-				front.bot.SendText(chat, err.Error())
-				continue
-			}
-
-			front.bot.NotifyAll(admins,
-				"#info\nSubscription OK.\nChat: %s\nThread: %s\nOffset: %d",
-				ref, (*thread).URL(), offset)
-
-		case "unsub_all", "unsubscribe_all":
-			ref := chat
-			if len(cmd.Params) > 0 {
-				channel := cmd.Params[0]
-				if misc.IsFirstRune(channel, '@') {
-					ref = telegram.NewChannelRef(channel)
-				}
-			}
-
-			admins, err := front.checkAccess(user, ref)
-			if err != nil {
-				front.bot.SendText(chat, "Access denied: %s", err)
-				continue
-			}
-
-			if err := front.back.UnsubscribeAll(ref); err != nil {
-				front.bot.SendText(chat, err.Error())
-				continue
-			}
-
-			front.bot.NotifyAll(admins, "#info\nSubscriptions cleared.\nChat: %s", ref)
+			front.subscribe(cmd.Params)
 
 		case "unsub", "unsubscribe":
-			if len(cmd.Params) == 0 {
-				front.bot.SendText(chat, "Invalid command.")
-				continue
-			}
+			front.unsubscribe(cmd.Params)
 
-			thread, _, err := front.parseThread(cmd.Params[0])
-			if err != nil {
-				front.bot.SendText(chat, "Invalid command: %s", err)
-				continue
-			}
+		case "unsub_all", "unsubscribe_all":
+			front.unsubscribeAll(cmd.Params)
 
-			ref := chat
-			if len(cmd.Params) > 1 {
-				channel := cmd.Params[1]
-				if misc.IsFirstRune(channel, '@') {
-					ref = telegram.NewChannelRef(cmd.Params[1])
-				}
-			}
-
-			admins, err := front.checkAccess(user, ref)
-			if err != nil {
-				front.bot.SendText(chat, "Access denied: %s", err)
-				continue
-			}
-
-			if err := front.back.Unsubscribe(ref, *thread); err != nil {
-				front.bot.SendText(chat, err.Error())
-				continue
-			}
-
-			front.bot.NotifyAll(admins,
-				"#info\nSubscription stopped.\nChat: %s\nThread: %s",
-				ref, (*thread).URL())
+		case "dump":
+			front.dump(cmd.Params)
 		}
 	}
+}
+
+func (front *T) dump(params []string) {
+	ref := front.chat
+	if len(params) > 0 {
+		channel := params[0]
+		if misc.IsFirstRune(channel, '@') {
+			ref = telegram.NewChannelRef(channel)
+		}
+	}
+
+	admins, err := front.checkAccess(front.user, ref)
+	if err != nil {
+		front.bot.SendText(front.chat, "Access denied: %s", err)
+		return
+	}
+
+	entries := front.back.Dump(ref)
+	sb := &strings.Builder{}
+	sb.WriteString(ref.String())
+	sb.WriteString(" entries:\n")
+	for thread, entry := range entries {
+		if entry.Offset > 0 {
+			sb.WriteString(html.Num(thread.Board, strconv.Itoa(entry.Offset)))
+		} else {
+			sb.WriteString(html.Num(thread.Board, thread.Num))
+		}
+
+		sb.WriteRune(' ')
+		sb.WriteString(entry.Hash)
+		sb.WriteRune('\n')
+	}
+
+	front.bot.NotifyAll(admins, sb.String())
+}
+
+func (front *T) unsubscribeAll(params []string) {
+	ref := front.chat
+	if len(params) > 0 {
+		channel := params[0]
+		if misc.IsFirstRune(channel, '@') {
+			ref = telegram.NewChannelRef(channel)
+		}
+	}
+
+	admins, err := front.checkAccess(front.user, ref)
+	if err != nil {
+		front.bot.SendText(front.chat, "Access denied: %s", err)
+		return
+	}
+
+	if err := front.back.UnsubscribeAll(ref); err != nil {
+		front.bot.SendText(front.chat, err.Error())
+		return
+	}
+
+	front.bot.NotifyAll(admins, "#info\nSubscriptions cleared.\nChat: %s", ref)
+}
+
+func (front *T) unsubscribe(params []string) {
+	if len(params) == 0 {
+		front.bot.SendText(front.chat, "Invalid command.")
+		return
+	}
+
+	thread, _, err := front.parseThread(params[0])
+	if err != nil {
+		front.bot.SendText(front.chat, "Invalid command: %s", err)
+		return
+	}
+
+	ref := front.chat
+	if len(params) > 1 {
+		channel := params[1]
+		if misc.IsFirstRune(channel, '@') {
+			ref = telegram.NewChannelRef(params[1])
+		}
+	}
+
+	admins, err := front.checkAccess(front.user, ref)
+	if err != nil {
+		front.bot.SendText(front.chat, "Access denied: %s", err)
+		return
+	}
+
+	if err := front.back.Unsubscribe(ref, *thread); err != nil {
+		front.bot.SendText(front.chat, err.Error())
+		return
+	}
+
+	front.bot.NotifyAll(admins,
+		"#info\nSubscription stopped.\nChat: %s\nThread: %s",
+		ref, (*thread).URL())
+}
+
+func (front *T) subscribe(params []string) {
+	if len(params) == 0 {
+		front.bot.SendText(front.chat, "Invalid command.")
+		return
+	}
+
+	thread, offset, err := front.parseThread(params[0])
+	if err != nil {
+		front.bot.SendText(front.chat, "Invalid command: %s", err)
+		return
+	}
+
+	hash, err := front.getHash(*thread)
+	if err != nil {
+		front.bot.SendText(front.chat, "Unable to load thread title: %s", err)
+		return
+	}
+
+	ref := front.chat
+	if len(params) > 1 {
+		channel := params[1]
+		if misc.IsFirstRune(channel, '@') {
+			ref = telegram.NewChannelRef(params[1])
+		}
+	}
+
+	admins, err := front.checkAccess(front.user, ref)
+	if err != nil {
+		front.bot.SendText(front.chat, "Access denied: %s", err)
+		return
+	}
+
+	if err := front.back.Subscribe(ref, *thread, hash, offset); err != nil {
+		front.bot.SendText(front.chat, err.Error())
+		return
+	}
+
+	front.bot.NotifyAll(admins,
+		"#info\nSubscription OK.\nChat: %s\nThread: %s\nOffset: %d",
+		ref, (*thread).URL(), offset)
+}
+
+func (front *T) status() {
+	front.bot.SendText(front.chat, "Alive.")
 }
 
 func (front *T) checkAccess(user, chat telegram.ChatRef) ([]telegram.ChatRef, error) {
@@ -169,8 +224,6 @@ func (front *T) parseThread(value string) (*dvach.ID, int, error) {
 
 			if post.Parent != "0" {
 				offset, _ = strconv.Atoi(thread.Num)
-				offset++
-
 				thread.Num = post.Parent
 			}
 

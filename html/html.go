@@ -39,7 +39,7 @@ func Chunk(post Post, chunkSize int) []string {
 		builder.WriteMark()
 	}
 
-	builder.WriteHeader(num(post.Board, post.Num), post.Hash)
+	builder.WriteHeader(Num(post.Board, post.Num), post.Hash)
 	for {
 		tokenType := tokenizer.Next()
 		if tokenType == html.ErrorToken {
@@ -56,7 +56,7 @@ func Chunk(post Post, chunkSize int) []string {
 
 			case "a":
 				if datanum, ok := attr(token, "data-num"); ok {
-					builder.WriteHashtag(num(post.Board, datanum))
+					builder.WriteNum(Num(post.Board, datanum))
 					skip = true
 					continue
 				}
@@ -92,8 +92,8 @@ func Escape(value string) string {
 	return html.EscapeString(value)
 }
 
-func num(board, num string) string {
-	return strings.ToUpper(board) + num
+func Num(board, num string) string {
+	return "#" + strings.ToUpper(board) + num
 }
 
 func attr(token html.Token, key string) (string, bool) {

@@ -17,6 +17,7 @@ type (
 		Unsubscribe(dvach.ID) error
 		IsEmpty() bool
 		Errors() []feed.Error
+		Dump() map[dvach.ID]feed.Entry
 	}
 
 	FeedFactory interface {

@@ -24,6 +24,11 @@ type (
 		Convert(string, chan aconvert.VideoResponse)
 	}
 
+	Entry struct {
+		Offset int
+		Hash   string
+	}
+
 	Error struct {
 		Thread dvach.ID
 		Hash   string
@@ -31,13 +36,8 @@ type (
 	}
 )
 
-type entry struct {
-	offset int
-	hash   string
-}
-
-func (e entry) withOffset(offset int) entry {
-	e.offset = offset
+func (e Entry) WithOffset(offset int) Entry {
+	e.Offset = offset
 	return e
 }
 
@@ -50,7 +50,7 @@ func Run(bot Bot, dvch Dvach, conv Converter, chat telegram.ChatRef) *T {
 		chat:    chat,
 		queue:   make(chan dvach.ID, maxQueueSize),
 		err:     make(chan Error, maxQueueSize),
-		entries: make(map[dvach.ID]entry),
+		entries: make(map[dvach.ID]Entry),
 		mu:      new(sync.RWMutex),
 	}
 
