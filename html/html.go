@@ -28,7 +28,7 @@ var (
 
 func Chunk(post Post, chunkSize int) []string {
 	var (
-		text      = string(spanr.ReplaceAll([]byte(tagr.Replace(post.Comment)), []byte("")))
+		text      = string(spanr.ReplaceAll([]byte(tagr.Replace(post.Comment)), []byte("<i>")))
 		reader    = strings.NewReader(text)
 		tokenizer = html.NewTokenizer(reader)
 		builder   = NewBuilder(chunkSize)

@@ -218,7 +218,7 @@ func (front *T) parseThread(value string) (*dvach.ID, int, error) {
 
 			post, err := front.dvch.Post(*thread)
 			if err != nil {
-				log.Warningf("Unable to load post %s: %s")
+				log.Warningf("Unable to load post %s: %s", html.Num(thread.Board, thread.Num), err)
 				return nil, 0, err
 			}
 
