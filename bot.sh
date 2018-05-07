@@ -21,7 +21,7 @@ start() {
     else
         TOKEN=`cat ${CONFIG} | jq -r ".token"`
         mkdir -p ${LOGDIR}
-        env TOKEN=${TOKEN} LOGCFG=${CONFIG} hikkabot 2>&1 > ${LOGDIR}/main.log &
+        env TOKEN=${TOKEN} LOG=${CONFIG} hikkabot 2>&1 > ${LOGDIR}/main.log &
         echo -e "PID=$!" > ${RUNFILE}
         notify "RUNNING" 1
     fi
