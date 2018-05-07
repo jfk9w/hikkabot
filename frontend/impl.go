@@ -71,7 +71,7 @@ func (front *T) run() {
 			}
 
 			front.bot.NotifyAll(admins,
-				"#info\nSubscription OK.\nChat: %s\nThread: %s\nOffset: %s",
+				"#info\nSubscription OK.\nChat: %s\nThread: %s\nOffset: %d",
 				ref, (*thread).URL(), offset)
 
 		case "unsub_all", "unsubscribe_all":
