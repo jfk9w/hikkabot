@@ -3,13 +3,14 @@
 PATH=$PATH:$HOME/Go/bin
 
 RUNFILE=$HOME/.hikkabot
-LOGFILE=$HOME/logs/hikkabot.log
+LOGDIR=$HOME/logs/hikkabot/
 PACKAGE=github.com/jfk9w-go/hikkabot
 
 archive_logs() {
-    if [[ -f ${LOGFILE} ]]; then
-        SUFFIX=`date +%F_%R`
-        mv ${LOGFILE} "${LOGFILE}.${SUFFIX}"
+    if [[ -f ${LOGDIR} ]]; then
+        DIR=${LOGDIR}/`date +%F_%R`
+        mkdir ${DIR}
+        mv ${LOGDIR}/*.log ${DIR}
     fi
 }
 
@@ -19,12 +20,8 @@ start() {
     else
         CONFIG=$1
         TOKEN=`cat ${CONFIG} | jq -r ".token"`
-        if [[ -n ${LOGFILE} ]]; then
-            env TOKEN=${TOKEN} hikkabot 2>&1 > ${LOGFILE} &
-            echo -e "PID=$!" > ${RUNFILE}
-        else
-            hikkabot -config=${CONFIG}
-        fi
+        env TOKEN=${TOKEN} LOGCFG=${CONFIG} hikkabot 2>&1 > ${LOGDIR}/main.log &
+        echo -e "PID=$!" > ${RUNFILE}
     fi
 }
 
@@ -34,7 +31,7 @@ stop() {
         rm ${RUNFILE}
         kill ${PID}
         echo "Waiting for Hikkabot instance death, PID: ${PID}"
-        tail -f ${LOGFILE} | while read LOGLINE; do
+        tail -f ${LOGDIR}/main.log | while read LOGLINE; do
             [[ "${LOGLINE}" == *"[main] Exit"* ]] && pkill -P $$ tail
         done
         archive_logs

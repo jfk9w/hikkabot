@@ -30,7 +30,16 @@ func main() {
 
 	// Config
 	token := os.Getenv("TOKEN")
+	logConfigPath := os.Getenv("LOGCFG")
 	//chat := telegram.NewChatRef(os.Getenv("CHAT"))
+
+	// Logging
+	logConfig, err := logrus.ReadConfigJson(logConfigPath)
+	if err != nil {
+		panic(err)
+	}
+
+	logrus.SetConfig.From(logConfig)
 
 	// Frontend
 	bot0 := telegram.New(httpx.DefaultClient, telegram.DefaultConfig.WithToken(token))
