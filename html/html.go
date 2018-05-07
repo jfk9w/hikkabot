@@ -8,6 +8,12 @@ import (
 	"golang.org/x/net/html"
 )
 
+type Post struct {
+	dvach.Post
+	Board string
+	Hash  string
+}
+
 var (
 	spanr = regexp.MustCompile(`<span.*>`)
 	tagr  = strings.NewReplacer(
@@ -20,7 +26,7 @@ var (
 	)
 )
 
-func Chunk(post dvach.Post, chunkSize int) []string {
+func Chunk(post Post, chunkSize int) []string {
 	var (
 		text      = string(spanr.ReplaceAll([]byte(tagr.Replace(post.Comment)), []byte("")))
 		reader    = strings.NewReader(text)
@@ -29,7 +35,11 @@ func Chunk(post dvach.Post, chunkSize int) []string {
 		skip      = false
 	)
 
-	builder.WriteHashtag(num(post.Board, post.Num) + " /\n")
+	if post.Parent == "0" {
+		builder.WriteMark()
+	}
+
+	builder.WriteHeader(num(post.Board, post.Num), post.Hash)
 	for {
 		tokenType := tokenizer.Next()
 		if tokenType == html.ErrorToken {
@@ -76,6 +86,10 @@ func Chunk(post dvach.Post, chunkSize int) []string {
 	}
 
 	return builder.Done()
+}
+
+func Escape(value string) string {
+	return html.EscapeString(value)
 }
 
 func num(board, num string) string {

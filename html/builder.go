@@ -113,8 +113,16 @@ func (b *Builder) WriteText(text string) {
 	b.writeText(text[offset:])
 }
 
+func (b *Builder) WriteMark() {
+	b.writeText("#thread\n")
+}
+
+func (b *Builder) WriteHeader(num string, hash string) {
+	b.writeText("#" + num + "\n" + hash + "\n-------\n")
+}
+
 func (b *Builder) WriteHashtag(tag string) {
-	b.writeText("#" + tag)
+	b.writeText("#" + tag + " ")
 }
 
 func (b *Builder) WriteLink(link string) {

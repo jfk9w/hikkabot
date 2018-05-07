@@ -2,48 +2,38 @@ package frontend
 
 import (
 	"strings"
-	"sync"
 
-	"io"
-
-	"time"
-
-	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/hikkabot/backend"
-	"github.com/jfk9w-go/hikkabot/bot"
-	"github.com/jfk9w-go/httpx"
 	"github.com/jfk9w-go/logrus"
-	"github.com/jfk9w-go/misc"
 	"github.com/jfk9w-go/telegram"
 )
 
 type (
+	Backend interface {
+		Subscribe(telegram.ChatRef, dvach.ID, string, int) error
+		Unsubscribe(telegram.ChatRef, dvach.ID) error
+		UnsubscribeAll(telegram.ChatRef) error
+	}
+
 	Bot interface {
-		io.Closer
-		telegram.Updater
-		telegram.Api
-		bot.Frontend
+		GetMe() (*telegram.User, error)
+		UpdateChannel() <-chan telegram.Update
+		SendText(telegram.ChatRef, string, ...interface{})
+		GetAdmins(telegram.ChatRef) ([]telegram.ChatRef, error)
+		NotifyAll([]telegram.ChatRef, string, ...interface{})
+	}
+
+	Dvach interface {
+		Post(dvach.ID) (*dvach.Post, error)
 	}
 )
 
-func Run(token string) io.Closer {
-	f := &frontend{
-		waitGroup: &sync.WaitGroup{},
-	}
-
-	b := bot.NewAugmentedBot(token, f)
-	d := dvach.New(httpx.DefaultClient)
-	w := aconvert.WithCache(3*24*time.Hour, 30*time.Second, 12*time.Hour)
-
-	f.bot = b
-	f.back = backend.New(b, d, w)
-	go f.run()
-
-	return misc.BroadcastCloser(b, w)
+func Run(bot Bot, dvch Dvach, back Backend) {
+	front := &T{bot, dvch, back}
+	go front.run()
 }
 
-var log = logrus.GetLogger("frontend")
+var log = logrus.GetLogger("T")
 
 type ParsedCommand struct {
 	Command string
