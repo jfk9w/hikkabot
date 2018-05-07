@@ -114,11 +114,11 @@ func (b *Builder) WriteText(text string) {
 }
 
 func (b *Builder) WriteMark() {
-	b.writeText("#thread\n")
+	b.writeText("#T\n")
 }
 
 func (b *Builder) WriteHeader(num string, hash string) {
-	b.writeText("#" + num + "\n" + hash + "\n-------\n")
+	b.writeText(hash + "\n#" + num + "\n-------\n")
 }
 
 func (b *Builder) WriteHashtag(tag string) {
