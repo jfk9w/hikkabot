@@ -34,7 +34,7 @@ func main() {
 	//chat := telegram.NewChatRef(os.Getenv("CHAT"))
 
 	// Logging
-	logConfig, err := logrus.ReadConfigJson(logConfigPath)
+	logConfig, err := logrus.readConfig(logConfigPath)
 	if err != nil {
 		panic(err)
 	}
