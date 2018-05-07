@@ -4,7 +4,7 @@ PATH=$PATH:$HOME/Go/bin
 
 CONFIG=$HOME/.config/hikkabot.json
 RUNFILE=$HOME/.hikkabot
-LOGDIR=$HOME/logs/hikkabot/
+LOGDIR=$HOME/logs/hikkabot
 PACKAGE=github.com/jfk9w-go/hikkabot
 
 archive_logs() {
@@ -21,6 +21,7 @@ start() {
     else
         CONFIG=$1
         TOKEN=`cat ${CONFIG} | jq -r ".token"`
+        mkdir -p $LOGDIR
         env TOKEN=${TOKEN} LOGCFG=${CONFIG} hikkabot 2>&1 > ${LOGDIR}/main.log &
         echo -e "PID=$!" > ${RUNFILE}
         notify "RUNNING" 1
