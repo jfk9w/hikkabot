@@ -3,6 +3,8 @@ package feed
 import (
 	"sync"
 
+	"time"
+
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/html"
 	"github.com/jfk9w-go/telegram"
@@ -123,6 +125,7 @@ func (feed *T) exec(thread dvach.ID, entry entry) {
 	}
 
 	feed.queue <- thread
+	time.Sleep(2 * time.Minute)
 }
 
 func (feed *T) Subscribe(thread dvach.ID, hash string, offset int) error {

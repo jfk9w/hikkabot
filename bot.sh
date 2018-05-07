@@ -4,6 +4,7 @@ PATH=$PATH:$HOME/Go/bin
 
 RUNFILE=$HOME/.hikkabot
 LOGFILE=$HOME/logs/hikkabot.log
+PACKAGE=github.com/jfk9w-go/hikkabot
 
 archive_logs() {
     if [[ -f ${LOGFILE} ]]; then
@@ -75,6 +76,14 @@ check() {
     else
         notify ${CONFIG} ${CHAT} "Runfile not found." 1
     fi
+}
+
+update() {
+    CONFIG=$1
+    stop
+    go get -u ${PACKAGE}
+    go install ${PACKAGE}
+    start ${CONFIG}
 }
 
 case $1 in
