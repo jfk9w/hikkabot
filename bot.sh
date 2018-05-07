@@ -8,14 +8,12 @@ LOGDIR=$HOME/logs/hikkabot
 PACKAGE=github.com/jfk9w-go/hikkabot
 
 archive_logs() {
-    if [[ -f ${LOGDIR} ]]; then
-        DIR=`date +%F_%R`
-        cd ${LOGDIR}
-        mkdir ${DIR}
-        CWD=`pwd`
-        mv *.log ${DIR}
-        cd ${CWD}
-    fi
+    CWD=`pwd`
+    DIR=`date +%F_%R`
+    cd ${LOGDIR}
+    mkdir ${DIR}
+    mv *.log ${DIR}
+    cd ${CWD}
 }
 
 start() {
@@ -83,10 +81,10 @@ check() {
 install() {
     go get -u ${PACKAGE}
     go install ${PACKAGE}
+    cp ${GOPATH}/src/${PACKAGE}/bot.sh .
 }
 
-update() {
-    install
+restart() {
     stop
     start
 }
