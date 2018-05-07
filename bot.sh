@@ -98,4 +98,8 @@ case $1 in
     "check")
         check $2 $3
         ;;
+
+    "update")
+        update $2
+        ;;
 esac
