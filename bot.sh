@@ -78,11 +78,15 @@ check() {
     fi
 }
 
-update() {
-    stop
+install() {
     go get -u ${PACKAGE}
     go install ${PACKAGE}
-    start ${CONFIG}
+}
+
+update() {
+    install
+    stop
+    start
 }
 
 case $1 in
@@ -96,6 +100,10 @@ case $1 in
 
     "check")
         check
+        ;;
+
+    "install")
+        install
         ;;
 
     "update")
