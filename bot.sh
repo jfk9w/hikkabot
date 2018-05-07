@@ -2,6 +2,7 @@
 
 PATH=$PATH:$HOME/Go/bin
 
+CONFIG=$HOME/.config/hikkabot.json
 RUNFILE=$HOME/.hikkabot
 LOGDIR=$HOME/logs/hikkabot/
 PACKAGE=github.com/jfk9w-go/hikkabot
@@ -22,18 +23,20 @@ start() {
         TOKEN=`cat ${CONFIG} | jq -r ".token"`
         env TOKEN=${TOKEN} LOGCFG=${CONFIG} hikkabot 2>&1 > ${LOGDIR}/main.log &
         echo -e "PID=$!" > ${RUNFILE}
+        notify "RUNNING" 1
     fi
 }
 
 stop() {
     if [[ -f ${RUNFILE} ]]; then
         source ${RUNFILE}
-        rm ${RUNFILE}
         kill ${PID}
+        notify "SHUTDOWN" 1
         echo "Waiting for Hikkabot instance death, PID: ${PID}"
         tail -f ${LOGDIR}/main.log | while read LOGLINE; do
             [[ "${LOGLINE}" == *"[main] Exit"* ]] && pkill -P $$ tail
         done
+        rm ${RUNFILE}
         archive_logs
         echo "OK"
     else
@@ -42,9 +45,10 @@ stop() {
 }
 
 notify() {
-    CONFIG=$1 CHAT=$2 NOTIFY=$4
-    TEXT=`echo $3 | sed -r 's/\s+/%20/g;s/\./%2E/g'`
+    TEXT=`echo $1 | sed -r 's/\s+/%20/g;s/\./%2E/g'`
+    NOTIFY=$2
     TOKEN=`cat ${CONFIG} | jq -r ".token"`
+    CHAT=`cat ${CONFIG} | jq -r ".mgmt"`
     FORM="chat_id=${CHAT}&text=${TEXT}"
     if [[ ! ${NOTIFY} ]]; then
         FORM="${FORM}&disable_notification=true"
@@ -54,29 +58,26 @@ notify() {
 }
 
 check() {
-    CONFIG=$1
-    CHAT=$2
     if [[ -f ${RUNFILE} ]]; then
         source ${RUNFILE}
         kill -0 ${PID}
         if [[ $? -ne 0 ]]; then
             rm ${RUNFILE}
-            notify ${CONFIG} ${CHAT} "Instance is not running. Restarting." 1
+            notify "Instance is not running. Restarting." 1
             archive_logs
-            start $CONFIG
+            start
             sleep 5
-            check $CONFIG $CHAT
+            check
 #        else
 #            STATS=`ps -p ${PID} -o %cpu,%mem | tail -1`
 #            notify ${CONFIG} ${CHAT} "${STATS}"
         fi
     else
-        notify ${CONFIG} ${CHAT} "Runfile not found." 1
+        notify "Runfile not found." 1
     fi
 }
 
 update() {
-    CONFIG=$1
     stop
     go get -u ${PACKAGE}
     go install ${PACKAGE}
@@ -85,7 +86,7 @@ update() {
 
 case $1 in
     "start")
-        start $2
+        start
         ;;
 
     "stop")
@@ -93,10 +94,10 @@ case $1 in
         ;;
 
     "check")
-        check $2 $3
+        check
         ;;
 
     "update")
-        update $2
+        update
         ;;
 esac
