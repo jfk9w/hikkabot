@@ -106,7 +106,7 @@ case $1 in
         install
         ;;
 
-    "update")
-        update
+    "restart")
+        restart
         ;;
 esac
