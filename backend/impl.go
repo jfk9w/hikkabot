@@ -19,7 +19,7 @@ type T struct {
 
 func (back *T) gc() {
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(30 * time.Minute)
 		keys := back.state.Keys()
 		log.Debugf("Running GC, %d total keys", len(keys))
 		for _, key := range keys {
