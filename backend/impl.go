@@ -1,118 +1,130 @@
 package backend
 
 import (
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/telegram"
+	"github.com/orcaman/concurrent-map"
 	"github.com/pkg/errors"
 )
 
 type T struct {
-	bot  Bot
-	dvch Dvach
-	ff   FeedFactory
-
-	feeds map[telegram.ChatRef]Feed
-	mu    *sync.Mutex
+	bot   Bot
+	ff    FeedFactory
+	state cmap.ConcurrentMap
 }
 
-func Run(bot Bot, dvch dvach.Api, ff FeedFactory) *T {
-	backend := &T{bot, dvch, ff, make(map[telegram.ChatRef]Feed), &sync.Mutex{}}
-	go backend.maintenance()
-	return backend
-}
-
-func (backend *T) loadOrDelete(chat telegram.ChatRef) ([]telegram.ChatRef, error) {
-	admins, err := backend.bot.GetAdmins(chat)
-	if err != nil {
-		delete(backend.feeds, chat)
-		log.Warningf("Removed %s from feeds because of error: %s", chat, err)
-		return nil, err
-	}
-
-	return admins, err
-}
-
-func (backend *T) maintenance() {
+func (back *T) gc() {
 	for {
-		time.Sleep(30 * time.Minute)
-		backend.mu.Lock()
-
-		for chat, f := range backend.feeds {
-			var admins []telegram.ChatRef
-			errs := f.Errors()
-			if len(errs) > 0 {
-				var err error
-				if admins, err = backend.loadOrDelete(chat); err != nil {
-					continue
-				}
-			}
-
-			for _, err := range errs {
-				log.Debugf("Notifying error for %s: %s", chat, err)
-				go backend.bot.NotifyAll(admins,
-					"#info\nAn error occured.\nChat: %s\nThread: %s\nError: %s",
-					chat, err.Thread, err.Err)
-			}
-
-			if f.IsEmpty() {
-				delete(backend.feeds, chat)
-				log.Infof("Garbage collected feed %s", chat)
+		time.Sleep(10 * time.Second)
+		keys := back.state.Keys()
+		log.Debugf("Running GC, %d total keys", len(keys))
+		for _, key := range keys {
+			entry, ok := back.state.Get(key)
+			if !ok {
 				continue
 			}
+
+			chat := fromKey(key)
+			feed := entry.(Feed)
+			empty, errs := feed.CollectErrors()
+			if len(errs) == 0 {
+				if empty {
+					back.state.Remove(key)
+					back.bot.DeleteRoute(chat)
+					log.Debugf("Garbage collected %s", key)
+				}
+
+				continue
+			}
+
+			log.Debugf("Collected %d errors from %s", len(errs), key)
+
+			admins, err := back.bot.GetAdmins(chat)
+			if err != nil {
+				log.Errorf("Failed to get admin list for %s: %s", key, err)
+				back.state.Upsert(key, nil,
+					func(exists bool, old interface{}, new interface{}) interface{} {
+						if exists {
+							old.(Feed).Close()
+						}
+
+						return nil
+					})
+
+				continue
+			}
+
+			text := &strings.Builder{}
+			text.WriteString("#info\n")
+			for _, err := range errs {
+				text.WriteString(err.Error())
+				text.WriteRune('\n')
+			}
+
+			back.bot.NotifyAll(admins, text.String())
+
+			if empty {
+				back.state.Remove(key)
+				back.bot.DeleteRoute(chat)
+				log.Debugf("Garbage collected %s", key)
+			}
 		}
-
-		backend.mu.Unlock()
 	}
 }
 
-func (backend *T) Subscribe(chat telegram.ChatRef, thread dvach.ID, hash string, offset int) error {
-	backend.mu.Lock()
-	defer backend.mu.Unlock()
+func (back *T) Subscribe(chat telegram.ChatRef, thread dvach.ID, hash string, offset int) error {
+	var err error
+	back.state.Upsert(toKey(chat), nil,
+		func(exists bool, old interface{}, new interface{}) interface{} {
+			var feed Feed
+			if exists {
+				feed = old.(Feed)
+			} else {
+				feed = back.ff.CreateFeed(chat)
+			}
 
-	f, ok := backend.feeds[chat]
-	if ok {
-		return f.Subscribe(thread, hash, offset)
-	}
+			if !feed.Subscribe(thread, hash, offset) {
+				err = errors.Errorf("exists")
+			}
 
-	f = backend.ff.CreateFeed(chat)
-	backend.feeds[chat] = f
+			return feed
+		})
 
-	return f.Subscribe(thread, hash, offset)
+	return err
 }
 
-func (backend *T) Unsubscribe(chat telegram.ChatRef, thread dvach.ID) error {
-	backend.mu.Lock()
-	defer backend.mu.Unlock()
-	if f, ok := backend.feeds[chat]; ok {
-		return f.Unsubscribe(thread)
-	}
-
-	return errors.New("not subscribed")
-}
-
-func (backend *T) UnsubscribeAll(chat telegram.ChatRef) error {
-	backend.mu.Lock()
-	defer backend.mu.Unlock()
-	if f, ok := backend.feeds[chat]; ok {
-		f.Close()
-		delete(backend.feeds, chat)
-		log.Infof("Removed %s from feeds", chat)
+func (back *T) Unsubscribe(chat telegram.ChatRef, thread dvach.ID) error {
+	if entry, ok := back.state.Get(toKey(chat)); ok {
+		entry.(Feed).Unsubscribe(thread)
 		return nil
 	}
 
 	return errors.New("not subscribed")
 }
 
-func (backend *T) Dump(chat telegram.ChatRef) map[dvach.ID]feed.Entry {
-	backend.mu.Lock()
-	defer backend.mu.Unlock()
-	if f, ok := backend.feeds[chat]; ok {
-		return f.Dump()
+func (back *T) UnsubscribeAll(chat telegram.ChatRef) error {
+	var err error
+	back.state.Upsert(toKey(chat), nil,
+		func(exists bool, old interface{}, new interface{}) interface{} {
+			if !exists {
+				err = errors.New("not subscribed")
+			}
+
+			old.(Feed).Close()
+			return nil
+		})
+
+	return err
+}
+
+func (back *T) Dump(chat telegram.ChatRef) (feed.State, error) {
+	if entry, ok := back.state.Get(toKey(chat)); ok {
+		return entry.(Feed).Running(), nil
 	}
 
-	return map[dvach.ID]feed.Entry{}
+	return nil, errors.New("not subscribed")
 }

@@ -116,7 +116,7 @@ func (b *Builder) WriteText(text string) {
 }
 
 func (b *Builder) WriteMark() {
-	b.writeText("#T\n")
+	b.writeText("#TНR\n")
 }
 
 func (b *Builder) WriteHeader(num string, hash string) {

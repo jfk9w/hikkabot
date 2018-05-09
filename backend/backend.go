@@ -8,16 +8,16 @@ import (
 	"github.com/jfk9w-go/hikkabot/html"
 	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/telegram"
+	"github.com/orcaman/concurrent-map"
 )
 
 type (
 	Feed interface {
 		io.Closer
-		Subscribe(dvach.ID, string, int) error
-		Unsubscribe(dvach.ID) error
-		IsEmpty() bool
-		Errors() []feed.Error
-		Dump() map[dvach.ID]feed.Entry
+		Subscribe(dvach.ID, string, int) bool
+		Unsubscribe(dvach.ID)
+		Running() feed.State
+		CollectErrors() (bool, []error)
 	}
 
 	FeedFactory interface {
@@ -38,6 +38,17 @@ type (
 )
 
 var log = logrus.GetLogger("backend")
+
+func Run(bot Bot, ff FeedFactory) *T {
+	back := &T{
+		bot:   bot,
+		ff:    ff,
+		state: cmap.New(),
+	}
+
+	go back.gc()
+	return back
+}
 
 func NewFeedFactory(bot feed.Bot, dvch feed.Dvach, conv feed.Converter) FeedFactory {
 	return &DefaultFeedFactory{bot, dvch, conv}

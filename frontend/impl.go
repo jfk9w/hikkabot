@@ -65,7 +65,12 @@ func (front *T) dump(params []string) {
 		return
 	}
 
-	entries := front.back.Dump(ref)
+	entries, err := front.back.Dump(ref)
+	if err != nil {
+		front.bot.SendText(front.chat, err.Error())
+		return
+	}
+
 	sb := &strings.Builder{}
 	sb.WriteString(ref.String())
 	sb.WriteString(" entries:\n")
@@ -155,7 +160,7 @@ func (front *T) subscribe(params []string) {
 		return
 	}
 
-	hash, err := front.getHash(*thread)
+	hash, err := front.hashify(*thread)
 	if err != nil {
 		front.bot.SendText(front.chat, "Unable to load thread title: %s", err)
 		return
@@ -236,7 +241,7 @@ func (front *T) parseThread(value string) (*dvach.ID, int, error) {
 	return thread, offset, nil
 }
 
-func (front *T) getHash(thread dvach.ID) (string, error) {
+func (front *T) hashify(thread dvach.ID) (string, error) {
 	post, err := front.dvch.Post(thread)
 	if err != nil {
 		return "", err

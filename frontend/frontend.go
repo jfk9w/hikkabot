@@ -14,7 +14,7 @@ type (
 		Subscribe(telegram.ChatRef, dvach.ID, string, int) error
 		Unsubscribe(telegram.ChatRef, dvach.ID) error
 		UnsubscribeAll(telegram.ChatRef) error
-		Dump(telegram.ChatRef) map[dvach.ID]feed.Entry
+		Dump(telegram.ChatRef) (feed.State, error)
 	}
 
 	Bot interface {

@@ -48,9 +48,11 @@ func (bot *T) GetAdmins(chat telegram.ChatRef) ([]telegram.ChatRef, error) {
 		return nil, errors.New("unable to get chat admin list")
 	}
 
-	refs := make([]telegram.ChatRef, len(admins))
-	for i, admin := range admins {
-		refs[i] = admin.User.Ref()
+	refs := make([]telegram.ChatRef, 0)
+	for _, admin := range admins {
+		if !admin.User.IsBot {
+			refs = append(refs, admin.User.Ref())
+		}
 	}
 
 	return refs, nil

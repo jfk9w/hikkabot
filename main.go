@@ -37,7 +37,7 @@ func main() {
 	botx := bot.Wrap(bot0, conv)
 	dvch := dvach.New(httpx.DefaultClient)
 	ff := backend.NewFeedFactory(botx, dvch, conv)
-	back := backend.Run(botx, dvch, ff)
+	back := backend.Run(botx, ff)
 	frontend.Run(botx, dvch, back)
 
 	// Signal handler

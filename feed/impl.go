@@ -1,142 +1,65 @@
 package feed
 
 import (
-	"sync"
-
 	"time"
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/html"
 	"github.com/jfk9w-go/telegram"
 	"github.com/jfk9w-go/unit"
+	"github.com/orcaman/concurrent-map"
 	"github.com/pkg/errors"
 )
 
-const maxQueueSize = 100
-
 type T struct {
-	aux unit.Aux
-
-	bot  Bot
-	dvch Dvach
-	conv Converter
-
+	aux   unit.Aux
+	bot   Bot
+	dvch  Dvach
+	conv  Converter
 	chat  telegram.ChatRef
-	queue chan dvach.ID
-	err   chan Error
-
-	entries map[dvach.ID]Entry
-	mu      *sync.RWMutex
+	state cmap.ConcurrentMap
 }
 
 func (feed *T) run() {
-	log.Infof("Run %s", feed.chat)
-	defer log.Infof("Exit %s", feed.chat)
-
 	for {
-		select {
-		case <-feed.aux.C:
+		if feed.intr() {
 			return
+		}
 
-		case thread := <-feed.queue:
-			entry, ok := feed.get(thread)
+		keys := feed.state.Keys()
+		for _, key := range keys {
+			value, ok := feed.state.Get(key)
 			if !ok {
-				log.Debugf("Removed %s from %s queue", thread.URL(), feed.chat)
 				continue
 			}
 
-			if feed.exec(thread, entry) == unit.ErrInterrupted {
+			entry, ok := value.(*Entry)
+			if entry.Error != nil {
+				continue
+			}
+
+			err := feed.execute(key, entry)
+			switch err {
+			case nil:
+				continue
+
+			case unit.ErrInterrupted:
 				return
-			}
-		}
-	}
-}
 
-func (feed *T) get(thread dvach.ID) (Entry, bool) {
-	feed.mu.RLock()
-	defer feed.mu.RUnlock()
-	entry, ok := feed.entries[thread]
-	return entry, ok
-}
-
-func (feed *T) delete(thread dvach.ID) {
-	feed.mu.Lock()
-	defer feed.mu.Unlock()
-	delete(feed.entries, thread)
-}
-
-func (feed *T) update(thread dvach.ID, offset int) {
-	feed.mu.Lock()
-	defer feed.mu.Unlock()
-	if entry, ok := feed.entries[thread]; ok {
-		feed.entries[thread] = entry.WithOffset(offset)
-	}
-}
-
-func (feed *T) size() int {
-	feed.mu.RLock()
-	defer feed.mu.RUnlock()
-	return len(feed.entries)
-}
-
-func (feed *T) exec(thread dvach.ID, entry Entry) error {
-	offset := entry.Offset
-	if offset != 0 {
-		offset++
-	}
-
-	posts, err := feed.dvch.Thread(thread, offset)
-	if err != nil {
-		log.Warningf("Unable to get new %s posts for %s: %s", thread.URL(), feed.chat, err)
-		feed.delete(thread)
-		feed.err <- Error{thread, entry.Hash, err}
-		return err
-	}
-
-	for _, post := range posts {
-		for _, file := range post.Files {
-			if file.Type == dvach.Webm {
-				go feed.conv.Convert(file.URL(), nil)
-			}
-		}
-	}
-
-	log.Debugf("%d new posts from %s for %s", len(posts), thread.URL(), feed.chat)
-
-	offset = entry.Offset
-	for i, post := range posts {
-		if feed.interrupted() {
-			return unit.ErrInterrupted
-		}
-
-		if err := feed.bot.SendPost(feed.chat, html.Post{post, thread.Board, entry.Hash}); err != nil {
-			log.Debugf("Failed to send post from %s to %s: %s", thread.URL(), feed.chat, err)
-			feed.delete(thread)
-			return err
-		}
-
-		if i%5 == 0 {
-			if _, ok := feed.get(thread); !ok {
-				log.Debugf("Interrupting %s for %s", thread.URL(), feed.chat)
-				return nil
+			default:
+				if entry, ok := feed.state.Get(key); ok {
+					entry.(*Entry).Error = err
+				}
 			}
 		}
 
-		offset = post.NumInt()
+		if !feed.sleep() {
+			return
+		}
 	}
-
-	if len(posts) > 0 {
-		feed.update(thread, offset)
-		log.Debugf("Updated offset %d for %s in %s", offset, thread.URL(), feed.chat)
-	}
-
-	feed.queue <- thread
-	time.Sleep(2 * time.Minute)
-
-	return nil
 }
 
-func (feed *T) interrupted() bool {
+func (feed *T) intr() bool {
 	select {
 	case <-feed.aux.C:
 		return true
@@ -146,68 +69,122 @@ func (feed *T) interrupted() bool {
 	}
 }
 
-func (feed *T) Subscribe(thread dvach.ID, hash string, offset int) error {
-	feed.mu.Lock()
-	defer feed.mu.Unlock()
+func (feed *T) sleep() bool {
+	timer := time.NewTimer(2 * time.Minute)
+	select {
+	case <-feed.aux.C:
+		return false
 
-	if _, ok := feed.entries[thread]; ok {
-		return errors.New("exists")
+	case <-timer.C:
+		return true
 	}
-
-	if len(feed.entries) >= maxQueueSize {
-		return errors.New("too many subscriptions")
-	}
-
-	feed.entries[thread] = Entry{offset, hash}
-	feed.queue <- thread
-
-	log.Infof("Subscribed %s to %s with offset %d", feed.chat, thread.URL(), offset)
-	return nil
 }
 
-func (feed *T) Unsubscribe(thread dvach.ID) error {
-	if _, ok := feed.get(thread); !ok {
-		return errors.New("not subscribed")
+func (feed *T) update(key string, offset int) bool {
+	if entry, ok := feed.state.Get(key); ok {
+		entry.(*Entry).Offset = offset
+		return true
 	}
 
-	feed.mu.Lock()
-	defer feed.mu.Unlock()
-
-	delete(feed.entries, thread)
-
-	log.Infof("Unsubscribed %s from %s", feed.chat, thread.URL())
-	return nil
+	return false
 }
 
-func (feed *T) IsEmpty() bool {
-	return feed.size() == 0
+func (feed *T) preload(posts []dvach.Post) {
+	for _, post := range posts {
+		for _, file := range post.Files {
+			if file.Type == dvach.Webm {
+				go feed.conv.Convert(file.URL(), nil)
+			}
+		}
+	}
 }
 
-func (feed *T) Errors() []Error {
-	errs := make([]Error, 0)
-	for {
-		select {
-		case err := <-feed.err:
-			errs = append(errs, err)
-		default:
-			break
+func (feed *T) execute(key string, entry *Entry) error {
+	if feed.intr() {
+		return unit.ErrInterrupted
+	}
+
+	thread := fromKey(key)
+	offset := entry.Offset
+	if offset > 0 {
+		offset++
+	}
+
+	posts, err := feed.dvch.Thread(thread, entry.Offset)
+	if err != nil {
+		log.Warningf("Unable to load posts from %s for %s: %s", thread.URL(), feed.chat, err)
+		return errors.Errorf("unable to load posts from %s: %s", html.Num(thread.Board, thread.Num), err)
+	}
+
+	if len(posts) == 0 {
+		return nil
+	}
+
+	log.Debugf("%d new posts for %s from %s", len(posts), feed.chat, thread.URL())
+
+	if feed.intr() {
+		return unit.ErrInterrupted
+	}
+
+	feed.preload(posts)
+
+	for _, post := range posts {
+		if feed.intr() {
+			return unit.ErrInterrupted
+		}
+
+		if err := feed.bot.SendPost(feed.chat, html.Post{post, thread.Board, entry.Hash}); err != nil {
+			log.Warningf("Unable to send post %s/%s to %s: %s", thread.Board, post.Num, feed.chat, err)
+			return errors.Errorf("unable to send post from %s: %s", thread.URL(), err)
+		}
+
+		if !feed.update(key, post.NumInt()) {
+			return nil
 		}
 	}
 
-	return errs
+	if !feed.sleep() {
+		return unit.ErrInterrupted
+	}
+
+	return nil
+}
+
+func (feed *T) Subscribe(thread dvach.ID, hash string, offset int) bool {
+	return feed.state.SetIfAbsent(toKey(thread), &Entry{hash, offset, nil})
+}
+
+func (feed *T) Unsubscribe(thread dvach.ID) {
+	feed.state.Remove(toKey(thread))
 }
 
 func (feed *T) Close() error {
 	return feed.aux.Close()
 }
 
-func (feed *T) Dump() map[dvach.ID]Entry {
-	feed.mu.RLock()
-	defer feed.mu.RUnlock()
+func (feed *T) CollectErrors() (bool, []error) {
+	empty := true
+	errs := make([]error, 0)
+	for k, v := range feed.state.Items() {
+		entry := *v.(*Entry)
+		if entry.Error == nil {
+			empty = false
+		} else {
+			errs = append(errs, entry.Error)
+			feed.state.Remove(k)
+		}
+	}
 
-	r := make(map[dvach.ID]Entry)
-	for k, v := range feed.entries {
-		r[k] = v
+	return empty, errs
+}
+
+func (feed *T) Running() State {
+	r := State{}
+	for k, v := range feed.state.Items() {
+		entry := *v.(*Entry)
+		if entry.Error == nil {
+			r[fromKey(k)] = *v.(*Entry)
+		}
 	}
 
 	return r
