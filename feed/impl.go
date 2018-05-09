@@ -110,7 +110,7 @@ func (feed *T) execute(key string, entry *Entry) error {
 		offset++
 	}
 
-	posts, err := feed.dvch.Thread(thread, entry.Offset)
+	posts, err := feed.dvch.Thread(thread, offset)
 	if err != nil {
 		log.Warningf("Unable to load posts from %s for %s: %s", thread.URL(), feed.chat, err)
 		return errors.Errorf("unable to load posts from %s: %s", html.Num(thread.Board, thread.Num), err)
