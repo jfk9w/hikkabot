@@ -7,5 +7,6 @@ func toKey(chat telegram.ChatRef) string {
 }
 
 func fromKey(key string) telegram.ChatRef {
-	return telegram.NewChatRef(key)
+	ref, _ := telegram.ParseChatRef(key)
+	return ref
 }
