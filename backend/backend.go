@@ -26,7 +26,7 @@ type (
 
 	Bot interface {
 		DeleteRoute(telegram.ChatRef)
-		SendPost(telegram.ChatRef, html.Post) error
+		SendPost(telegram.ChatRef, html.Post, bool) error
 		GetAdmins(telegram.ChatRef) ([]telegram.ChatRef, error)
 		NotifyAll([]telegram.ChatRef, string, ...interface{})
 	}

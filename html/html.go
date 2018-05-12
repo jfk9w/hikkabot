@@ -26,7 +26,7 @@ var (
 	)
 )
 
-func Chunk(post Post, chunkSize int) []string {
+func Chunk(post Post, chunkSize int, isThread bool) []string {
 	var (
 		text      = string(spanr.ReplaceAll([]byte(tagr.Replace(post.Comment)), []byte("<i>")))
 		reader    = strings.NewReader(text)
@@ -35,11 +35,17 @@ func Chunk(post Post, chunkSize int) []string {
 		skip      = false
 	)
 
-	if post.Parent == "0" {
-		builder.WriteMark()
+	num := Num(post.Board, post.Num)
+	if isThread {
+		builder.WriteThreadHeader(num, post.Subject, post.PostsCount)
+	} else {
+		if post.Parent == "0" {
+			builder.WriteMark()
+		}
+
+		builder.WritePostHeader(num, post.Hash)
 	}
 
-	builder.WriteHeader(Num(post.Board, post.Num), post.Hash)
 	for {
 		tokenType := tokenizer.Next()
 		if tokenType == html.ErrorToken {

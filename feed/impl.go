@@ -133,7 +133,7 @@ func (feed *T) execute(key string, entry *Entry) error {
 			return unit.ErrInterrupted
 		}
 
-		if err := feed.bot.SendPost(feed.chat, html.Post{post, thread.Board, entry.Hash}); err != nil {
+		if err := feed.bot.SendPost(feed.chat, html.Post{post, thread.Board, entry.Hash}, false); err != nil {
 			log.Warningf("Unable to send post %s/%s to %s: %s", thread.Board, post.Num, feed.chat, err)
 			return errors.Errorf("unable to send post from %s: %s", thread.URL(), err)
 		}

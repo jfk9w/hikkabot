@@ -106,8 +106,8 @@ func (bot *T) SendFiles(chat telegram.ChatRef, files []dvach.File) {
 	}
 }
 
-func (bot *T) SendPost(chat telegram.ChatRef, post html.Post) error {
-	text := html.Chunk(post, chunkSize)
+func (bot *T) SendPost(chat telegram.ChatRef, post html.Post, isThread bool) error {
+	text := html.Chunk(post, chunkSize, isThread)
 	for _, part := range text {
 		err := <-bot.Send(telegram.SendMessageRequest{
 			Chat:      chat,

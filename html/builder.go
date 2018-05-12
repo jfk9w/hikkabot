@@ -3,6 +3,8 @@ package html
 import (
 	"strings"
 
+	"fmt"
+
 	"github.com/jfk9w-go/misc"
 	"golang.org/x/net/html"
 )
@@ -119,8 +121,13 @@ func (b *Builder) WriteMark() {
 	b.writeText("#TНR\n")
 }
 
-func (b *Builder) WriteHeader(num string, hash string) {
+func (b *Builder) WritePostHeader(num string, hash string) {
 	b.writeText(hash + "\n" + num + "\n---\n")
+}
+
+func (b *Builder) WriteThreadHeader(num string, title string, postsCount int) {
+	header := fmt.Sprintf("<b>%s</b>\n%s / %d posts\n---\n", html.EscapeString(title), num, postsCount)
+	b.writeText(header)
 }
 
 func (b *Builder) WriteNum(num string) {

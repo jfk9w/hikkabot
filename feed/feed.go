@@ -12,7 +12,7 @@ import (
 
 type (
 	Bot interface {
-		SendPost(telegram.ChatRef, html.Post) error
+		SendPost(telegram.ChatRef, html.Post, bool) error
 	}
 
 	Dvach interface {

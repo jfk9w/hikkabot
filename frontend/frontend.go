@@ -3,6 +3,7 @@ package frontend
 import (
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/feed"
+	"github.com/jfk9w-go/hikkabot/html"
 	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/telegram"
 )
@@ -21,10 +22,12 @@ type (
 		SendText(telegram.ChatRef, string, ...interface{})
 		GetAdmins(telegram.ChatRef) ([]telegram.ChatRef, error)
 		NotifyAll([]telegram.ChatRef, string, ...interface{})
+		SendPost(telegram.ChatRef, html.Post, bool) error
 	}
 
 	Dvach interface {
 		Post(dvach.ID) (*dvach.Post, error)
+		Catalog(dvach.Board) (*dvach.Catalog, error)
 	}
 )
 
