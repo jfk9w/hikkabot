@@ -59,7 +59,7 @@ func (cmd command) requireAdmin(chat telegram.ChatRef) ([]telegram.ChatRef, bool
 	}
 
 	for _, admin := range admins {
-		if admin == chat {
+		if admin == user {
 			return admins, true
 		}
 	}
