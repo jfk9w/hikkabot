@@ -1,8 +1,6 @@
 package frontend
 
 import (
-	"strings"
-
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/logrus"
@@ -31,25 +29,8 @@ type (
 )
 
 func Run(bot Bot, dvch Dvach, back Backend) {
-	front := &T{bot, dvch, back, nil, nil}
+	front := &T{bot, dvch, back}
 	go front.run()
 }
 
 var log = logrus.GetLogger("frontend")
-
-type ParsedCommand struct {
-	Command string
-	Params  []string
-}
-
-func (ps ParsedCommand) String() string {
-	sb := &strings.Builder{}
-	sb.WriteRune('/')
-	sb.WriteString(ps.Command)
-	for _, param := range ps.Params {
-		sb.WriteRune(' ')
-		sb.WriteString(param)
-	}
-
-	return sb.String()
-}

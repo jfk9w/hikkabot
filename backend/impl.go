@@ -60,6 +60,9 @@ func (back *T) gc() {
 
 			text := &strings.Builder{}
 			text.WriteString("#info\n")
+			text.WriteString("Chat: ")
+			text.WriteString(key)
+			text.WriteRune('\n')
 			for _, err := range errs {
 				text.WriteString(err.Error())
 				text.WriteRune('\n')
@@ -80,18 +83,18 @@ func (back *T) Subscribe(chat telegram.ChatRef, thread dvach.ID, hash string, of
 	var err error
 	back.state.Upsert(toKey(chat), nil,
 		func(exists bool, old interface{}, new interface{}) interface{} {
-			var feed Feed
+			var f Feed
 			if exists {
-				feed = old.(Feed)
+				f = old.(Feed)
 			} else {
-				feed = back.ff.CreateFeed(chat)
+				f = back.ff.CreateFeed(chat)
 			}
 
-			if !feed.Subscribe(thread, hash, offset) {
+			if !f.Subscribe(thread, hash, offset) {
 				err = errors.Errorf("exists")
 			}
 
-			return feed
+			return f
 		})
 
 	return err
