@@ -118,7 +118,7 @@ func (b *Builder) WriteText(text string) {
 }
 
 func (b *Builder) WriteMark() {
-	b.writeText("#TНR\n")
+	b.writeText("#THREAD\n")
 }
 
 func (b *Builder) WritePostHeader(num string, hash string) {

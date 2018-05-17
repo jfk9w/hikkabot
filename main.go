@@ -22,7 +22,7 @@ var log = logrus.GetLogger("main")
 func main() {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Panic(err)
+			log.Fatal(err)
 		}
 
 		log.Infof("Exit")
