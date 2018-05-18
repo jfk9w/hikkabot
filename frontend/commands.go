@@ -139,7 +139,7 @@ func (front *T) catalog(cmd command) {
 	limit = util.MinInt(len(posts), limit)
 
 	top := stat.Top(posts)
-	for _, thread := range top {
+	for _, thread := range top[:limit] {
 		front.bot.SendPost(cmd.chat, html.Post{thread.Post, board, "", thread.PostsPerHour}, true)
 	}
 
