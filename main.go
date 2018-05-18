@@ -11,7 +11,6 @@ import (
 	"github.com/jfk9w-go/hikkabot/backend"
 	"github.com/jfk9w-go/hikkabot/bot"
 	"github.com/jfk9w-go/hikkabot/frontend"
-	"github.com/jfk9w-go/httpx"
 	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/misc"
 	"github.com/jfk9w-go/telegram"
@@ -32,10 +31,10 @@ func main() {
 	token := os.Getenv("TOKEN")
 
 	// Frontend
-	bot0 := telegram.New(httpx.DefaultClient, telegram.DefaultConfig.WithToken(token))
+	bot0 := telegram.New(telegram.DefaultConfig.WithToken(token))
 	conv := aconvert.WithCache(3*24*time.Hour, 1*time.Minute, 12*time.Hour)
 	botx := bot.Wrap(bot0, conv)
-	dvch := dvach.New(httpx.DefaultClient)
+	dvch := dvach.New()
 	ff := backend.NewFeedFactory(botx, dvch, conv)
 	back := backend.Run(botx, ff)
 	frontend.Run(botx, dvch, back)
