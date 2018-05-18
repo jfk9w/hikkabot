@@ -14,8 +14,8 @@ import (
 type (
 	Feed interface {
 		io.Closer
-		Subscribe(dvach.ID, string, int) bool
-		Unsubscribe(dvach.ID)
+		Subscribe(dvach.Ref, string, int) bool
+		Unsubscribe(dvach.Ref)
 		Running() feed.State
 		CollectErrors() (bool, []error)
 	}
@@ -32,8 +32,8 @@ type (
 	}
 
 	Dvach interface {
-		Thread(dvach.ID, int) ([]dvach.Post, error)
-		Post(dvach.ID) (*dvach.Post, error)
+		Thread(dvach.Ref, int) ([]dvach.Post, error)
+		Post(dvach.Ref) (*dvach.Post, error)
 	}
 )
 

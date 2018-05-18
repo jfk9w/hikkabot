@@ -36,11 +36,11 @@ func Chunk(post Post, chunkSize int, isThread bool) []string {
 		skip      = false
 	)
 
-	num := Num(post.Board, post.Num)
+	num := Num(post.Board, post.NumString)
 	if isThread {
 		builder.WriteThreadHeader(num, post.Subject, post.PostsCount, post.PostsPerHour)
 	} else {
-		if post.Parent == "0" {
+		if post.ParentString == "0" {
 			builder.WriteMark()
 		}
 

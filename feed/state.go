@@ -6,13 +6,13 @@ import (
 	"github.com/jfk9w-go/dvach"
 )
 
-func toKey(id dvach.ID) string {
+func toKey(id dvach.Ref) string {
 	return id.Board + "+" + id.Num
 }
 
-func fromKey(val string) dvach.ID {
+func fromKey(val string) dvach.Ref {
 	ts := strings.Split(val, "+")
-	return dvach.ID{ts[0], ts[1]}
+	return dvach.Ref{ts[0], ts[1]}
 }
 
 type (
@@ -27,5 +27,5 @@ type (
 		Err   error
 	}
 
-	State = map[dvach.ID]Entry
+	State = map[dvach.Ref]Entry
 )

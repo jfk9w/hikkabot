@@ -10,8 +10,8 @@ import (
 
 type (
 	Backend interface {
-		Subscribe(telegram.ChatRef, dvach.ID, string, int) error
-		Unsubscribe(telegram.ChatRef, dvach.ID) error
+		Subscribe(telegram.ChatRef, dvach.Ref, string, int) error
+		Unsubscribe(telegram.ChatRef, dvach.Ref) error
 		UnsubscribeAll(telegram.ChatRef) error
 		Dump(telegram.ChatRef) (feed.State, error)
 	}
@@ -26,7 +26,7 @@ type (
 	}
 
 	Dvach interface {
-		Post(dvach.ID) (*dvach.Post, error)
+		Post(dvach.Ref) (*dvach.Post, error)
 		Catalog(dvach.Board) (*dvach.Catalog, error)
 	}
 )

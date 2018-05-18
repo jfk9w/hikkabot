@@ -45,12 +45,12 @@ func (front *T) run() {
 
 var postHashRegex = regexp.MustCompile(`#?([A-Za-z]+)(\d+)`)
 
-func (front *T) parseThread(value string) (*dvach.ID, int, error) {
-	thread, offset, err := dvach.ParseThread(value)
+func (front *T) parseThread(value string) (*dvach.Ref, int, error) {
+	thread, offset, err := dvach.ParseThreadUrl(value)
 	if err != nil {
 		groups := postHashRegex.FindSubmatch([]byte(value))
 		if len(groups) == 3 {
-			thread := &dvach.ID{
+			thread := &dvach.Ref{
 				Board: strings.ToLower(string(groups[1])),
 				Num:   string(groups[2]),
 			}
@@ -61,9 +61,9 @@ func (front *T) parseThread(value string) (*dvach.ID, int, error) {
 				return nil, 0, err
 			}
 
-			if post.Parent != "0" {
+			if post.ParentString != "0" {
 				offset, _ = strconv.Atoi(thread.Num)
-				thread.Num = post.Parent
+				thread.Num = post.ParentString
 			}
 
 			return thread, offset, nil
@@ -75,7 +75,7 @@ func (front *T) parseThread(value string) (*dvach.ID, int, error) {
 	return thread, offset, nil
 }
 
-func (front *T) hashify(thread dvach.ID) (string, error) {
+func (front *T) hashify(thread dvach.Ref) (string, error) {
 	post, err := front.dvch.Post(thread)
 	if err != nil {
 		return "", err

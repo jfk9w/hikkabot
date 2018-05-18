@@ -79,7 +79,7 @@ func (back *T) gc() {
 	}
 }
 
-func (back *T) Subscribe(chat telegram.ChatRef, thread dvach.ID, hash string, offset int) error {
+func (back *T) Subscribe(chat telegram.ChatRef, thread dvach.Ref, hash string, offset int) error {
 	var err error
 	back.state.Upsert(toKey(chat), nil,
 		func(exists bool, old interface{}, new interface{}) interface{} {
@@ -100,7 +100,7 @@ func (back *T) Subscribe(chat telegram.ChatRef, thread dvach.ID, hash string, of
 	return err
 }
 
-func (back *T) Unsubscribe(chat telegram.ChatRef, thread dvach.ID) error {
+func (back *T) Unsubscribe(chat telegram.ChatRef, thread dvach.Ref) error {
 	if entry, ok := back.state.Get(toKey(chat)); ok {
 		entry.(Feed).Unsubscribe(thread)
 		return nil

@@ -16,7 +16,7 @@ type (
 	}
 
 	Dvach interface {
-		Thread(dvach.ID, int) ([]dvach.Post, error)
+		Thread(dvach.Ref, int) ([]dvach.Post, error)
 	}
 
 	Converter interface {

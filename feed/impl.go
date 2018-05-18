@@ -134,7 +134,7 @@ func (feed *T) execute(key string, entry *Entry) error {
 		}
 
 		if err := feed.bot.SendPost(feed.chat, html.Post{post, thread.Board, entry.Hash, 0}, false); err != nil {
-			log.Warningf("Unable to send post %s/%s to %s: %s", thread.Board, post.Num, feed.chat, err)
+			log.Warningf("Unable to send post %s/%s to %s: %s", thread.Board, post.NumString, feed.chat, err)
 			return errors.Errorf("unable to send post from %s: %s", thread.URL(), err)
 		}
 
@@ -150,11 +150,11 @@ func (feed *T) execute(key string, entry *Entry) error {
 	return nil
 }
 
-func (feed *T) Subscribe(thread dvach.ID, hash string, offset int) bool {
+func (feed *T) Subscribe(thread dvach.Ref, hash string, offset int) bool {
 	return feed.state.SetIfAbsent(toKey(thread), &Entry{hash, offset, nil})
 }
 
-func (feed *T) Unsubscribe(thread dvach.ID) {
+func (feed *T) Unsubscribe(thread dvach.Ref) {
 	feed.state.Remove(toKey(thread))
 }
 
