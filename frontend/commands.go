@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jfk9w-go/hikkabot/frontend/stat"
 	"github.com/jfk9w-go/hikkabot/html"
 	"github.com/jfk9w/hikkabot/util"
 )
@@ -124,6 +125,10 @@ func (front *T) catalog(cmd command) {
 		limit = l
 	}
 
+	if limit == 0 {
+		return
+	}
+
 	catalog, err := front.dvch.Catalog(board)
 	if err != nil {
 		cmd.reply("failed: %s", err)
@@ -132,8 +137,10 @@ func (front *T) catalog(cmd command) {
 
 	posts := catalog.Threads
 	limit = util.MinInt(len(posts), limit)
-	for i := 0; i < limit; i++ {
-		front.bot.SendPost(cmd.chat, html.Post{posts[i], board, ""}, true)
+
+	top := stat.Top(posts)
+	for _, thread := range top {
+		front.bot.SendPost(cmd.chat, html.Post{thread.Post, board, "", thread.PostsPerHour}, true)
 	}
 
 	cmd.reply("FIN")

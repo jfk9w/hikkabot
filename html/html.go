@@ -10,8 +10,9 @@ import (
 
 type Post struct {
 	dvach.Post
-	Board string
-	Hash  string
+	Board        string
+	Hash         string
+	PostsPerHour float64
 }
 
 var (
@@ -37,7 +38,7 @@ func Chunk(post Post, chunkSize int, isThread bool) []string {
 
 	num := Num(post.Board, post.Num)
 	if isThread {
-		builder.WriteThreadHeader(num, post.Subject, post.PostsCount)
+		builder.WriteThreadHeader(num, post.Subject, post.PostsCount, post.PostsPerHour)
 	} else {
 		if post.Parent == "0" {
 			builder.WriteMark()

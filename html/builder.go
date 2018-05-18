@@ -125,8 +125,10 @@ func (b *Builder) WritePostHeader(num string, hash string) {
 	b.writeText(hash + "\n" + num + "\n---\n")
 }
 
-func (b *Builder) WriteThreadHeader(num string, title string, postsCount int) {
-	header := fmt.Sprintf("<b>%s</b>\n%s / %d posts\n---\n", html.EscapeString(title), num, postsCount)
+func (b *Builder) WriteThreadHeader(num string, title string, postsCount int, postsPerHour float64) {
+	header := fmt.Sprintf("<b>%s</b>\n%s / %d posts / %.2f ps/h\n---\n",
+		html.EscapeString(title), num, postsCount, postsPerHour)
+
 	b.writeText(header)
 }
 

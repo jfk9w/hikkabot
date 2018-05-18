@@ -121,6 +121,9 @@ func (bot *T) SendPost(chat telegram.ChatRef, post html.Post, isThread bool) err
 		}
 	}
 
-	bot.SendFiles(chat, post.Files)
+	if !isThread {
+		bot.SendFiles(chat, post.Files)
+	}
+
 	return nil
 }
