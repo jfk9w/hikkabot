@@ -5,7 +5,7 @@ import (
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/feed"
-	"github.com/jfk9w-go/hikkabot/html"
+	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/telegram"
 	"github.com/orcaman/concurrent-map"
@@ -26,13 +26,13 @@ type (
 
 	Bot interface {
 		DeleteRoute(telegram.ChatRef)
-		SendPost(telegram.ChatRef, html.Post, bool) error
+		SendPost(telegram.ChatRef, text.Post) error
 		GetAdmins(telegram.ChatRef) ([]telegram.ChatRef, error)
 		NotifyAll([]telegram.ChatRef, string, ...interface{})
 	}
 
 	Dvach interface {
-		Thread(dvach.Ref, int) ([]dvach.Post, error)
+		Thread(dvach.Ref, int) ([]*dvach.Post, error)
 		Post(dvach.Ref) (*dvach.Post, error)
 	}
 )

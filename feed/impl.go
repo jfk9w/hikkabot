@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/hikkabot/html"
+	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/telegram"
 	"github.com/jfk9w-go/unit"
 	"github.com/orcaman/concurrent-map"
@@ -89,7 +89,7 @@ func (feed *T) update(key string, offset int) bool {
 	return false
 }
 
-func (feed *T) preload(posts []dvach.Post) {
+func (feed *T) preload(posts []*dvach.Post) {
 	for _, post := range posts {
 		for _, file := range post.Files {
 			if file.Type == dvach.Webm {
@@ -104,23 +104,23 @@ func (feed *T) execute(key string, entry *Entry) error {
 		return unit.ErrInterrupted
 	}
 
-	thread := fromKey(key)
+	ref := fromKey(key)
 	offset := entry.Offset
 	if offset > 0 {
 		offset++
 	}
 
-	posts, err := feed.dvch.Thread(thread, offset)
+	posts, err := feed.dvch.Posts(ref, offset)
 	if err != nil {
-		log.Warningf("Unable to load posts from %s for %s: %s", thread.URL(), feed.chat, err)
-		return errors.Errorf("unable to load posts from %s: %s", html.Num(thread.Board, thread.Num), err)
+		log.Warningf("Unable to load posts from %s for %s: %s", ref, feed.chat, err)
+		return errors.Errorf("unable to load posts from %s: %s", text.FormatRef(ref), err)
 	}
 
 	if len(posts) == 0 {
 		return nil
 	}
 
-	log.Debugf("%d new posts for %s from %s", len(posts), feed.chat, thread.URL())
+	log.Debugf("%d new posts for %s from %s", len(posts), feed.chat, ref)
 
 	if feed.intr() {
 		return unit.ErrInterrupted
@@ -133,12 +133,13 @@ func (feed *T) execute(key string, entry *Entry) error {
 			return unit.ErrInterrupted
 		}
 
-		if err := feed.bot.SendPost(feed.chat, html.Post{post, thread.Board, entry.Hash, 0}, false); err != nil {
-			log.Warningf("Unable to send post %s/%s to %s: %s", thread.Board, post.NumString, feed.chat, err)
-			return errors.Errorf("unable to send post from %s: %s", thread.URL(), err)
+		if err := feed.bot.SendPost(feed.chat, text.Post{post, entry.Hashtag}); err != nil {
+			log.Warningf("Unable to send post %s/%s to %s: %s", ref, post.Ref, feed.chat, err)
+			return errors.Errorf("unable to send post %s from %s: %s",
+				text.FormatRef(post.Ref), text.FormatRef(ref), err)
 		}
 
-		if !feed.update(key, post.NumInt()) {
+		if !feed.update(key, post.Num) {
 			return nil
 		}
 	}

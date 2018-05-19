@@ -3,7 +3,7 @@ package feed
 import (
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/hikkabot/html"
+	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/telegram"
 	"github.com/jfk9w-go/unit"
@@ -12,11 +12,11 @@ import (
 
 type (
 	Bot interface {
-		SendPost(telegram.ChatRef, html.Post, bool) error
+		SendPost(telegram.ChatRef, text.Post) error
 	}
 
 	Dvach interface {
-		Thread(dvach.Ref, int) ([]dvach.Post, error)
+		Posts(dvach.Ref, int) ([]*dvach.Post, error)
 	}
 
 	Converter interface {

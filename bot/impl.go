@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/hikkabot/html"
+	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
+	"golang.org/x/net/html"
 )
 
 type T struct {
@@ -58,71 +59,122 @@ func (bot *T) GetAdmins(chat telegram.ChatRef) ([]telegram.ChatRef, error) {
 	return refs, nil
 }
 
-func (bot *T) SendFiles(chat telegram.ChatRef, files []dvach.File) {
-	for _, file := range files {
-		var (
-			url       string
-			mediaType telegram.MediaType
-		)
-
-		switch file.Type {
-		case dvach.Webm:
-			conv, err := bot.conv.Get(file.URL())
-			if err != nil {
-				log.Warningf("Webm %s failed to convert: %s", file.URL(), err)
-				continue
-			}
-
-			url = conv
-			mediaType = telegram.Video
-
-		case dvach.Mp4:
-			url = file.URL()
-			mediaType = telegram.Video
-
-		default:
-			url = file.URL()
-			mediaType = telegram.Photo
-		}
-
-		if err := <-bot.Send(telegram.SendMediaRequest{
-			Chat: chat,
-			Media: []telegram.InputMedia{
-				{
-					Type:  mediaType,
-					Media: url,
-				},
-			},
-		}, nil); err != nil {
-			log.Warningf("Failed to send file %s to %s: %s", url, chat, err)
-			if err := <-bot.Send(telegram.SendMessageRequest{
-				Chat:      chat,
-				ParseMode: telegram.HTML,
-				Text:      fmt.Sprintf(`<a href="%s">[A]</a>`, html.Escape(file.URL())),
-			}, nil); err != nil {
-				log.Errorf("Failed to send link %s to %s: %s", file.URL(), chat, err)
-			}
-		}
+func (bot *T) SendHtml(chat telegram.ChatRef, html string) error {
+	if err := <-bot.Send(telegram.SendMessageRequest{
+		Chat:      chat,
+		ParseMode: telegram.HTML,
+		Text:      html,
+	}, nil); err != nil {
+		log.Errorf("Failed to send html to %s: %s", chat, err)
+		return err
 	}
+
+	return nil
 }
 
-func (bot *T) SendPost(chat telegram.ChatRef, post html.Post, isThread bool) error {
-	text := html.Chunk(post, chunkSize, isThread)
-	for _, part := range text {
-		err := <-bot.Send(telegram.SendMessageRequest{
-			Chat:      chat,
-			ParseMode: telegram.HTML,
-			Text:      part,
-		}, nil)
+func link(url string) string {
+	return fmt.Sprintf(`<a href="%s">[A]</a>`, html.EscapeString(url))
+}
 
+func (bot *T) SendLink(chat telegram.ChatRef, url string) error {
+	if err := <-bot.Send(telegram.SendMessageRequest{
+		Chat:      chat,
+		ParseMode: telegram.HTML,
+		Text:      link(url),
+	}, nil); err != nil {
+		log.Errorf("Failed to send link %s to %s: %s", url, chat, err)
+		return err
+	}
+
+	return nil
+}
+
+func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
+	url := file.URL()
+	if file.Type == dvach.Webm {
+		mp4, err := bot.conv.Get(url)
 		if err != nil {
-			log.Errorf("Failed to send text to %s: %s", chat, err)
+			log.Warningf("Webm %s failed to convert: %s", file.URL(), err)
+			return bot.SendLink(chat, url)
+		} else {
+			url = mp4
+		}
+	}
+
+	mediaType := telegram.Photo
+	if file.DurationSecs != nil {
+		mediaType = telegram.Video
+	}
+
+	base := telegram.BaseInputMedia{
+		Type0:      mediaType,
+		Media0:     url,
+		ParseMode0: telegram.HTML,
+		Caption0:   link(url),
+	}
+
+	var media telegram.InputMedia
+	if mediaType == telegram.Photo {
+		media = telegram.InputMediaPhoto{base}
+	} else {
+		video := telegram.InputMediaVideo{
+			BaseInputMedia: base,
+		}
+
+		if file.DurationSecs != nil {
+			video.Duration = *file.DurationSecs
+		}
+		if file.Width != nil {
+			video.Width = *file.Width
+		}
+		if file.Height != nil {
+			video.Height = *file.Height
+		}
+
+		media = video
+	}
+
+	if err := <-bot.Send(telegram.SendMediaRequest{
+		Chat:                chat,
+		Media:               []telegram.InputMedia{media},
+		DisableNotification: true,
+	}, nil); err != nil {
+		log.Warningf("Failed to send %s as media to %s: %s", url, chat, err)
+		return bot.SendLink(chat, url)
+	}
+
+	return nil
+}
+
+func (bot *T) SendPost(chat telegram.ChatRef, post text.Post) error {
+	parts := text.FormatPost(post)
+	for _, part := range parts {
+		if err := bot.SendHtml(chat, part); err != nil {
 			return err
 		}
 	}
 
-	if !isThread {
-		bot.SendFiles(chat, post.Files)
+	files := post.Files
+	for _, file := range files {
+		if err := bot.SendFile(chat, file); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (bot *T) SendCatalog(chat telegram.ChatRef, catalog *dvach.Catalog, limit int) error {
+	parts := text.FormatCatalog(catalog, limit)
+	last := len(parts) - 1
+	for i, part := range parts {
+		if i == last {
+			part = part + "\n<b>FIN</b>"
+		}
+
+		if err := bot.SendHtml(chat, part); err != nil {
+			return err
+		}
 	}
 
 	return nil

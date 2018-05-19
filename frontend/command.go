@@ -8,7 +8,7 @@ import (
 	"github.com/jfk9w-go/telegram"
 )
 
-type command struct {
+type Command struct {
 	string
 	params []string
 
@@ -16,17 +16,17 @@ type command struct {
 	chat, user telegram.ChatRef
 }
 
-var emptyCommand = command{}
+var emptyCommand = Command{}
 
-func (cmd command) String() string {
+func (cmd Command) String() string {
 	return fmt.Sprintf("%s %s %s %s", cmd.chat, cmd.user, cmd.string, cmd.params)
 }
 
-func (cmd command) arity() int {
+func (cmd Command) arity() int {
 	return len(cmd.params)
 }
 
-func (cmd command) param(idx int) string {
+func (cmd Command) param(idx int) string {
 	if cmd.arity() > idx {
 		return cmd.params[idx]
 	}
@@ -34,15 +34,15 @@ func (cmd command) param(idx int) string {
 	return ""
 }
 
-func (cmd command) channelOrSelf(idx int) telegram.ChatRef {
+func (cmd Command) channelOrSelf(idx int) telegram.ChatRef {
 	return telegram.FirstChatRef(cmd.param(idx), cmd.chat)
 }
 
-func (cmd command) reply(text string, args ...interface{}) {
+func (cmd Command) reply(text string, args ...interface{}) {
 	go cmd.bot.SendText(cmd.chat, text, args...)
 }
 
-func (cmd command) requireArity(n int) bool {
+func (cmd Command) requireArity(n int) bool {
 	if cmd.arity() < n {
 		cmd.reply("%d arguments required", n)
 		return false
@@ -51,7 +51,7 @@ func (cmd command) requireArity(n int) bool {
 	return true
 }
 
-func (cmd command) requireAdmin(chat telegram.ChatRef) ([]telegram.ChatRef, bool) {
+func (cmd Command) requireAdmin(chat telegram.ChatRef) ([]telegram.ChatRef, bool) {
 	admins, err := cmd.bot.GetAdmins(chat)
 	if err != nil {
 		cmd.reply("forbidden: %s", err)
@@ -68,7 +68,7 @@ func (cmd command) requireAdmin(chat telegram.ChatRef) ([]telegram.ChatRef, bool
 	return nil, false
 }
 
-func (cmd command) int(idx int, def int) int {
+func (cmd Command) int(idx int, def int) int {
 	if r, err := strconv.Atoi(cmd.param(idx)); err == nil {
 		return r
 	}
