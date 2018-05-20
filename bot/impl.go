@@ -164,14 +164,9 @@ func (bot *T) SendPost(chat telegram.ChatRef, post text.Post) error {
 	return nil
 }
 
-func (bot *T) SendCatalog(chat telegram.ChatRef, catalog *dvach.Catalog, limit int) error {
-	parts := text.FormatCatalog(catalog, limit)
-	last := len(parts) - 1
-	for i, part := range parts {
-		if i == last {
-			part = part + "\n<b>FIN</b>"
-		}
-
+func (bot *T) SendPopular(chat telegram.ChatRef, threads []*dvach.Thread, limit int) error {
+	parts := text.FormatPopular(threads, limit)
+	for _, part := range parts {
 		if err := bot.SendHtml(chat, part); err != nil {
 			return err
 		}

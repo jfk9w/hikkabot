@@ -27,7 +27,7 @@ func newHtmlBuilder(chunkSize int) *htmlBuilder {
 func (b *htmlBuilder) write(value string, args ...interface{}) {
 	value = fmt.Sprintf(value, args...)
 	b.sb.WriteString(value)
-	b.size += len([]rune(value))
+	b.size += misc.RuneLength(value)
 }
 
 func (b *htmlBuilder) writeStartTag(tag string) {
@@ -43,17 +43,14 @@ func (b *htmlBuilder) writeEndTag() {
 	b.tagDepth--
 
 	if b.tagDepth == 0 {
-		tag := strings.Split((*b.startTag)[1:len(*b.startTag)-1], " ")[0]
+		startTag := misc.SliceRunes(*b.startTag, 1, -1)
+		tag := strings.Fields(startTag)[0]
 		b.write("</" + tag + ">")
 		b.startTag = nil
 	}
 }
 
-func (b *htmlBuilder) checkRoom(room int) int {
-	return misc.MaxInt(0, b.size+room-b.chunkSize)
-}
-
-func (b *htmlBuilder) makeRoom() {
+func (b *htmlBuilder) newChunk() {
 	tag := b.startTag
 	if tag != nil {
 		b.writeEndTag()
@@ -68,44 +65,44 @@ func (b *htmlBuilder) makeRoom() {
 	}
 }
 
-func (b *htmlBuilder) split(text string) int {
+func (b *htmlBuilder) fillChunk(text string) int {
 	capacity := b.chunkSize - b.size
-	size := misc.RuneLength(text)
-	if size <= capacity {
+	length := misc.RuneLength(text)
+	if length <= capacity {
 		return 0
 	}
 
 	newLine := misc.FindLastRune(text, '\n', 0, capacity)
 	if newLine > 0 {
-		return size - newLine - 1
+		return length - newLine - 1
 	}
 
 	space := misc.FindLastRune(text, ' ', 0, capacity)
 	if space > 0 {
-		return size - space - 1
+		return length - space - 1
 	}
 
-	return size - capacity
+	return length - capacity
 }
 
 func (b *htmlBuilder) writeText(text string) {
 	text = html.EscapeString(text)
-	size := misc.RuneLength(text)
+	length := misc.RuneLength(text)
 	offset := 0
-	for left := b.split(text); left > 0; left = b.split(misc.SliceRunes(text, offset, 0)) {
+	for left := b.fillChunk(text); left > 0; left = b.fillChunk(misc.SliceRunes(text, offset, 0)) {
 		start := offset
-		offset = size - left
+		offset = length - left
 		part := misc.SliceRunes(text, start, offset)
 		b.write(strings.Trim(part, " \n"))
-		b.makeRoom()
+		b.newChunk()
 	}
 
 	b.write(misc.SliceRunes(text, offset, 0))
 }
 
 func (b *htmlBuilder) writeLink(link string) {
-	if b.checkRoom(len(link)) != 0 {
-		b.makeRoom()
+	if misc.RuneLength(link) > b.chunkSize-b.size {
+		b.newChunk()
 	}
 
 	b.write(link)

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 
+	"strings"
+
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/misc"
 )
@@ -11,7 +13,7 @@ import (
 type Hashtag = string
 
 func Format(board dvach.Board, numstr string) string {
-	return fmt.Sprintf("#%s%s", board, numstr)
+	return fmt.Sprintf("#%s%s", strings.ToUpper(board), numstr)
 }
 
 func FormatRef(ref dvach.Ref) Hashtag {

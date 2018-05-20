@@ -113,7 +113,7 @@ func (front *T) dump(cmd Command) {
 	cmd.reply(sb.String())
 }
 
-func (front *T) catalog(cmd Command) {
+func (front *T) popular(cmd Command) {
 	if !cmd.requireArity(1) {
 		return
 	}
