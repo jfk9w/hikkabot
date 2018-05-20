@@ -9,7 +9,7 @@ PACKAGE=github.com/jfk9w-go/hikkabot
 
 archive_logs() {
     CWD=`pwd`
-    DIR=`date %Y-%m-%d_%H-%M-%S`
+    DIR=`date +%Y-%m-%d_%H-%M-%S`
     cd ${LOGDIR}
     mkdir ${DIR}
     mv *.log ${DIR}
@@ -32,11 +32,13 @@ stop() {
     if [[ -f ${RUNFILE} ]]; then
         source ${RUNFILE}
         kill ${PID}
-        notify "SHUTDOWN" 1
-        echo "Waiting for Hikkabot instance death, PID: ${PID}"
-        tail -f ${LOGDIR}/main.log | while read LOGLINE; do
-            [[ "${LOGLINE}" == *"[main] Exit"* ]] && pkill -P $$ tail
-        done
+        if [[ $? -eq 0 ]]; then
+            notify "SHUTDOWN" 1
+            echo "Waiting for Hikkabot instance death, PID: ${PID}"
+            tail -f ${LOGDIR}/main.log | while read LOGLINE; do
+                [[ "${LOGLINE}" == *"[main] Exit"* ]] && pkill -P $$ tail
+            done
+        fi
         rm ${RUNFILE}
         archive_logs
         echo "OK"
