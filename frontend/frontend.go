@@ -23,7 +23,7 @@ type (
 		GetAdmins(telegram.ChatRef) ([]telegram.ChatRef, error)
 		NotifyAll([]telegram.ChatRef, string, ...interface{})
 		SendPost(telegram.ChatRef, text.Post) error
-		SendPopular(telegram.ChatRef, []*dvach.Thread, int) error
+		SendPopular(telegram.ChatRef, []*dvach.Thread, []string) error
 	}
 
 	Dvach interface {

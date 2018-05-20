@@ -26,10 +26,8 @@ func (front *T) run() {
 		"unsubscribe": front.unsubscribe,
 		"clear":       front.unsubscribeAll,
 		"dump":        front.dump,
-		"catalog":     front.popular,
-		"front":       front.popular,
-		"popular":     front.popular,
-		"top":         front.popular,
+		"catalog":     front.search,
+		"search":      front.search,
 	}
 
 	for update := range front.bot.UpdateChannel() {

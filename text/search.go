@@ -5,12 +5,13 @@ import (
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w/hikkabot/util"
 )
 
-func FormatPopular(list []*dvach.Thread, limit int) []string {
-	threads := enrichThreads(list)
+func Search(list []*dvach.Thread, searchText []string) []string {
+	threads := searchThreads(list, searchText)
 	sort.Sort(PopularThreads(threads))
-	threads = threads[:limit]
+	threads = threads[:util.MinInt(30, len(threads))]
 
 	sb := &strings.Builder{}
 	hasText := false

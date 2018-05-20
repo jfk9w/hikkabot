@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"strings"
+
 	"github.com/jfk9w-go/dvach"
 )
 
@@ -12,13 +14,28 @@ type Thread struct {
 	PostsPerHour float64
 }
 
-func enrichThreads(threads []*dvach.Thread) []Thread {
+func searchThreads(threads []*dvach.Thread, searchText []string) []Thread {
+	for i, st := range searchText {
+		searchText[i] = strings.ToLower(st)
+	}
+
 	now := time.Now()
 	r := make([]Thread, 0)
+
+main:
 	for _, thread := range threads {
 		date, ok := dvach.ToTime(thread.DateString)
 		if !ok {
 			continue
+		}
+
+		if len(searchText) > 0 {
+			comment := strings.ToLower(thread.Comment)
+			for _, st := range searchText {
+				if !strings.Contains(comment, st) {
+					continue main
+				}
+			}
 		}
 
 		age := now.Sub(date).Hours()

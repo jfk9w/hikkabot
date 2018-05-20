@@ -164,8 +164,8 @@ func (bot *T) SendPost(chat telegram.ChatRef, post text.Post) error {
 	return nil
 }
 
-func (bot *T) SendPopular(chat telegram.ChatRef, threads []*dvach.Thread, limit int) error {
-	parts := text.FormatPopular(threads, limit)
+func (bot *T) SendPopular(chat telegram.ChatRef, threads []*dvach.Thread, searchText []string) error {
+	parts := text.Search(threads, searchText)
 	for _, part := range parts {
 		if err := bot.SendHtml(chat, part); err != nil {
 			return err

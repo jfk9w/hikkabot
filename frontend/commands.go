@@ -1,7 +1,6 @@
 package frontend
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/jfk9w-go/hikkabot/text"
@@ -113,19 +112,15 @@ func (front *T) dump(cmd Command) {
 	cmd.reply(sb.String())
 }
 
-func (front *T) popular(cmd Command) {
+func (front *T) search(cmd Command) {
 	if !cmd.requireArity(1) {
 		return
 	}
 
 	board := cmd.param(0)
-	limit := 30
-	if l, err := strconv.Atoi(cmd.param(1)); err == nil {
-		limit = l
-	}
-
-	if limit == 0 {
-		return
+	searchText := []string{}
+	if cmd.arity() > 1 {
+		searchText = cmd.params[1:]
 	}
 
 	catalog, err := front.dvch.Catalog(board)
@@ -134,5 +129,5 @@ func (front *T) popular(cmd Command) {
 		return
 	}
 
-	front.bot.SendPopular(cmd.chat, catalog.Threads, limit)
+	front.bot.SendPopular(cmd.chat, catalog.Threads, searchText)
 }
