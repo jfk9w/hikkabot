@@ -61,7 +61,7 @@ func (front *T) ParseHashtag(value string) (ref dvach.Ref, offset int, err error
 			return
 		}
 
-		if post.Parent != post.Num {
+		if post.Parent != 0 {
 			offset = ref.Num
 
 			ref.NumString = post.ParentString

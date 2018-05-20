@@ -134,5 +134,5 @@ func (front *T) popular(cmd Command) {
 		return
 	}
 
-	front.bot.SendCatalog(cmd.chat, catalog, limit)
+	front.bot.SendPopular(cmd.chat, catalog.Threads, limit)
 }

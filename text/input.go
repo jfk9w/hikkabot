@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jfk9w-go/logrus"
 	"golang.org/x/net/html"
 )
 
@@ -22,6 +23,10 @@ var (
 func prepare(text string) *html.Tokenizer {
 	text = tagReplacer.Replace(text)
 	text = spanRegex.ReplaceAllString(text, "<i>")
+	log.WithFields(logrus.Fields{
+		"text": text,
+	}).Debugf("Parsed text")
+
 	reader := strings.NewReader(text)
 	return html.NewTokenizer(reader)
 }

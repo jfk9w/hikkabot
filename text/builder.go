@@ -93,7 +93,11 @@ func (b *htmlBuilder) writeText(text string) {
 		start := offset
 		offset = length - left
 		part := misc.SliceRunes(text, start, offset)
-		b.write(strings.Trim(part, " \n"))
+		if b.size == 0 {
+			part = strings.TrimLeft(part, " \n")
+		}
+
+		b.write(part)
 		b.newChunk()
 	}
 

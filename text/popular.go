@@ -13,12 +13,14 @@ func FormatPopular(list []*dvach.Thread, limit int) []string {
 	threads = threads[:limit]
 
 	sb := &strings.Builder{}
+	hasText := false
 	chunks := make([]string, 0)
 	for i, thread := range threads {
 		if i%10 == 0 {
 			if i > 0 {
 				chunks = append(chunks, sb.String())
 				sb.Reset()
+				hasText = false
 			}
 		} else {
 			sb.WriteString("\n---\n\n")
@@ -26,9 +28,10 @@ func FormatPopular(list []*dvach.Thread, limit int) []string {
 
 		preview := FormatThread(thread)
 		sb.WriteString(preview)
+		hasText = true
 	}
 
-	if limit%10 != 0 {
+	if hasText {
 		chunks = append(chunks, sb.String())
 	}
 
