@@ -117,5 +117,5 @@ func (front *T) ParseUpdate(update telegram.Update) Command {
 		cmd = strings.Replace(cmd, "@"+name, "", 1)
 	}
 
-	return Command{cmd, tokens[1:], front.bot, update.Message.Chat.Ref(), update.Message.From.Ref()}
+	return Command{cmd, tokens[1:], front.bot, message.Chat.Ref(), message.From.Ref()}
 }
