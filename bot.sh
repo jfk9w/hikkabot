@@ -9,7 +9,7 @@ PACKAGE=github.com/jfk9w-go/hikkabot
 
 archive_logs() {
     CWD=`pwd`
-    DIR=`date +%F_%R`
+    DIR=`date %Y-%m-%d_%H-%M-%S`
     cd ${LOGDIR}
     mkdir ${DIR}
     mv *.log ${DIR}
@@ -79,7 +79,7 @@ check() {
 }
 
 install() {
-    go get -u ${PACKAGE}
+    go get -v -u ${PACKAGE}
     go install ${PACKAGE}
     cp ${GOPATH}/src/${PACKAGE}/bot.sh .
 }
