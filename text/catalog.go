@@ -2,7 +2,6 @@ package text
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -47,13 +46,16 @@ func FormatCatalog(catalog *dvach.Catalog, limit int) []string {
 	chunks := make([]string, 0)
 	for i, thread := range threads {
 		if i%10 == 0 {
-			chunks = append(chunks, sb.String())
-			sb.Reset()
+			if i > 0 {
+				chunks = append(chunks, sb.String())
+				sb.Reset()
+			}
 		} else {
-			sb.WriteString("---\n\n")
+			sb.WriteString("\n---\n\n")
 		}
 
-		sb.WriteString(FormatThread(thread))
+		preview := FormatThread(thread)
+		sb.WriteString(preview)
 	}
 
 	if limit%10 != 0 {
@@ -63,7 +65,7 @@ func FormatCatalog(catalog *dvach.Catalog, limit int) []string {
 	return chunks
 }
 
-var threadHeaderSanitizer = regexp.MustCompile("<.*?>")
+//var threadHeaderSanitizer = regexp.MustCompile("<.*?>")
 
 func FormatThread(thread Thread) string {
 	chunks := format(thread.Item, 275)
@@ -71,14 +73,14 @@ func FormatThread(thread Thread) string {
 		return ""
 	}
 
-	header := threadHeaderSanitizer.ReplaceAllString(thread.Subject, "")
-	header = "<b>" + misc.FirstRunes(header, 70, "...") + "</b>"
+	//header := threadHeaderSanitizer.ReplaceAllString(thread.Subject, "")
+	//header = "<b>" + misc.FirstRunes(header, 70, "...") + "</b>"
 
 	num := fmt.Sprintf("%s / %s", FormatRef(thread.Ref), thread.DateString)
 	stats := fmt.Sprintf("%d ps / %.2f ps/h", thread.PostsCount, thread.PostsPerHour)
 	content := misc.FirstRunes(chunks[0], 275, "...")
 
-	return fmt.Sprintf("%s\n%s\n%s\n---%s", header, num, stats, content)
+	return fmt.Sprintf("%s\n%s\n---\n%s", num, stats, content)
 }
 
 type ThreadList []Thread
@@ -88,7 +90,7 @@ func (list ThreadList) Len() int {
 }
 
 func (list ThreadList) Less(i, j int) bool {
-	return list[i].PostsPerHour > list[j].PostsPerHour
+	return list[i].PostsPerHour > list[j].PostsPerHour || list[i].Num > list[j].Num
 }
 
 func (list ThreadList) Swap(i, j int) {

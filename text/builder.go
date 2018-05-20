@@ -70,17 +70,17 @@ func (b *htmlBuilder) makeRoom() {
 
 func (b *htmlBuilder) split(text string) int {
 	capacity := b.chunkSize - b.size
-	size := len(text)
+	size := misc.RuneLength(text)
 	if size <= capacity {
 		return 0
 	}
 
-	newLine := strings.LastIndex(text[:capacity], "\n")
+	newLine := misc.FindLastRune(text, '\n', 0, capacity)
 	if newLine > 0 {
 		return size - newLine - 1
 	}
 
-	space := strings.LastIndex(text[:capacity], " ")
+	space := misc.FindLastRune(text, ' ', 0, capacity)
 	if space > 0 {
 		return size - space - 1
 	}
@@ -90,17 +90,17 @@ func (b *htmlBuilder) split(text string) int {
 
 func (b *htmlBuilder) writeText(text string) {
 	text = html.EscapeString(text)
-	size := len(text)
+	size := misc.RuneLength(text)
 	offset := 0
-	for left := b.split(text); left > 0; left = b.split(text[offset:]) {
+	for left := b.split(text); left > 0; left = b.split(misc.SliceRunes(text, offset, 0)) {
 		start := offset
 		offset = size - left
-		part := text[start:offset]
+		part := misc.SliceRunes(text, start, offset)
 		b.write(strings.Trim(part, " \n"))
 		b.makeRoom()
 	}
 
-	b.write(text[offset:])
+	b.write(misc.SliceRunes(text, offset, 0))
 }
 
 func (b *htmlBuilder) writeLink(link string) {
