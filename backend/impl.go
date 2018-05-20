@@ -110,18 +110,20 @@ func (back *T) Unsubscribe(chat telegram.ChatRef, thread dvach.Ref) error {
 }
 
 func (back *T) UnsubscribeAll(chat telegram.ChatRef) error {
-	var err error
-	back.state.Upsert(toKey(chat), nil,
-		func(exists bool, old interface{}, new interface{}) interface{} {
+	if !back.state.RemoveCb(toKey(chat),
+		func(key string, v interface{}, exists bool) bool {
 			if !exists {
-				err = errors.New("not subscribed")
+				return false
 			}
 
-			old.(Feed).Close()
-			return nil
-		})
+			v.(Feed).Close()
+			return true
+		},
+	) {
+		return errors.New("not subscribed")
+	}
 
-	return err
+	return nil
 }
 
 func (back *T) Dump(chat telegram.ChatRef) (feed.State, error) {
