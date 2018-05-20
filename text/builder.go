@@ -1,7 +1,6 @@
 package text
 
 import (
-	"fmt"
 	"html"
 	"strings"
 
@@ -24,8 +23,7 @@ func newHtmlBuilder(chunkSize int) *htmlBuilder {
 	return &htmlBuilder{chunkSize, &strings.Builder{}, 0, nil, 0, make([]string, 0)}
 }
 
-func (b *htmlBuilder) write(value string, args ...interface{}) {
-	value = fmt.Sprintf(value, args...)
+func (b *htmlBuilder) write(value string) {
 	b.sb.WriteString(value)
 	b.size += misc.RuneLength(value)
 }
