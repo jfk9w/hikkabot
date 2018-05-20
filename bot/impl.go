@@ -172,5 +172,11 @@ func (bot *T) SendPopular(chat telegram.ChatRef, threads []*dvach.Thread, search
 		}
 	}
 
+	if len(parts) == 0 {
+		if err := bot.SendHtml(chat, "empty"); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
