@@ -90,11 +90,17 @@ func (bot *T) SendLink(chat telegram.ChatRef, url string) error {
 }
 
 func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
-	url := file.URL()
+	var url string
+	if file.IsProxied() {
+		url = file.ProxiedURL
+	} else {
+		url = file.URL()
+	}
+
 	if file.Type == dvach.Webm {
 		mp4, err := bot.conv.Get(url)
 		if err != nil {
-			log.Warningf("Webm %s failed to convert: %s", file.URL(), err)
+			log.Warningf("Webm %s failed to convert: %s", url, err)
 			return bot.SendLink(chat, file.URL())
 		} else {
 			url = mp4
