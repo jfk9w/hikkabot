@@ -8,6 +8,8 @@ import (
 
 	"strings"
 
+	"path/filepath"
+
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/backend"
@@ -42,7 +44,7 @@ func main() {
 	bot0 := telegram.New(telegram.DefaultConfig.WithToken(token))
 	conv := aconvert.WithCache(3*24*time.Hour, 1*time.Minute, 12*time.Hour)
 	botx := bot.Wrap(bot0, conv)
-	dvch := dvach.New(dvach.NewProxy(host, root, domain, cert, key).Run(), strings.Split(hiddenBoards, ",")...)
+	dvch := dvach.New(dvach.NewProxy(host, expand(root), domain, expand(cert), expand(key)).Run(), strings.Split(hiddenBoards, ",")...)
 	ff := backend.NewFeedFactory(botx, dvch, conv)
 	back := backend.Run(botx, ff)
 	frontend.Run(botx, dvch, back)
@@ -53,4 +55,9 @@ func main() {
 	<-sig
 
 	misc.BroadcastCloser(conv, bot0)
+}
+
+func expand(path string) string {
+	path, _ = filepath.Abs(os.ExpandEnv(path))
+	return path
 }
