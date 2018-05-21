@@ -1,8 +1,10 @@
 # hikkabot
 
 A Telegram subscription service for [2ch.hk](https://2ch.hk).
-Available at [@h1kkabot](https://t.me/h1kkabot).
 
+## Warning
+
+This is the deprecated version. The better and newer version is located at https://github.com/jfk9w-go/hikkabot.
 
 ## Features
 
