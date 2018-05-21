@@ -91,12 +91,11 @@ func (bot *T) SendLink(chat telegram.ChatRef, url string) error {
 
 func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
 	url := file.URL()
-	original := url
 	if file.Type == dvach.Webm {
 		mp4, err := bot.conv.Get(url)
 		if err != nil {
 			log.Warningf("Webm %s failed to convert: %s", file.URL(), err)
-			return bot.SendLink(chat, original)
+			return bot.SendLink(chat, file.URL())
 		} else {
 			url = mp4
 		}
@@ -111,7 +110,7 @@ func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
 		Type0:      mediaType,
 		Media0:     url,
 		ParseMode0: telegram.HTML,
-		Caption0:   link(original),
+		Caption0:   link(file.URL()),
 	}
 
 	var media telegram.InputMedia
@@ -141,7 +140,7 @@ func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
 		DisableNotification: true,
 	}, nil); err != nil {
 		log.Warningf("Failed to send %s as media to %s: %s", url, chat, err)
-		return bot.SendLink(chat, original)
+		return bot.SendLink(chat, file.URL())
 	}
 
 	return nil
