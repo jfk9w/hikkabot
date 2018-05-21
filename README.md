@@ -1,24 +1,24 @@
 # hikkabot
 
-A Telegram subscription service for 2ch.hk.
+A Telegram subscription service for [2ch.hk](https://2ch.hk).
 
 
 ## Features
 
 * Manage thread subscriptions for private chats, groups and public channels.
 * Basic navigation.
-* Automatic webm conversion using aconvert.com for better Telegram experience.
+* Automatic webm conversion using [aconvert](https://www.aconvert.com) for better Telegram experience.
 
 
 ## Commands
 
 | Command | Shortcuts | Parameters | Description | Usage |
 |---|---|---|---|---|
-| /subscribe | /sub | THREAD_KEY [CHANNEL_NAME] | Subscribe to a thread. | /sub https://2ch.hk/abu/res/42375.html<br>/sub #ABU42375<br>/sub #ABU49947<br>/sub #ABU42375 @channel |
-| /unsubscribe | /unsub | THREAD_KEY [CHANNEL_NAME] | Unsubscribe from a thread. | /unsub https://2ch.hk/abu/res/42375.html<br>/unsub #ABU42375<br>/sub #ABU49947<br>/unsub #ABU42375 @channel |
-| /clear | | [CHANNEL_NAME] | Clear active subscriptions. | /clear<br>/clear @channel |
-| /dump | | [CHANNEL_NAME] | Print out active subscriptions. | /dump<br>/dump @channel |
-| /search | /front<br>/catalog | BOARD [SEARCH_QUERY] | Print out the board's fastest threads. If SEARCH_QUERY is specified, then only the threads containing the specified words will be printed out. The number of printed threads is limit by 30. | /search abu<br>/search abu поиск |
+| `/subscribe` | `/sub` | THREAD_KEY [CHANNEL_NAME] | Subscribe to a thread. | `/sub https://2ch.hk/abu/res/42375.html`<br>`/sub https://2ch.hk/abu/res/42375.html#49947`<br>`/sub #ABU42375`<br>`/sub #ABU49947`<br>`/sub #ABU42375 @channel` |
+| `/unsubscribe` | `/unsub` | THREAD_KEY [CHANNEL_NAME] | Unsubscribe from a thread. | `/unsub https://2ch.hk/abu/res/42375.html`<br>`/unsub https://2ch.hk/abu/res/42375.html#49947`<br>`/unsub #ABU42375`<br>`/unsub #ABU49947`<br>`/unsub #ABU42375 @channel` |
+| `/clear` | | [CHANNEL_NAME] | Clear active subscriptions. | `/clear`<br>`/clear @channel` |
+| `/dump` | | [CHANNEL_NAME] | Print out active subscriptions. | `/dump`<br>`/dump @channel` |
+| `/search` | | BOARD [SEARCH_QUERY] | Print out the board's fastest threads. If SEARCH_QUERY is specified, then only the threads containing the specified words will be printed out. The number of printed threads is limit by 30. | `/search abu`<br>`/search abu поиск` |
 
 `THREAD_KEY` can be specified as one of the following:
 
