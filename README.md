@@ -1,13 +1,13 @@
 # hikkabot
 
-A Telegram subscription service for 2ch.hk.
+A Telegram subscription service for [2ch.hk](https://2ch.hk).
 
 
 ## Features
 
 * Manage thread subscriptions for private chats, groups and public channels.
 * Basic navigation.
-* Automatic webm conversion using aconvert.com for better Telegram experience.
+* Automatic webm conversion using [aconvert](https://www.aconvert.com) for better Telegram experience.
 
 
 ## Commands
