@@ -29,12 +29,14 @@ func main() {
 
 	// Config
 	token := os.Getenv("TOKEN")
+	host := os.Getenv("HOST")
+	root := os.Getenv("ROOT")
 
 	// Frontend
 	bot0 := telegram.New(telegram.DefaultConfig.WithToken(token))
 	conv := aconvert.WithCache(3*24*time.Hour, 1*time.Minute, 12*time.Hour)
 	botx := bot.Wrap(bot0, conv)
-	dvch := dvach.New()
+	dvch := dvach.New(dvach.NewProxy(host, root).Run(), "b")
 	ff := backend.NewFeedFactory(botx, dvch, conv)
 	back := backend.Run(botx, ff)
 	frontend.Run(botx, dvch, back)

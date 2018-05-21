@@ -93,7 +93,14 @@ func (feed *T) preload(posts []*dvach.Post) {
 	for _, post := range posts {
 		for _, file := range post.Files {
 			if file.Type == dvach.Webm {
-				go feed.conv.Convert(file.URL(), nil)
+				var url string
+				if file.IsProxied() {
+					url = file.ProxiedURL
+				} else {
+					url = file.URL()
+				}
+
+				go feed.conv.Convert(url, nil)
 			}
 		}
 	}
