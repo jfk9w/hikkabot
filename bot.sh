@@ -4,7 +4,7 @@ PATH=$PATH:$HOME/Go/bin
 
 CONFIG=$HOME/.config/hikkabot.json
 RUNFILE=$HOME/.hikkabot
-LOGDIR=$HOME/logs/hikkabot
+LOGDIR=$HOME/hikkabot/logs
 PACKAGE=github.com/jfk9w-go/hikkabot
 
 archive_logs() {
