@@ -21,8 +21,10 @@ start() {
         echo "Hikkabot instance already running, PID: `cat ${RUNFILE}`"
     else
         TOKEN=`cat ${CONFIG} | jq -r ".token"`
+        HOST=`cat ${CONFIG} | jq -r ".host"`
+        ROOT=`cat ${CONFIG} | jq -r ".dir"`
         mkdir -p ${LOGDIR}
-        env TOKEN=${TOKEN} LOG=${CONFIG} hikkabot 2>&1 > ${LOGDIR}/main.log &
+        env TOKEN=${TOKEN} LOG=${CONFIG} HOST=${HOST} ROOT=${ROOT} hikkabot 2>&1 > ${LOGDIR}/main.log &
         echo -e "PID=$!" > ${RUNFILE}
         notify "RUNNING" 1
     fi
