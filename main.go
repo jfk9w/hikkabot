@@ -6,6 +6,8 @@ import (
 	"syscall"
 	"time"
 
+	"strings"
+
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/backend"
@@ -31,12 +33,13 @@ func main() {
 	token := os.Getenv("TOKEN")
 	host := os.Getenv("HOST")
 	root := os.Getenv("ROOT")
+	hiddenBoards := os.Getenv("HIDDEN_BOARDS")
 
 	// Frontend
 	bot0 := telegram.New(telegram.DefaultConfig.WithToken(token))
 	conv := aconvert.WithCache(3*24*time.Hour, 1*time.Minute, 12*time.Hour)
 	botx := bot.Wrap(bot0, conv)
-	dvch := dvach.New(dvach.NewProxy(host, root).Run(), "b")
+	dvch := dvach.New(dvach.NewProxy(host, root).Run(), strings.Split(hiddenBoards, ",")...)
 	ff := backend.NewFeedFactory(botx, dvch, conv)
 	back := backend.Run(botx, ff)
 	frontend.Run(botx, dvch, back)

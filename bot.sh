@@ -23,6 +23,7 @@ start() {
         TOKEN=`cat ${CONFIG} | jq -r ".token"`
         HOST=`cat ${CONFIG} | jq -r ".host"`
         ROOT=`cat ${CONFIG} | jq -r ".dir"`
+        HIDDEN_BOARDS=`cat ${CONFIG} | jq -r ".hidden_boards"`
         mkdir -p ${LOGDIR}
         env TOKEN=${TOKEN} LOG=${CONFIG} HOST=${HOST} ROOT=${ROOT} hikkabot 2>&1 > ${LOGDIR}/main.log &
         echo -e "PID=$!" > ${RUNFILE}
