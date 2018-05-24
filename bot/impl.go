@@ -97,6 +97,21 @@ func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
 		url = file.URL()
 	}
 
+	var mediaType telegram.MediaType
+	if file.DurationSecs != nil {
+		mediaType = telegram.Video
+		if file.Size > 20*1024 {
+			log.Warningf("Video %s is too large (%d), sending as a link", url)
+			return bot.SendLink(chat, file.URL())
+		}
+	} else {
+		mediaType = telegram.Photo
+		if file.Size > 5*1024 {
+			log.Warningf("Photo %s is too large (%d), sending as a link", url)
+			return bot.SendLink(chat, file.URL())
+		}
+	}
+
 	if file.Type == dvach.Webm {
 		mp4, err := bot.conv.Get(url)
 		if err != nil {
@@ -105,11 +120,6 @@ func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
 		} else {
 			url = mp4
 		}
-	}
-
-	mediaType := telegram.Photo
-	if file.DurationSecs != nil {
-		mediaType = telegram.Video
 	}
 
 	base := telegram.BaseInputMedia{
