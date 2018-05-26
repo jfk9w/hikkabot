@@ -17,9 +17,9 @@ type T struct {
 	state cmap.ConcurrentMap
 }
 
-func (back *T) gc() {
+func (back *T) GC(period time.Duration) {
 	for {
-		time.Sleep(30 * time.Minute)
+		time.Sleep(period)
 		keys := back.state.Keys()
 		log.Debugf("Running GC, %d total keys", len(keys))
 		for _, key := range keys {

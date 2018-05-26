@@ -33,9 +33,8 @@ type (
 	}
 )
 
-func Run(bot Bot, dvch Dvach, back Backend) {
-	front := &T{bot, dvch, back}
-	go front.run()
+func New(bot Bot, dvch Dvach, back Backend) *T {
+	return &T{bot, dvch, back}
 }
 
 var log = logrus.GetLogger("frontend")

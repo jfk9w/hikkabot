@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/hikkabot/keeper"
 	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/telegram"
 	"github.com/jfk9w-go/unit"
@@ -16,6 +17,7 @@ type T struct {
 	bot   Bot
 	dvch  Dvach
 	conv  Converter
+	db    keeper.T
 	chat  telegram.ChatRef
 	state cmap.ConcurrentMap
 }
@@ -149,6 +151,8 @@ func (feed *T) execute(key string, entry *Entry) error {
 		if !feed.update(key, post.Num) {
 			return nil
 		}
+
+		feed.db.SetOffset(feed.chat, ref, post.Num)
 	}
 
 	if !feed.sleep() {
@@ -164,10 +168,16 @@ func (feed *T) Subscribe(thread dvach.Ref, hash string, offset int) bool {
 
 func (feed *T) Unsubscribe(thread dvach.Ref) {
 	feed.state.Remove(toKey(thread))
+	feed.db.DeleteOffset(feed.chat, thread)
 }
 
 func (feed *T) Close() error {
-	return feed.aux.Close()
+	feed.aux.Close()
+	for thread := range feed.state.IterBuffered() {
+		feed.db.DeleteOffset(feed.chat, fromKey(thread.Key))
+	}
+
+	return nil
 }
 
 func (feed *T) CollectErrors() (bool, []error) {

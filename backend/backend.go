@@ -5,6 +5,7 @@ import (
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/feed"
+	"github.com/jfk9w-go/hikkabot/keeper"
 	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/telegram"
@@ -46,20 +47,20 @@ func Run(bot Bot, ff FeedFactory) *T {
 		state: cmap.New(),
 	}
 
-	go back.gc()
 	return back
 }
 
-func NewFeedFactory(bot feed.Bot, dvch feed.Dvach, conv feed.Converter) FeedFactory {
-	return &DefaultFeedFactory{bot, dvch, conv}
+func NewFeedFactory(bot feed.Bot, dvch feed.Dvach, conv feed.Converter, db keeper.T) FeedFactory {
+	return &DefaultFeedFactory{bot, dvch, conv, db}
 }
 
 type DefaultFeedFactory struct {
 	bot  feed.Bot
 	dvch feed.Dvach
 	conv feed.Converter
+	db   keeper.T
 }
 
 func (df *DefaultFeedFactory) CreateFeed(chat telegram.ChatRef) Feed {
-	return feed.Run(df.bot, df.dvch, df.conv, chat)
+	return feed.Run(df.bot, df.dvch, df.conv, df.db, chat)
 }

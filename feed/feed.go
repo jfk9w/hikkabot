@@ -3,6 +3,7 @@ package feed
 import (
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/hikkabot/keeper"
 	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/telegram"
@@ -26,12 +27,13 @@ type (
 
 var log = logrus.GetLogger("feed")
 
-func Run(bot Bot, dvch Dvach, conv Converter, chat telegram.ChatRef) *T {
+func Run(bot Bot, dvch Dvach, conv Converter, db keeper.T, chat telegram.ChatRef) *T {
 	feed := &T{
 		aux:   unit.NewAux(),
 		bot:   bot,
 		dvch:  dvch,
 		conv:  conv,
+		db:    db,
 		chat:  chat,
 		state: cmap.New(),
 	}

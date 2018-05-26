@@ -17,7 +17,7 @@ type T struct {
 	back Backend
 }
 
-func (front *T) run() {
+func (front *T) Run() {
 	commands := map[string]func(Command){
 		"status":      front.status,
 		"sub":         front.subscribe,
