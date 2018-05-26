@@ -27,7 +27,7 @@ func format(item dvach.Item, chunkSize int) []string {
 			switch data {
 			case "a":
 				if datanum, ok := attr(token, "data-num"); ok {
-					builder.write(Format(item.Board, datanum))
+					builder.write(Format(item.Board, datanum) + " ")
 					skip = true
 					continue
 				}
