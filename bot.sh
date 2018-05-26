@@ -25,8 +25,9 @@ start() {
         ROOT=`cat ${CONFIG} | jq -r ".dir"`
         HIDDEN_BOARDS=`cat ${CONFIG} | jq -r ".hidden_boards"`
         DOMAIN=`cat ${CONFIG} | jq -r ".domain"`
+        KEEPER=`cat ${CONFIG} | jq -r ".keeper"`
         mkdir -p ${LOGDIR}
-        env TOKEN=${TOKEN} LOG=${CONFIG} HOST=${HOST} ROOT=${ROOT} HIDDEN_BOARDS=${HIDDEN_BOARDS} DOMAIN=${DOMAIN} hikkabot 2>&1 > ${LOGDIR}/main.log &
+        env TOKEN=${TOKEN} LOG=${CONFIG} HOST=${HOST} ROOT=${ROOT} HIDDEN_BOARDS=${HIDDEN_BOARDS} DOMAIN=${DOMAIN} KEEPER=${KEEPER} hikkabot 2>&1 > ${LOGDIR}/main.log &
         echo -e "PID=$!" > ${RUNFILE}
         notify "RUNNING" 1
     fi
