@@ -9,7 +9,6 @@ import (
 	"github.com/jfk9w-go/logrus"
 	"github.com/jfk9w-go/misc"
 	"github.com/jfk9w-go/unit"
-	"github.com/pkg/errors"
 )
 
 type Json interface {
@@ -28,17 +27,25 @@ type FileSync struct {
 	mu     sync.Mutex
 }
 
-func RunFileSync(ptr Json, period time.Duration, path string) (*FileSync, error) {
-	path, err := misc.Expand(path)
+func RunFileSync(ptr Json, config Config) (*FileSync, error) {
+	var (
+		syncTimeout = 60000
+		logger      = "keeper"
+	)
+
+	if config.SyncTimeout != nil {
+		syncTimeout = *config.SyncTimeout
+	}
+	if config.Logger != nil {
+		logger = *config.Logger
+	}
+
+	path, err := misc.Expand(config.DBPath)
 	if err != nil {
 		return nil, err
 	}
 
-	if period < 0 {
-		return nil, errors.Errorf("period %d < 0", period)
-	}
-
-	fs := &FileSync{unit.NewAux(), ptr, period, path, logrus.GetLogger("fsync"), sync.Mutex{}}
+	fs := &FileSync{unit.NewAux(), ptr, time.Duration(syncTimeout) * time.Millisecond, path, logrus.GetLogger(logger), sync.Mutex{}}
 	if err := fs.load(); err != nil {
 		if os.IsNotExist(err) {
 			fs.log.Infof("File %s does not exist, starting from scratch", path)
@@ -54,7 +61,7 @@ func RunFileSync(ptr Json, period time.Duration, path string) (*FileSync, error)
 	}
 
 	go fs.sync()
-	log.Infof("Started file sync to %s", path)
+	fs.log.Infof("Started file sync to %s", path)
 
 	return fs, nil
 }

@@ -6,10 +6,6 @@ import (
 	"syscall"
 	"time"
 
-	"strings"
-
-	"path/filepath"
-
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/backend"
@@ -33,16 +29,11 @@ func main() {
 	}()
 
 	// Config
-	token := os.Getenv("TOKEN")
-	host := os.Getenv("HOST")
-	root := os.Getenv("ROOT")
-	domain := os.Getenv("DOMAIN")
-	hiddenBoards := os.Getenv("HIDDEN_BOARDS")
+	cfg := readConfig()
 
 	// Keeper
-	path := os.Getenv("KEEPER")
 	db := keeper.NewKeeper()
-	fsync, err := keeper.RunFileSync(db, 30*time.Second, path)
+	fsync, err := keeper.RunFileSync(db, cfg.Keeper)
 	if err != nil {
 		panic(err)
 	}
@@ -53,10 +44,10 @@ func main() {
 	}()
 
 	// Frontend
-	bot0 := telegram.New(telegram.DefaultConfig.WithToken(token))
-	conv := aconvert.WithCache(3*24*time.Hour, 1*time.Minute, 12*time.Hour)
-	botx := bot.Wrap(bot0, conv)
-	dvch := dvach.New(dvach.NewProxy(host, expand(root), domain).Run(), strings.Split(hiddenBoards, ",")...)
+	bot0 := telegram.Configure(cfg.Telegram)
+	conv := aconvert.Configure(cfg.Aconvert)
+	botx := bot.Wrap(bot0, conv, millis(cfg.AconvertReadTimeout))
+	dvch := dvach.Configure(cfg.Dvach)
 	ff := backend.NewFeedFactory(botx, dvch, conv, db)
 
 	back := backend.Run(botx, ff)
@@ -73,7 +64,7 @@ func main() {
 		}
 	}
 
-	go back.GC(5 * time.Minute)
+	go back.GC(millis(cfg.BackendGCTimeout))
 	go front.Run()
 
 	// Signal handler
@@ -84,7 +75,6 @@ func main() {
 	misc.BroadcastCloser(conv, bot0)
 }
 
-func expand(path string) string {
-	path, _ = filepath.Abs(os.ExpandEnv(path))
-	return path
+func millis(value int) time.Duration {
+	return time.Duration(value) * time.Millisecond
 }

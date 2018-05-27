@@ -3,6 +3,9 @@ package bot
 import (
 	"fmt"
 
+	"time"
+
+	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/telegram"
@@ -12,11 +15,12 @@ import (
 
 type T struct {
 	Bot
-	conv Converter
+	conv                aconvert.Converter
+	aconvertReadTimeout time.Duration
 }
 
-func Wrap(bot Bot, conv Converter) *T {
-	return &T{bot, conv}
+func Wrap(bot Bot, conv aconvert.Converter, aconvertReadTimeout time.Duration) *T {
+	return &T{bot, conv, aconvertReadTimeout}
 }
 
 func (bot *T) SendText(chat telegram.ChatRef, text string, args ...interface{}) {
@@ -113,12 +117,21 @@ func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
 	}
 
 	if file.Type == dvach.Webm {
-		mp4, err := bot.conv.Get(url)
-		if err != nil {
-			log.Warningf("Webm %s failed to convert: %s", url, err)
+		c := make(chan aconvert.VideoResponse, 1)
+		bot.conv.Convert(url, c)
+		timer := time.NewTimer(bot.aconvertReadTimeout)
+		select {
+		case resp := <-c:
+			if resp.Error != nil {
+				log.Warningf("Webm %s failed to convert: %s", url, resp.Error)
+				return bot.SendLink(chat, file.URL())
+			}
+
+			url = resp.Result
+
+		case <-timer.C:
+			log.Warningf("Timeout waiting for webm %s", url)
 			return bot.SendLink(chat, file.URL())
-		} else {
-			url = mp4
 		}
 	}
 

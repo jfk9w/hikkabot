@@ -36,8 +36,6 @@ func (k *keeper) UnmarshalJSON(data []byte) error {
 			return err
 		}
 
-		log.Infof("Loaded %d records", len(offsets))
-
 		for key, value := range offsets {
 			k.offsets.Set(key, value)
 		}
@@ -48,12 +46,10 @@ func (k *keeper) UnmarshalJSON(data []byte) error {
 
 func (k *keeper) SetOffset(chat telegram.ChatRef, thread dvach.Ref, offset int) {
 	k.offsets.Set(refs2key(chat, thread), offset)
-	log.Debugf("Set offset %d %s %s", offset, chat, thread)
 }
 
 func (k *keeper) DeleteOffset(chat telegram.ChatRef, thread dvach.Ref) {
 	k.offsets.Remove(refs2key(chat, thread))
-	log.Debugf("Delete offset %s %s", chat, thread)
 }
 
 func (k *keeper) GetOffsets() Offsets {

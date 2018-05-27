@@ -13,6 +13,9 @@ import (
 )
 
 type (
+	Config struct {
+	}
+
 	Feed interface {
 		io.Closer
 		Subscribe(dvach.Ref, string, int) bool
