@@ -20,14 +20,8 @@ start() {
     if [[ -f ${RUNFILE} ]]; then
         echo "Hikkabot instance already running, PID: `cat ${RUNFILE}`"
     else
-        TOKEN=`cat ${CONFIG} | jq -r ".token"`
-        HOST=`cat ${CONFIG} | jq -r ".host"`
-        ROOT=`cat ${CONFIG} | jq -r ".dir"`
-        HIDDEN_BOARDS=`cat ${CONFIG} | jq -r ".hidden_boards"`
-        DOMAIN=`cat ${CONFIG} | jq -r ".domain"`
-        KEEPER=`cat ${CONFIG} | jq -r ".keeper"`
         mkdir -p ${LOGDIR}
-        env TOKEN=${TOKEN} LOG=${CONFIG} HOST=${HOST} ROOT=${ROOT} HIDDEN_BOARDS=${HIDDEN_BOARDS} DOMAIN=${DOMAIN} KEEPER=${KEEPER} hikkabot 2>&1 > ${LOGDIR}/main.log &
+        env CONFIG=${CONFIG} LOG=${CONFIG} hikkabot 2>&1 > ${LOGDIR}/main.log &
         echo -e "PID=$!" > ${RUNFILE}
         notify "RUNNING" 1
     fi
@@ -55,7 +49,7 @@ stop() {
 notify() {
     TEXT=`echo $1 | sed -r 's/\s+/%20/g;s/\./%2E/g'`
     NOTIFY=$2
-    TOKEN=`cat ${CONFIG} | jq -r ".token"`
+    TOKEN=`cat ${CONFIG} | jq -r ".telegram | .token"`
     CHAT=`cat ${CONFIG} | jq -r ".mgmt"`
     FORM="chat_id=${CHAT}&text=${TEXT}"
     if [[ ! ${NOTIFY} ]]; then
