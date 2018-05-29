@@ -80,6 +80,7 @@ func main() {
 		for thread, offset := range threads {
 			hash, err := front.Hashtag(thread)
 			if err != nil {
+				db.DeleteOffset(chat, thread)
 				log.Warningf("Unable to re-subscribe to %s: %s", thread, err)
 				continue
 			}

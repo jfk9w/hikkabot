@@ -73,6 +73,12 @@ func (fs *FileSync) Save() (err error) {
 		err = misc.WriteJSON(fs.path+".copy", fs.ptr)
 	}
 
+	if err != nil {
+		fs.log.Errorf("Failed to write data: %s", err)
+	} else {
+		fs.log.Infof("Data sync OK")
+	}
+
 	fs.mu.Unlock()
 	return
 }

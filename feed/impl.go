@@ -143,7 +143,7 @@ func (feed *T) execute(key string, entry *Entry) error {
 		}
 
 		if err := feed.bot.SendPost(feed.chat, text.Post{post, entry.Hashtag}); err != nil {
-			log.Warningf("Unable to send post %s/%s to %s: %s", ref, post.Ref, feed.chat, err)
+			log.Warningf("Unable to send post %s %s to %s: %s", ref, post.Ref, feed.chat, err)
 			return errors.Errorf("unable to send post %s from %s: %s",
 				text.FormatRef(post.Ref), text.FormatRef(ref), err)
 		}
