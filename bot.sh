@@ -26,52 +26,55 @@ function require() {
     prev "$1 not found"
 }
 
-SED=sed
-if [[ $(uname) == "Darwin" ]]; then
-    SED=gsed
-fi
+function require_env() {
+    SED=sed
+    if [[ $(uname) == "Darwin" ]]; then
+        SED=gsed
+    fi
 
-require go
-require jq
-require curl
-require "$SED"
+    require go
+    require jq
+    require curl
+    require "$SED"
 
-if [[ "$GOPATH" == "" ]]; then
-    printf "GOPATH is not set"
-    exit 1
-fi
+    if [[ "$GOPATH" == "" ]]; then
+        printf "GOPATH is not set"
+        exit 1
+    fi
 
-PATH="$PATH:$GOPATH/bin"
-PACKAGE="github.com/jfk9w-go/hikkabot"
+    PATH="$PATH:$GOPATH/bin"
+    PACKAGE="github.com/jfk9w-go/hikkabot"
 
-if [[ "$RUNFILE" == "" ]]; then
-    PIDFILE="$HOME/.hikkabot"
-fi
+    if [[ "$RUNFILE" == "" ]]; then
+        PIDFILE="$HOME/.hikkabot"
+    fi
 
-if [[ "$CONFIG" == "" ]]; then
-    CONFIG="`pwd`/config.json"
-fi
+    if [[ "$CONFIG" == "" ]]; then
+        CONFIG="`pwd`/config.json"
+    fi
 
-if [[ "$STDOUT" == "" ]]; then
-    STDOUT="`pwd`/hikkabot.run"
-fi
+    if [[ "$STDOUT" == "" ]]; then
+        STDOUT="`pwd`/hikkabot.run"
+    fi
 
-printf "Package: $PACKAGE\nPidfile: $PIDFILE\nConfig path: $CONFIG\nStdout: $STDOUT\n"
+    printf "Package: $PACKAGE\nPidfile: $PIDFILE\nConfig path: $CONFIG\nStdout: $STDOUT\n"
 
-cat "$CONFIG" | jq -e . > /dev/null
-prev
+    cat "$CONFIG" | jq -e . > /dev/null
+    prev
 
-function config() {
-    cat "$CONFIG" | jq -r "$1"
+    function config() {
+        cat "$CONFIG" | jq -r "$1"
+    }
+
+    test "$(config ".mgmt")" != ""
+    prev "Config mgmt field not found"
+
+    test "$(config ".telegram | .token")" != ""
+    prev "Config token field not found"
 }
 
-test "$(config ".mgmt")" != ""
-prev "Config mgmt field not found"
-
-test "$(config ".telegram | .token")" != ""
-prev "Config token field not found"
-
 function start() {
+    require_env
     if [[ -f "$PIDFILE" ]]; then
         mute . "$PIDFILE"
         if [[ $? -ne 0 || "$PID" == "" ]]; then
@@ -94,6 +97,7 @@ function start() {
 }
 
 function stop() {
+    require_env
     if [[ ! -f "$PIDFILE" ]]; then
         echo "Pidfile not found"
         exit 2
@@ -129,6 +133,7 @@ function cleanup() {
 }
 
 function notify() {
+    require_env
     TEXT=$(echo "$1" | "$SED" -r 's/\s+/%20/g;s/\./%2E/g')
     FORM="chat_id=$(config ".mgmt")&text=$TEXT"
     if [[ ! $2 ]]; then
@@ -139,6 +144,7 @@ function notify() {
 }
 
 function check() {
+    require_env
     if [[ ! -f "$PIDFILE" ]]; then
         notify "Pidfile not found" 1
         exit 0
