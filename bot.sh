@@ -26,24 +26,27 @@ function require() {
     prev "$1 not found"
 }
 
+if [[ "$GOPATH" == "" ]]; then
+    printf "GOPATH is not set"
+    exit 1
+fi
+
+require go
+
+PATH="$PATH:$GOPATH/bin"
+PACKAGE="github.com/jfk9w-go/hikkabot"
+
+printf "Package: $PACKAGE\n"
+
 function require_env() {
     SED=sed
     if [[ $(uname) == "Darwin" ]]; then
         SED=gsed
     fi
 
-    require go
     require jq
     require curl
     require "$SED"
-
-    if [[ "$GOPATH" == "" ]]; then
-        printf "GOPATH is not set"
-        exit 1
-    fi
-
-    PATH="$PATH:$GOPATH/bin"
-    PACKAGE="github.com/jfk9w-go/hikkabot"
 
     if [[ "$RUNFILE" == "" ]]; then
         PIDFILE="$HOME/.hikkabot"
@@ -57,7 +60,7 @@ function require_env() {
         STDOUT="`pwd`/hikkabot.run"
     fi
 
-    printf "Package: $PACKAGE\nPidfile: $PIDFILE\nConfig path: $CONFIG\nStdout: $STDOUT\n"
+    printf "Pidfile: $PIDFILE\nConfig path: $CONFIG\nStdout: $STDOUT\n"
 
     cat "$CONFIG" | jq -e . > /dev/null
     prev
