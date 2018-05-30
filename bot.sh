@@ -65,10 +65,10 @@ function config() {
     cat "$CONFIG" | jq -r "$1"
 }
 
-test $(config ".mgmt") != ""
+test "$(config ".mgmt")" != ""
 prev "Config mgmt field not found"
 
-test $(config ".telegram | .token") != ""
+test "$(config ".telegram | .token")" != ""
 prev "Config token field not found"
 
 function start() {
