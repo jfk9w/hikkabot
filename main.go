@@ -72,7 +72,7 @@ func main() {
 	conv := aconvert.Configure(cfg.Aconvert)
 	botx := bot.Wrap(bot0, conv, millis(cfg.AconvertReadTimeout))
 	dvch := dvach.Configure(cfg.Dvach)
-	ff := backend.NewFeedFactory(botx, dvch, conv, db)
+	ff := backend.NewFeedFactory(botx, Preload(dvch), conv, db)
 
 	back := backend.Run(botx, ff)
 	front := frontend.New(botx, dvch, back)

@@ -18,6 +18,7 @@ type (
 
 	Dvach interface {
 		Posts(dvach.Ref, int) ([]*dvach.Post, error)
+		Path(*dvach.File) (string, error)
 	}
 
 	Converter interface {
