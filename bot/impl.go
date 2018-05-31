@@ -170,15 +170,15 @@ func (bot *T) SendPost(chat telegram.ChatRef, post text.Post) error {
 	for _, file := range post.Files {
 		if file.Type == dvach.Webm {
 			wait.Add(1)
-			go func() {
-				data, err := bot.http.Download(file.URL())
+			go func(url string) {
+				data, err := bot.http.Download(url)
 				if err != nil {
 					log.Warningf("Failed to open download file %s: %s", data, err)
 				}
 
 				bot.conv.Convert(aconvert.ReadCloser{data, file.URL()})
 				wait.Done()
-			}()
+			}(file.URL())
 		}
 	}
 
