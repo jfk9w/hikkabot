@@ -13,9 +13,6 @@ import (
 )
 
 type (
-	Config struct {
-	}
-
 	Feed interface {
 		io.Closer
 		Subscribe(dvach.Ref, string, int) bool
@@ -38,6 +35,7 @@ type (
 	Dvach interface {
 		Thread(dvach.Ref, int) ([]*dvach.Post, error)
 		Post(dvach.Ref) (*dvach.Post, error)
+		Path(*dvach.File) (string, error)
 	}
 )
 
@@ -53,17 +51,16 @@ func Run(bot Bot, ff FeedFactory) *T {
 	return back
 }
 
-func NewFeedFactory(bot feed.Bot, dvch feed.Dvach, conv feed.Converter, db keeper.T) FeedFactory {
-	return &DefaultFeedFactory{bot, dvch, conv, db}
+func NewFeedFactory(bot feed.Bot, dvch feed.Dvach, db keeper.T) FeedFactory {
+	return &DefaultFeedFactory{bot, dvch, db}
 }
 
 type DefaultFeedFactory struct {
 	bot  feed.Bot
 	dvch feed.Dvach
-	conv feed.Converter
 	db   keeper.T
 }
 
 func (df *DefaultFeedFactory) CreateFeed(chat telegram.ChatRef) Feed {
-	return feed.Run(df.bot, df.dvch, df.conv, df.db, chat)
+	return feed.Run(df.bot, df.dvch, df.db, chat)
 }

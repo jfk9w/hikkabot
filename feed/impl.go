@@ -16,7 +16,6 @@ type T struct {
 	aux   unit.Aux
 	bot   Bot
 	dvch  Dvach
-	conv  Converter
 	db    keeper.T
 	chat  telegram.ChatRef
 	state cmap.ConcurrentMap
@@ -91,23 +90,6 @@ func (feed *T) update(key string, offset int) bool {
 	return false
 }
 
-func (feed *T) preload(posts []*dvach.Post) {
-	for _, post := range posts {
-		for _, file := range post.Files {
-			if file.Type == dvach.Webm {
-				var url string
-				if file.IsProxied() {
-					url = file.ProxiedURL
-				} else {
-					url = file.URL()
-				}
-
-				go feed.conv.Convert(url, nil)
-			}
-		}
-	}
-}
-
 func (feed *T) execute(key string, entry *Entry) error {
 	if feed.intr() {
 		return unit.ErrInterrupted
@@ -134,8 +116,6 @@ func (feed *T) execute(key string, entry *Entry) error {
 	if feed.intr() {
 		return unit.ErrInterrupted
 	}
-
-	feed.preload(posts)
 
 	for _, post := range posts {
 		if feed.intr() {

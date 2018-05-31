@@ -20,13 +20,12 @@ import (
 var log = logrus.GetLogger("main")
 
 type Config struct {
-	BackendGCTimeout    int `json:"backend_gc_timeout"`
-	AconvertReadTimeout int `json:"aconvert_read_timeout"`
-
-	Keeper   keeper.Config   `json:"keeper"`
-	Telegram telegram.Config `json:"telegram"`
-	Dvach    dvach.Config    `json:"dvach"`
-	Aconvert aconvert.Config `json:"aconvert"`
+	BackendGCTimeout int             `json:"backend_gc_timeout"`
+	Bot              bot.Config      `json:"bot"`
+	Keeper           keeper.Config   `json:"keeper"`
+	Telegram         telegram.Config `json:"telegram"`
+	Dvach            dvach.Config    `json:"dvach"`
+	Aconvert         aconvert.Config `json:"aconvert"`
 }
 
 func readConfig() *Config {
@@ -45,10 +44,6 @@ func readConfig() *Config {
 
 func main() {
 	defer func() {
-		if err := recover(); err != nil {
-			log.Fatal(err)
-		}
-
 		log.Infof("Exit")
 	}()
 
@@ -70,9 +65,9 @@ func main() {
 	// Frontend
 	bot0 := telegram.Configure(cfg.Telegram)
 	conv := aconvert.Configure(cfg.Aconvert)
-	botx := bot.Wrap(bot0, conv, millis(cfg.AconvertReadTimeout))
+	botx := bot.Wrap(bot0, conv, cfg.Bot)
 	dvch := dvach.Configure(cfg.Dvach)
-	ff := backend.NewFeedFactory(botx, Preload(dvch), conv, db)
+	ff := backend.NewFeedFactory(botx, dvch, db)
 
 	back := backend.Run(botx, ff)
 	front := frontend.New(botx, dvch, back)

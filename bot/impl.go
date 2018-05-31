@@ -2,12 +2,15 @@ package bot
 
 import (
 	"fmt"
-
+	"io"
+	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/text"
+	"github.com/jfk9w-go/httpx"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
 	"golang.org/x/net/html"
@@ -15,12 +18,13 @@ import (
 
 type T struct {
 	Bot
-	conv                aconvert.Converter
-	aconvertReadTimeout time.Duration
+	http    httpx.Client
+	conv    aconvert.Client
+	maxwait time.Duration
 }
 
-func Wrap(bot Bot, conv aconvert.Converter, aconvertReadTimeout time.Duration) *T {
-	return &T{bot, conv, aconvertReadTimeout}
+func Wrap(bot Bot, conv aconvert.Client, config Config) *T {
+	return &T{bot, httpx.Configure(config.HttpConfig), conv, time.Duration(config.MaxWait) * time.Millisecond}
 }
 
 func (bot *T) SendText(chat telegram.ChatRef, text string, args ...interface{}) {
@@ -94,78 +98,57 @@ func (bot *T) SendLink(chat telegram.ChatRef, url string) error {
 }
 
 func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
-	var url string
-	if file.IsProxied() {
-		url = file.ProxiedURL
-	} else {
-		url = file.URL()
-	}
+	var (
+		url       = file.URL()
+		mediaType telegram.MediaType
+		data      io.ReadCloser
+		err       error
+	)
 
-	var mediaType telegram.MediaType
-	if file.DurationSecs != nil {
+	switch file.Type {
+	case dvach.Webm:
+		var resp *aconvert.Response
+		resp, err = bot.conv.Convert(aconvert.URL(url))
+		if err != nil {
+			log.Warningf("Failed to convert video %s, response: %v", url, resp.State)
+			return bot.SendLink(chat, file.URL())
+		}
+
+		url, err = resp.URL()
+		if err != nil {
+			log.Warningf("Failed to convert video %s, response: %v", url, resp.State)
+			return bot.SendLink(chat, file.URL())
+		}
+
+		fallthrough
+
+	case dvach.Mp4:
 		mediaType = telegram.Video
-		if file.Size > 20*1024 {
-			log.Warningf("Video %s is too large (%d), sending as a link", url)
-			return bot.SendLink(chat, file.URL())
-		}
-	} else {
+
+	default:
 		mediaType = telegram.Photo
-		if file.Size > 5*1024 {
-			log.Warningf("Photo %s is too large (%d), sending as a link", url)
-			return bot.SendLink(chat, file.URL())
-		}
 	}
 
-	if file.Type == dvach.Webm {
-		c := make(chan aconvert.VideoResponse, 1)
-		bot.conv.Convert(url, c)
-		timer := time.NewTimer(bot.aconvertReadTimeout)
-		select {
-		case resp := <-c:
-			if resp.Error != nil {
-				log.Warningf("Webm %s failed to convert: %s", url, resp.Error)
-				return bot.SendLink(chat, file.URL())
-			}
-
-			url = resp.Result
-
-		case <-timer.C:
-			log.Warningf("Timeout waiting for webm %s", url)
-			return bot.SendLink(chat, file.URL())
-		}
+	data, err = bot.http.Download(url)
+	if err != nil {
+		log.Warningf("Failed to open download file %s: %s", url, err)
+		return bot.SendLink(chat, file.URL())
 	}
 
-	base := telegram.BaseInputMedia{
-		Type0:      mediaType,
-		Media0:     url,
-		ParseMode0: telegram.HTML,
-		Caption0:   link(file.URL()),
-	}
+	name := filepath.Base(file.Path)
 
-	var media telegram.InputMedia
-	if mediaType == telegram.Photo {
-		media = telegram.InputMediaPhoto{base}
-	} else {
-		video := telegram.InputMediaVideo{
-			BaseInputMedia: base,
-		}
-
-		if file.DurationSecs != nil {
-			video.Duration = *file.DurationSecs
-		}
-		if file.Width != nil {
-			video.Width = *file.Width
-		}
-		if file.Height != nil {
-			video.Height = *file.Height
-		}
-
-		media = video
+	media := &telegram.InputMedia{
+		Type:       mediaType,
+		Media:      "attach://" + name,
+		Duration:   file.DurationSecs,
+		Width:      file.Width,
+		Height:     file.Height,
+		ReadCloser: data,
 	}
 
 	if err := <-bot.Send(telegram.SendMediaRequest{
 		Chat:                chat,
-		Media:               []telegram.InputMedia{media},
+		Media:               []*telegram.InputMedia{media},
 		DisableNotification: true,
 	}, nil); err != nil {
 		log.Warningf("Failed to send %s as media to %s: %s", url, chat, err)
@@ -182,6 +165,24 @@ func (bot *T) SendPost(chat telegram.ChatRef, post text.Post) error {
 			return err
 		}
 	}
+
+	wait := sync.WaitGroup{}
+	for _, file := range post.Files {
+		if file.Type == dvach.Webm {
+			wait.Add(1)
+			go func() {
+				data, err := bot.http.Download(file.URL())
+				if err != nil {
+					log.Warningf("Failed to open download file %s: %s", data, err)
+				}
+
+				bot.conv.Convert(aconvert.ReadCloser{data, file.URL()})
+				wait.Done()
+			}()
+		}
+	}
+
+	wait.Wait()
 
 	files := post.Files
 	for _, file := range files {
