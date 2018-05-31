@@ -114,12 +114,14 @@ func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
 			return bot.SendLink(chat, file.URL())
 		}
 
-		url, err = resp.URL()
+		var mp4 string
+		mp4, err = resp.URL()
 		if err != nil {
 			log.Warningf("Failed to convert video %s, response: %v", url, resp.State)
 			return bot.SendLink(chat, file.URL())
 		}
 
+		url = mp4
 		fallthrough
 
 	case dvach.Mp4:
