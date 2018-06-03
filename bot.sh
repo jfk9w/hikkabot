@@ -77,7 +77,6 @@ function require_env() {
 }
 
 function start() {
-    require_env
     if [[ -f "$PIDFILE" ]]; then
         mute . "$PIDFILE"
         if [[ $? -ne 0 || "$PID" == "" ]]; then
@@ -100,7 +99,6 @@ function start() {
 }
 
 function stop() {
-    require_env
     if [[ ! -f "$PIDFILE" ]]; then
         echo "Pidfile not found"
         exit 2
@@ -136,7 +134,6 @@ function cleanup() {
 }
 
 function notify() {
-    require_env
     TEXT=$(echo "$1" | "$SED" -r 's/\s+/%20/g;s/\./%2E/g')
     FORM="chat_id=$(config ".mgmt")&text=$TEXT"
     if [[ ! $2 ]]; then
@@ -147,7 +144,6 @@ function notify() {
 }
 
 function check() {
-    require_env
     if [[ ! -f "$PIDFILE" ]]; then
         notify "Pidfile not found" 1
         exit 0
@@ -191,4 +187,9 @@ function restart() {
     start
 }
 
-"$@"
+CMD=$@
+if [[ "$CMD" =~ ^(start|stop|restart|cleanup)$ ]]; then
+    require_env
+fi
+
+"$CMD"
