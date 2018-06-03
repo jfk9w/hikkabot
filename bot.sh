@@ -89,7 +89,7 @@ function start() {
     fi
 
     mkdir -p "$(dirname "$STDOUT")"
-    CONFIG="$CONFIG" LOG="$CONFIG" hikkabot 2>&1 > "$STDOUT" &
+    CONFIG="$CONFIG" LOG="$CONFIG" hikkabot > "$STDOUT" 2>&1 &
     prev "Failed to start hikkabot"
 
     PID=$!
