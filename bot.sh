@@ -22,8 +22,17 @@ function prev() {
 }
 
 function require() {
-    mute type $1
-    prev "$1 not found"
+    local ok=1
+    for cmd in "$@"; do
+        mute type "$cmd"
+        if [[ $? -ne 0 ]]; then
+            ok=0
+            echo "$cmd not found"
+        fi
+    done
+    if [[ ok -ne 1 ]]; then
+        exit 1
+    fi
 }
 
 if [[ "$GOPATH" == "" ]]; then
@@ -31,49 +40,28 @@ if [[ "$GOPATH" == "" ]]; then
     exit 1
 fi
 
-require go
-
 PATH="$PATH:$GOPATH/bin"
 PACKAGE="github.com/jfk9w-go/hikkabot"
 
-printf "Package: $PACKAGE\n"
+if [[ "$CONFIG" == "" ]]; then
+    CONFIG="`pwd`/config.json"
+fi
 
-function require_env() {
-    SED=sed
-    if [[ $(uname) == "Darwin" ]]; then
-        SED=gsed
-    fi
+if [[ "$RUNFILE" == "" ]]; then
+    PIDFILE="$HOME/.hikkabot"
+fi
 
-    require jq
-    require curl
-    require "$SED"
+if [[ "$STDOUT" == "" ]]; then
+    STDOUT="`pwd`/hikkabot.run"
+fi
 
-    if [[ "$RUNFILE" == "" ]]; then
-        PIDFILE="$HOME/.hikkabot"
-    fi
+SED=sed
+if [[ $(uname) == "Darwin" ]]; then
+    SED=gsed
+fi
 
-    if [[ "$CONFIG" == "" ]]; then
-        CONFIG="`pwd`/config.json"
-    fi
-
-    if [[ "$STDOUT" == "" ]]; then
-        STDOUT="`pwd`/hikkabot.run"
-    fi
-
-    printf "Pidfile: $PIDFILE\nConfig path: $CONFIG\nStdout: $STDOUT\n"
-
-    cat "$CONFIG" | jq -e . > /dev/null
-    prev
-
-    function config() {
-        cat "$CONFIG" | jq -r "$1"
-    }
-
-    test "$(config ".mgmt")" != ""
-    prev "Config mgmt field not found"
-
-    test "$(config ".telegram | .token")" != ""
-    prev "Config token field not found"
+function config() {
+    cat "$CONFIG" | jq -r "$1"
 }
 
 function start() {
@@ -174,7 +162,12 @@ function install() {
     go install -v "$PACKAGE"
     prev
 
-    cp "$GOPATH/src/$PACKAGE/bot.sh" .
+    local dir=.
+    if [[ "$1" != "" ]]; then
+        dir="$1"
+    fi
+
+    cp "$GOPATH/src/$PACKAGE/bot.sh" "$dir"
     prev
 }
 
@@ -187,9 +180,4 @@ function restart() {
     start
 }
 
-CMD=$@
-if [[ "$CMD" =~ ^(start|stop|restart|cleanup)$ ]]; then
-    require_env
-fi
-
-"$CMD"
+$@
