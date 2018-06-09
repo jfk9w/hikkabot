@@ -124,7 +124,7 @@ func (bot *T) SendFile(chat telegram.ChatRef, file *dvach.File) error {
 		url = mp4
 		fallthrough
 
-	case dvach.Mp4:
+	case dvach.Mp4, dvach.Gif:
 		mediaType = telegram.Video
 
 	default:
