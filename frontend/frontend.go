@@ -4,7 +4,7 @@ import (
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/hikkabot/text"
-	"github.com/jfk9w-go/logrus"
+	"github.com/jfk9w-go/logx"
 	"github.com/jfk9w-go/telegram"
 )
 
@@ -37,4 +37,4 @@ func New(bot Bot, dvch Dvach, back Backend) *T {
 	return &T{bot, dvch, back}
 }
 
-var log = logrus.GetLogger("frontend")
+var log = logx.Get("frontend")

@@ -8,16 +8,17 @@ import (
 
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/gox/closer"
+	"github.com/jfk9w-go/gox/jsonx"
 	"github.com/jfk9w-go/hikkabot/backend"
 	"github.com/jfk9w-go/hikkabot/bot"
 	"github.com/jfk9w-go/hikkabot/frontend"
 	"github.com/jfk9w-go/hikkabot/keeper"
-	"github.com/jfk9w-go/logrus"
-	"github.com/jfk9w-go/misc"
+	"github.com/jfk9w-go/logx"
 	"github.com/jfk9w-go/telegram"
 )
 
-var log = logrus.GetLogger("main")
+var log = logx.Get("main")
 
 type Config struct {
 	BackendGCTimeout int             `json:"backend_gc_timeout"`
@@ -35,7 +36,7 @@ func readConfig() *Config {
 	}
 
 	cfg := new(Config)
-	if err := misc.ReadJSON(path, cfg); err != nil {
+	if err := jsonx.ReadFile(path, cfg); err != nil {
 		panic(err)
 	}
 
@@ -64,7 +65,7 @@ func main() {
 
 	// Frontend
 	bot0 := telegram.Configure(cfg.Telegram)
-	conv := aconvert.Configure(cfg.Aconvert)
+	conv := aconvert.ConfigureBalancer(cfg.Aconvert)
 	botx := bot.Wrap(bot0, conv, cfg.Bot)
 	dvch := dvach.Configure(cfg.Dvach)
 	ff := backend.NewFeedFactory(botx, dvch, db)
@@ -92,7 +93,7 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 
-	misc.BroadcastCloser(conv, bot0)
+	closer.Broadcast(conv, bot0)
 }
 
 func millis(value int) time.Duration {

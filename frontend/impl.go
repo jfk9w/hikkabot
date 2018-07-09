@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/gox/utf8x"
 	"github.com/jfk9w-go/hikkabot/text"
-	"github.com/jfk9w-go/misc"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
 )
@@ -101,7 +101,7 @@ func (front *T) ParseUpdate(update telegram.Update) Command {
 	}
 
 	text := message.Text
-	if !misc.IsFirstRune(text, '/') {
+	if !utf8x.IsFirst(text, '/') {
 		return emptyCommand
 	}
 

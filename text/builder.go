@@ -4,7 +4,7 @@ import (
 	"html"
 	"strings"
 
-	"github.com/jfk9w-go/misc"
+	"github.com/jfk9w-go/gox/utf8x"
 )
 
 type htmlBuilder struct {
@@ -25,7 +25,7 @@ func newHtmlBuilder(chunkSize int) *htmlBuilder {
 
 func (b *htmlBuilder) write(value string) {
 	b.sb.WriteString(value)
-	b.size += misc.RuneLength(value)
+	b.size += utf8x.Size(value)
 }
 
 func (b *htmlBuilder) writeStartTag(tag string) {
@@ -41,7 +41,7 @@ func (b *htmlBuilder) writeEndTag() {
 	b.tagDepth--
 
 	if b.tagDepth == 0 {
-		startTag := misc.SliceRunes(*b.startTag, 1, -1)
+		startTag := utf8x.Slice(*b.startTag, 1, -1)
 		tag := strings.Fields(startTag)[0]
 		b.write("</" + tag + ">")
 		b.startTag = nil
@@ -65,17 +65,17 @@ func (b *htmlBuilder) newChunk() {
 
 func (b *htmlBuilder) fillChunk(text string) int {
 	capacity := b.chunkSize - b.size
-	length := misc.RuneLength(text)
+	length := utf8x.Size(text)
 	if length <= capacity {
 		return 0
 	}
 
-	newLine := misc.FindLastRune(text, '\n', 0, capacity)
+	newLine := utf8x.LastIndexOf(text, '\n', 0, capacity)
 	if newLine > 0 {
 		return length - newLine - 1
 	}
 
-	space := misc.FindLastRune(text, ' ', 0, capacity)
+	space := utf8x.LastIndexOf(text, ' ', 0, capacity)
 	if space > 0 {
 		return length - space - 1
 	}
@@ -85,12 +85,12 @@ func (b *htmlBuilder) fillChunk(text string) int {
 
 func (b *htmlBuilder) writeText(text string) {
 	text = html.EscapeString(text)
-	length := misc.RuneLength(text)
+	length := utf8x.Size(text)
 	offset := 0
-	for left := b.fillChunk(text); left > 0; left = b.fillChunk(misc.SliceRunes(text, offset, 0)) {
+	for left := b.fillChunk(text); left > 0; left = b.fillChunk(utf8x.Slice(text, offset, 0)) {
 		start := offset
 		offset = length - left
-		part := misc.SliceRunes(text, start, offset)
+		part := utf8x.Slice(text, start, offset)
 		if b.size == 0 {
 			part = strings.TrimLeft(part, " \n")
 		}
@@ -99,11 +99,11 @@ func (b *htmlBuilder) writeText(text string) {
 		b.newChunk()
 	}
 
-	b.write(misc.SliceRunes(text, offset, 0))
+	b.write(utf8x.Slice(text, offset, 0))
 }
 
 func (b *htmlBuilder) writeLink(link string) {
-	if misc.RuneLength(link) > b.chunkSize-b.size {
+	if utf8x.Size(link) > b.chunkSize-b.size {
 		b.newChunk()
 	}
 

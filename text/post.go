@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/telegram"
+	"github.com/jfk9w-go/telegram/api"
 )
 
 type Post struct {
@@ -13,7 +13,7 @@ type Post struct {
 }
 
 func FormatPost(post Post) []string {
-	chunks := format(post.Item, telegram.MaxMessageSize*4/5)
+	chunks := format(post.Item, api.MaxMessageSize*4/5)
 	if len(chunks) == 0 {
 		chunks = []string{""}
 	}
