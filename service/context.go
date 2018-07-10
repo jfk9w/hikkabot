@@ -145,12 +145,7 @@ func (ctx *Context) SendPost(chat *telegram.Chat, outline string, post *dvach.Po
 
 			switch dfile.Type {
 			case dvach.Gif, dvach.Webm, dvach.Mp4:
-				_, err = ctx.SendVideo(chat.ID, file, &telegram.VideoOpts{
-					MediaOpts: mediaOpts,
-					Duration:  *dfile.DurationSecs,
-					Width:     *dfile.Width,
-					Height:    *dfile.Height,
-				})
+				_, err = ctx.SendVideo(chat.ID, file, &telegram.VideoOpts{MediaOpts: mediaOpts})
 
 			default:
 				_, err = ctx.SendPhoto(chat.ID, file, mediaOpts)
