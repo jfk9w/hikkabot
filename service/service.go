@@ -6,6 +6,7 @@ import (
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/gox/schedx"
 	"github.com/jfk9w-go/hikkabot/text"
+	"github.com/jfk9w-go/logx"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
 )
@@ -82,9 +83,11 @@ func (svc *T) work(any interface{}) {
 		return
 	}
 
+	log.Debugf("Checking for items for %v", chat.ID)
 	item = svc.Feed(chat.ID)
 	if !item.Exists {
 		svc.Cancel(any)
+		log.Debugf("No items for %v, job canceled", chat.ID)
 		return
 	}
 
@@ -129,9 +132,13 @@ Reason: `+err.Error())
 
 func (svc *T) initScheduler() *T {
 	svc.Scheduler.Init(svc.work)
-	for _, chat := range svc.LoadActiveAccounts() {
+	var active = svc.LoadActiveAccounts()
+	log.Debugf("Loading active accounts: %v", active)
+	for _, chat := range active {
 		svc.Scheduler.Schedule(chat)
 	}
 
 	return svc
 }
+
+var log = logx.Get("service")

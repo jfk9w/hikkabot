@@ -8,6 +8,7 @@ import (
 	Aconvert "github.com/jfk9w-go/aconvert"
 	Dvach "github.com/jfk9w-go/dvach"
 	Service "github.com/jfk9w-go/hikkabot/service"
+	"github.com/jfk9w-go/logx"
 	Telegram "github.com/jfk9w-go/telegram"
 )
 
@@ -29,6 +30,8 @@ func main() {
 		context = &Service.Context{telegram, dvach, aconvert}
 		service = Service.Init(context, config.SchedulerInterval.Duration(), config.Database)
 	)
+
+	logx.Get("init").Debug("Started")
 
 	loop()
 

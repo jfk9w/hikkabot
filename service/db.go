@@ -84,9 +84,9 @@ func (db *DB) Feed(chat telegram.ChatID) (item FeedItem) {
 
 	rs = db.query(`SELECT board, thread, last_post, type, outline
 FROM feed
-WHERE chat = ? AND error IS NULL
+WHERE chat = ? AND error = ''
 ORDER BY updated ASC
-LIMIT 1`, chat)
+LIMIT 1`, int(chat))
 
 	if !rs.Next() {
 		return
@@ -107,7 +107,7 @@ LIMIT 1`, chat)
 func (db *DB) UpdateSubscription(chat telegram.ChatID, item FeedItem) bool {
 	return db.update(`UPDATE feed
 SET updated = ?, last_post = ?
-WHERE chat = ? AND board = ? AND thread = ? AND error IS NULL`,
+WHERE chat = ? AND board = ? AND thread = ? AND error = ''`,
 		now(), item.LastPost,
 		chat, item.Ref.Board, item.Ref.NumString,
 	) > 0
@@ -117,7 +117,7 @@ WHERE chat = ? AND board = ? AND thread = ? AND error IS NULL`,
 func (db *DB) SuspendSubscription(chat telegram.ChatID, ref dvach.Ref, reason error) bool {
 	return db.update(`UPDATE feed
 SET updated = ?, error = ?
-WHERE chat = ? AND board = ? AND thread = ? AND error IS NULL`,
+WHERE chat = ? AND board = ? AND thread = ? AND error = ''`,
 		now(), reason.Error(),
 		chat, ref.Board, ref.NumString,
 	) > 0
@@ -127,7 +127,7 @@ WHERE chat = ? AND board = ? AND thread = ? AND error IS NULL`,
 func (db *DB) SuspendAccount(chat telegram.ChatID, reason error) int64 {
 	return db.update(`UPDATE feed
 SET updated = ?, error = ?
-WHERE chat = ? AND error IS NULL`,
+WHERE chat = ? AND error = ''`,
 		now(), reason.Error(),
 		chat,
 	)
