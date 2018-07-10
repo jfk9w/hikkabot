@@ -86,7 +86,7 @@ func (db *DB) Feed(chat telegram.ChatID) (item FeedItem) {
 FROM feed
 WHERE chat = ? AND error = ''
 ORDER BY updated ASC
-LIMIT 1`, int(chat))
+LIMIT 1`, chat)
 
 	if !rs.Next() {
 		return

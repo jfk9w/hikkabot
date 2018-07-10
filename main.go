@@ -35,8 +35,8 @@ func main() {
 
 	loop()
 
-	telegram.Updater.Close()
-	aconvert.Close()
+	//telegram.Updater.Close()
+	//aconvert.Close()
 	service.DB.Close()
 
 	println("Shutdown")
