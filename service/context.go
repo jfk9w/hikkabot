@@ -1,9 +1,8 @@
 package service
 
 import (
-	"sync"
-
 	"html"
+	"sync"
 
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
@@ -15,9 +14,9 @@ import (
 )
 
 type (
-	Scheduler = schedx.T
-	Telegram  = telegram.T
-	Dvach     = dvach.API
+	Scheduler = *schedx.T
+	Telegram  = *telegram.T
+	Dvach     = *dvach.API
 	Aconvert  = aconvert.Balancer
 )
 

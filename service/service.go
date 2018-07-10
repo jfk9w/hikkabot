@@ -16,8 +16,8 @@ type T struct {
 	*DB
 }
 
-func Init(ctx *Context, filename string) *T {
-	scheduler := schedx.New(10 * time.Second)
+func Init(ctx *Context, interval time.Duration, filename string) *T {
+	scheduler := schedx.New(interval)
 	db := OpenDB(filename).InitSchema()
 	svc := &T{ctx, scheduler, db}
 	return svc.initScheduler()

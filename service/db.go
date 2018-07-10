@@ -6,8 +6,11 @@ import (
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/telegram"
+	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )
+
+var _ = sqlite3.Version
 
 var SuspendedByUser = errors.Errorf("interrupted by user")
 
@@ -58,7 +61,7 @@ func (db *DB) update(query string, args ...interface{}) int64 {
 
 //language=SQL
 func (db *DB) InitSchema() *DB {
-	db.exec(`CREATE TABLE IF NOT EXISTS threads (
+	db.exec(`CREATE TABLE IF NOT EXISTS feed (
 chat INTEGER NOT NULL,
 board TEXT NOT NULL,
 thread TEXT NOT NULL,
@@ -68,7 +71,7 @@ outline TEXT NOT NULL,
 updated INTEGER NOT NULL DEFAULT 0,
 error TEXT NOT NULL DEFAULT '')`)
 
-	db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__threads__id ON threads (chat, thread, last_post)`)
+	db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__id ON feed (chat, thread, last_post)`)
 	return db
 }
 
@@ -79,8 +82,8 @@ func (db *DB) Feed(chat telegram.ChatID) (item FeedItem) {
 		err error
 	)
 
-	rs = db.query(`SELECT board, thread, hashtag, last_post
-FROM threads
+	rs = db.query(`SELECT board, thread, last_post, type, outline
+FROM feed
 WHERE chat = ? AND error IS NULL
 ORDER BY updated ASC
 LIMIT 1`, chat)
@@ -90,7 +93,8 @@ LIMIT 1`, chat)
 	}
 
 	var board, thread string
-	checkpanic(rs.Scan(&board, &thread, &item.Outline, &item.LastPost))
+	checkpanic(rs.Scan(&board, &thread, &item.LastPost, &item.Type, &item.Outline))
+	checkpanic(rs.Close())
 
 	item.Ref, err = dvach.ToRef(board, thread)
 	checkpanic(err)
@@ -101,7 +105,7 @@ LIMIT 1`, chat)
 
 //language=SQL
 func (db *DB) UpdateSubscription(chat telegram.ChatID, item FeedItem) bool {
-	return db.update(`UPDATE threads
+	return db.update(`UPDATE feed
 SET updated = ?, last_post = ?
 WHERE chat = ? AND board = ? AND thread = ? AND error IS NULL`,
 		now(), item.LastPost,
@@ -111,7 +115,7 @@ WHERE chat = ? AND board = ? AND thread = ? AND error IS NULL`,
 
 //language=SQL
 func (db *DB) SuspendSubscription(chat telegram.ChatID, ref dvach.Ref, reason error) bool {
-	return db.update(`UPDATE threads
+	return db.update(`UPDATE feed
 SET updated = ?, error = ?
 WHERE chat = ? AND board = ? AND thread = ? AND error IS NULL`,
 		now(), reason.Error(),
@@ -121,7 +125,7 @@ WHERE chat = ? AND board = ? AND thread = ? AND error IS NULL`,
 
 //language=SQL
 func (db *DB) SuspendAccount(chat telegram.ChatID, reason error) int64 {
-	return db.update(`UPDATE threads
+	return db.update(`UPDATE feed
 SET updated = ?, error = ?
 WHERE chat = ? AND error IS NULL`,
 		now(), reason.Error(),
@@ -131,7 +135,7 @@ WHERE chat = ? AND error IS NULL`,
 
 //language=SQL
 func (db *DB) CreateSubscription(chat telegram.ChatID, item FeedItem) bool {
-	return db.update(`INSERT OR IGNORE INTO threads (chat, type, board, thread, outline, last_post)
+	return db.update(`INSERT OR IGNORE INTO feed (chat, type, board, thread, outline, last_post)
 VALUES (?, ?, ?, ?, ?, ?)`,
 		chat, item.Type, item.Ref.Board, item.Ref.NumString, item.Outline, item.LastPost,
 	) > 0
@@ -145,7 +149,7 @@ func (db *DB) LoadActiveAccounts() []telegram.ChatID {
 	)
 
 	rs = db.query(`SELECT DISTINCT chat 
-FROM threads
+FROM feed
 WHERE error = ''
 ORDER BY chat ASC`)
 
@@ -155,7 +159,12 @@ ORDER BY chat ASC`)
 		chats = append(chats, chat)
 	}
 
+	checkpanic(rs.Close())
 	return chats
+}
+
+func (db *DB) Close() {
+	checkpanic((*sql.DB)(db).Close())
 }
 
 func now() int64 {
