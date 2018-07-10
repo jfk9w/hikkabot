@@ -41,14 +41,14 @@ func (ctx *Context) ParentThread(ref dvach.Ref) (dvach.Ref, error) {
 	return ref, nil
 }
 
-func (ctx *Context) NotifyAdministrators(chat *telegram.Chat, text string) {
+func (ctx *Context) GetChatAdministrators(chat *telegram.Chat) ([]telegram.ChatID, error) {
 	var admins = make([]telegram.ChatID, 0)
 	if chat.Type == telegram.PrivateChatType {
 		admins = append(admins, chat.ID)
 	} else {
-		members, err := ctx.GetChatAdministrators(chat.ID)
+		members, err := ctx.Telegram.GetChatAdministrators(chat.ID)
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		for _, member := range members {
@@ -58,43 +58,50 @@ func (ctx *Context) NotifyAdministrators(chat *telegram.Chat, text string) {
 		}
 	}
 
+	return admins, nil
+}
+
+func (ctx *Context) NotifyAdministrators(chat *telegram.Chat, text string) {
+	var admins, _ = ctx.GetChatAdministrators(chat)
 	for _, id := range admins {
 		go ctx.SendMessage(id, text, nil)
 	}
 }
 
-func (ctx *Context) SendPost(chat *telegram.Chat, hashtag string, post *dvach.Post) error {
+func (ctx *Context) SendPost(chat *telegram.Chat, outline string, post *dvach.Post, feedType FeedType) error {
 	var (
 		group sync.WaitGroup
 		files = syncx.NewMap()
 		err   error
 	)
 
-	group.Add(len(post.Files))
-	for _, dfile := range post.Files {
-		go func(dfile *dvach.File) {
-			var (
-				url  = dfile.URL()
-				file = new(httpx.File)
-				err  = ctx.Dvach.Get(url, nil, file)
-			)
+	if feedType != Fast {
+		group.Add(len(post.Files))
+		for _, dfile := range post.Files {
+			go func(dfile *dvach.File) {
+				var (
+					url  = dfile.URL()
+					file = new(httpx.File)
+					err  = ctx.Dvach.Get(url, nil, file)
+				)
 
-			if dfile.Type == dvach.Webm {
-				url, err = ctx.Convert(file)
-				if err != nil {
-					goto wrap
+				if dfile.Type == dvach.Webm {
+					url, err = ctx.Convert(file)
+					if err != nil {
+						goto wrap
+					}
+
+					err = ctx.Aconvert.Get(url, nil, file)
 				}
 
-				err = ctx.Aconvert.Get(url, nil, file)
-			}
+			wrap:
+				if err == nil {
+					files.Put(url, file)
+				}
 
-		wrap:
-			if err == nil {
-				files.Put(url, file)
-			}
-
-			group.Done()
-		}(dfile)
+				group.Done()
+			}(dfile)
+		}
 	}
 
 	var (
@@ -108,11 +115,13 @@ func (ctx *Context) SendPost(chat *telegram.Chat, hashtag string, post *dvach.Po
 		}
 	)
 
-	parts := text.FormatPost(text.Post{post, hashtag})
-	for _, part := range parts {
-		_, err = ctx.SendMessage(chat.ID, part, messageOpts)
-		if err != nil {
-			return err
+	if feedType != Media {
+		var parts = text.FormatPost(text.Post{post, outline})
+		for _, part := range parts {
+			_, err = ctx.SendMessage(chat.ID, part, messageOpts)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

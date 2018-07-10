@@ -13,10 +13,20 @@ var SuspendedByUser = errors.Errorf("interrupted by user")
 
 const driver = "sqlite3"
 
+type FeedType string
+
+const (
+	All   FeedType = "all"
+	Fast  FeedType = "fast"
+	Media FeedType = "media"
+)
+
 type FeedItem struct {
 	Ref      dvach.Ref
-	Hashtag  string
 	LastPost int
+	Type     FeedType
+	Outline  string
+	Error    error
 	Exists   bool
 }
 
@@ -50,8 +60,11 @@ func (db *DB) update(query string, args ...interface{}) int64 {
 func (db *DB) InitSchema() *DB {
 	db.exec(`CREATE TABLE IF NOT EXISTS threads (
 chat INTEGER NOT NULL,
+board TEXT NOT NULL,
 thread TEXT NOT NULL,
 last_post INTEGER NOT NULL DEFAULT 0,
+type TEXT NOT NULL,
+outline TEXT NOT NULL,
 updated INTEGER NOT NULL DEFAULT 0,
 error TEXT NOT NULL DEFAULT '')`)
 
@@ -77,7 +90,7 @@ LIMIT 1`, chat)
 	}
 
 	var board, thread string
-	checkpanic(rs.Scan(&board, &thread, &item.Hashtag, &item.LastPost))
+	checkpanic(rs.Scan(&board, &thread, &item.Outline, &item.LastPost))
 
 	item.Ref, err = dvach.ToRef(board, thread)
 	checkpanic(err)
@@ -87,12 +100,12 @@ LIMIT 1`, chat)
 }
 
 //language=SQL
-func (db *DB) UpdateSubscription(chat telegram.ChatID, ref dvach.Ref, lastPost int) bool {
+func (db *DB) UpdateSubscription(chat telegram.ChatID, item FeedItem) bool {
 	return db.update(`UPDATE threads
 SET updated = ?, last_post = ?
 WHERE chat = ? AND board = ? AND thread = ? AND error IS NULL`,
-		now(), lastPost,
-		chat, ref.Board, ref.NumString,
+		now(), item.LastPost,
+		chat, item.Ref.Board, item.Ref.NumString,
 	) > 0
 }
 
@@ -117,10 +130,10 @@ WHERE chat = ? AND error IS NULL`,
 }
 
 //language=SQL
-func (db *DB) CreateSubscription(chat telegram.ChatID, ref dvach.Ref, hashtag string, lastPost int) bool {
-	return db.update(`INSERT OR IGNORE INTO threads (chat, board, thread, hashtag, last_post)
-VALUES (?, ?, ?, ?, ?)`,
-		chat, ref.Board, ref.NumString, hashtag, lastPost,
+func (db *DB) CreateSubscription(chat telegram.ChatID, item FeedItem) bool {
+	return db.update(`INSERT OR IGNORE INTO threads (chat, type, board, thread, outline, last_post)
+VALUES (?, ?, ?, ?, ?, ?)`,
+		chat, item.Type, item.Ref.Board, item.Ref.NumString, item.Outline, item.LastPost,
 	) > 0
 }
 

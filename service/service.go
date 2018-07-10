@@ -23,7 +23,7 @@ func Init(ctx *Context, filename string) *T {
 	return svc.initScheduler()
 }
 
-func (svc *T) CreateSubscription(chat telegram.ChatID, ref dvach.Ref, lastPost int) error {
+func (svc *T) CreateSubscription(chat telegram.ChatID, ref dvach.Ref, lastPost int, feedType FeedType) error {
 	var err error
 	ref, err = svc.ParentThread(ref)
 	if err != nil {
@@ -36,8 +36,13 @@ func (svc *T) CreateSubscription(chat telegram.ChatID, ref dvach.Ref, lastPost i
 		return err
 	}
 
-	var hashtag = text.FormatSubject(thread.Subject)
-	if !svc.DB.CreateSubscription(chat, ref, hashtag, lastPost) {
+	var outline = text.FormatSubject(thread.Subject)
+	if !svc.DB.CreateSubscription(chat, FeedItem{
+		Ref:      ref,
+		LastPost: lastPost,
+		Type:     feedType,
+		Outline:  outline,
+	}) {
 		return errors.New("exists")
 	}
 
@@ -100,7 +105,7 @@ Reason: `+err.Error())
 	}
 
 	for _, post := range posts {
-		err = svc.SendPost(chat, item.Hashtag, post)
+		err = svc.SendPost(chat, item.Outline, post, item.Type)
 		if err != nil {
 			svc.DB.SuspendSubscription(chat.ID, item.Ref, err)
 			go svc.NotifyAdministrators(chat, `#info
@@ -111,13 +116,14 @@ Reason: `+err.Error())
 			return
 		}
 
-		if !svc.DB.UpdateSubscription(chat.ID, item.Ref, post.Num) {
+		item.LastPost = post.Num
+		if !svc.DB.UpdateSubscription(chat.ID, item) {
 			break
 		}
 	}
 
 	if posts == nil {
-		svc.DB.UpdateSubscription(chat.ID, item.Ref, item.LastPost)
+		svc.DB.UpdateSubscription(chat.ID, item)
 	}
 }
 
