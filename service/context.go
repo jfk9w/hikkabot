@@ -96,7 +96,7 @@ func (ctx *Context) SendPost(chat *telegram.Chat, outline string, post *dvach.Po
 
 			wrap:
 				if err == nil {
-					files.Put(url, file)
+					files.Put(dfile.URL(), file)
 				}
 
 				group.Done()
