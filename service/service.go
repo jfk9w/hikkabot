@@ -18,41 +18,60 @@ type T struct {
 }
 
 func Init(ctx *Context, interval time.Duration, filename string) *T {
-	scheduler := schedx.New(interval)
-	db := OpenDB(filename).InitSchema()
-	svc := &T{ctx, scheduler, db}
+	var (
+		scheduler = schedx.New(interval)
+		db        = OpenDB(filename).InitSchema()
+		svc       = &T{ctx, scheduler, db}
+	)
+
 	return svc.initScheduler()
 }
 
-func (svc *T) CreateSubscription(chat telegram.ChatID, ref dvach.Ref, lastPost int, feedType FeedType) error {
-	var info, err = svc.ThreadInfo(ref)
+func (svc *T) CreateSubscription(id telegram.Ref, ref dvach.Ref, mode string) error {
+	var chat, err = svc.GetChat(id)
 	if err != nil {
 		return err
 	}
 
-	if !svc.DB.CreateSubscription(chat, FeedItem{
+	var info EnrichedRef
+	info, err = svc.Enrich(ref)
+	if err != nil {
+		return err
+	}
+
+	if !svc.DB.CreateSubscription(chat.ID, FeedItem{
 		Ref:      info.Ref,
-		LastPost: lastPost,
-		Type:     feedType,
+		LastPost: info.LastPost,
+		Mode:     mode,
 		Header:   info.Header,
 	}) {
 		return errors.New("exists")
 	}
 
-	svc.Schedule(chat)
+	svc.Schedule(chat.ID)
 	return nil
 }
 
-func (svc *T) SuspendSubscription(chat telegram.ChatID, ref dvach.Ref) error {
-	if !svc.DB.SuspendSubscription(chat, ref, SuspendedByUser) {
+func (svc *T) SuspendSubscription(id telegram.ChatID, ref dvach.Ref) error {
+	var chat, err = svc.GetChat(id)
+	if err != nil {
+		return err
+	}
+
+	if !svc.DB.SuspendSubscription(chat.ID, ref, SuspendedByUser) {
 		return errors.New("already suspended")
 	}
 
 	return nil
 }
 
-func (svc *T) SuspendAccount(chat telegram.ChatID) error {
-	if svc.DB.SuspendAccount(chat, SuspendedByUser) == 0 {
+func (svc *T) SuspendAccount(id telegram.Ref) error {
+	var chat, err = svc.GetChat(id)
+	if err != nil {
+		return err
+	}
+
+	if svc.DB.SuspendAccount(chat.ID, SuspendedByUser) == 0 {
 		return errors.New("not subscribed")
 	}
 
@@ -92,7 +111,7 @@ func (svc *T) work(any interface{}) {
 	}
 
 	for _, post := range posts {
-		err = svc.SendPost(chat, item.Header, post, item.Type)
+		err = svc.SendPost(chat, item.Header, post, item.Mode)
 		if svc.pause(chat, item, err) {
 			return
 		}

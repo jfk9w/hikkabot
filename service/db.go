@@ -16,18 +16,16 @@ var SuspendedByUser = errors.Errorf("interrupted by user")
 
 const driver = "sqlite3"
 
-type FeedType string
-
 const (
-	All   FeedType = "all"
-	Fast  FeedType = "fast"
-	Media FeedType = "media"
+	All   = "all"
+	Fast  = "fast"
+	Media = "media"
 )
 
 type FeedItem struct {
 	Ref      dvach.Ref
 	LastPost int
-	Type     FeedType
+	Mode     string
 	Header   string
 	Error    error
 	Exists   bool
@@ -66,7 +64,7 @@ chat INTEGER NOT NULL,
 board TEXT NOT NULL,
 thread TEXT NOT NULL,
 last_post INTEGER NOT NULL DEFAULT 0,
-type TEXT NOT NULL,
+mode TEXT NOT NULL,
 header TEXT NOT NULL,
 updated INTEGER NOT NULL DEFAULT 0,
 error TEXT NOT NULL DEFAULT '')`)
@@ -82,7 +80,7 @@ func (db *DB) Feed(chat telegram.ChatID) (item FeedItem) {
 		err error
 	)
 
-	rs = db.query(`SELECT board, thread, last_post, type, header
+	rs = db.query(`SELECT board, thread, last_post, mode, header
 FROM feed
 WHERE chat = ? AND error = ''
 ORDER BY updated ASC
@@ -93,7 +91,7 @@ LIMIT 1`, chat)
 	}
 
 	var board, thread string
-	checkpanic(rs.Scan(&board, &thread, &item.LastPost, &item.Type, &item.Header))
+	checkpanic(rs.Scan(&board, &thread, &item.LastPost, &item.Mode, &item.Header))
 	checkpanic(rs.Close())
 
 	item.Ref, err = dvach.ToRef(board, thread)
@@ -135,9 +133,9 @@ WHERE chat = ? AND error = ''`,
 
 //language=SQL
 func (db *DB) CreateSubscription(chat telegram.ChatID, item FeedItem) bool {
-	return db.update(`INSERT OR IGNORE INTO feed (chat, type, board, thread, header, last_post)
+	return db.update(`INSERT OR IGNORE INTO feed (chat, mode, board, thread, header, last_post)
 VALUES (?, ?, ?, ?, ?, ?)`,
-		chat, item.Type, item.Ref.Board, item.Ref.NumString, item.Header, item.LastPost,
+		chat, item.Mode, item.Ref.Board, item.Ref.NumString, item.Header, item.LastPost,
 	) > 0
 }
 

@@ -27,33 +27,40 @@ type Context struct {
 	Aconvert
 }
 
-type ThreadInfo struct {
-	dvach.Ref
-	Header string
+type EnrichedRef struct {
+	Ref      dvach.Ref
+	LastPost int
+	Header   string
 }
 
-func (ctx *Context) ThreadInfo(ref dvach.Ref) (*ThreadInfo, error) {
-	var post, err = ctx.Dvach.Post(ref)
+func (ctx *Context) Enrich(ref dvach.Ref) (info EnrichedRef, err error) {
+	var (
+		post   *dvach.Post
+		thread *dvach.Thread
+	)
+
+	post, err = ctx.Dvach.Post(ref)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	var header string
 	if post.Parent != 0 {
-		ref.Num = post.Parent
-		ref.NumString = post.NumString
-
-		var thread, err = ctx.Dvach.Thread(ref)
+		ref = post.ParentRef()
+		thread, err = ctx.Dvach.Thread(ref)
 		if err != nil {
-			return nil, err
+			return
 		}
 
-		header = common.Header(&thread.Item)
+		info.Ref = ref
+		info.LastPost = post.Num
+		info.Header = common.Header(&thread.Item)
 	} else {
-		header = common.Header(&post.Item)
+		info.Ref = ref
+		info.LastPost = 0
+		info.Header = common.Header(&post.Item)
 	}
 
-	return &ThreadInfo{ref, header}, nil
+	return
 }
 
 func (ctx *Context) GetChatAdministrators(id telegram.ChatID) ([]telegram.ChatID, error) {
@@ -88,14 +95,14 @@ func (ctx *Context) NotifyAdministrators(id telegram.ChatID, text string) {
 	}
 }
 
-func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Post, feedType FeedType) error {
+func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Post, mode string) error {
 	var (
 		group sync.WaitGroup
 		files = syncx.NewMap()
 		err   error
 	)
 
-	if feedType != Fast {
+	if mode != Fast {
 		group.Add(len(post.Files))
 		for _, dfile := range post.Files {
 			go func(dfile *dvach.File) {
@@ -135,7 +142,7 @@ func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Pos
 		}
 	)
 
-	if feedType != Media {
+	if mode != Media {
 		var parts = text.FormatPost(text.Post{post, header})
 		for _, part := range parts {
 			_, err = ctx.SendMessage(chat.ID, part, messageOpts)
