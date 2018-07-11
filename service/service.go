@@ -49,6 +49,11 @@ func (svc *T) CreateSubscription(id telegram.Ref, ref dvach.Ref, mode string) er
 	}
 
 	svc.Schedule(chat.ID)
+	go svc.NotifyAdministrators(chat.ID, `#info
+Subscription OK.
+Chat: `+common.ChatTitle(chat)+`
+Thread: `+info.Header)
+
 	return nil
 }
 
