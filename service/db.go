@@ -18,7 +18,7 @@ const driver = "sqlite3"
 
 const (
 	All   = "all"
-	Fast  = "fast"
+	Text  = "text"
 	Media = "media"
 )
 

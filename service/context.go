@@ -102,7 +102,7 @@ func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Pos
 		err   error
 	)
 
-	if mode != Fast {
+	if mode != Text {
 		group.Add(len(post.Files))
 		for _, dfile := range post.Files {
 			go func(dfile *dvach.File) {

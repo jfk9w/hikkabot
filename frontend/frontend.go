@@ -37,8 +37,8 @@ func (svc *T) process(command telegram.Command) {
 	case "media":
 		svc.subscribe(command, service.Media)
 
-	case "fast":
-		svc.subscribe(command, service.Fast)
+	case "text":
+		svc.subscribe(command, service.Text)
 	}
 }
 
@@ -69,7 +69,7 @@ func (svc *T) subscribe(command telegram.Command, mode string) {
 }
 
 func (svc *T) mode(value string) (string, error) {
-	if value != service.All && value != service.Fast && value != service.Media {
+	if value != service.All && value != service.Text && value != service.Media {
 		return "", errors.Errorf("invalid mode: %s", value)
 	}
 
