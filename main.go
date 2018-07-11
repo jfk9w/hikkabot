@@ -3,98 +3,60 @@ package main
 import (
 	"os"
 	"os/signal"
-	"syscall"
-	"time"
+	"sync"
 
-	"github.com/jfk9w-go/aconvert"
-	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/hikkabot/backend"
-	"github.com/jfk9w-go/hikkabot/bot"
+	Aconvert "github.com/jfk9w-go/aconvert"
+	Dvach "github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/frontend"
-	"github.com/jfk9w-go/hikkabot/keeper"
-	"github.com/jfk9w-go/logrus"
-	"github.com/jfk9w-go/misc"
-	"github.com/jfk9w-go/telegram"
+	Service "github.com/jfk9w-go/hikkabot/service"
+	"github.com/jfk9w-go/logx"
+	Telegram "github.com/jfk9w-go/telegram"
 )
 
-var log = logrus.GetLogger("main")
-
-type Config struct {
-	BackendGCTimeout int             `json:"backend_gc_timeout"`
-	Bot              bot.Config      `json:"bot"`
-	Keeper           keeper.Config   `json:"keeper"`
-	Telegram         telegram.Config `json:"telegram"`
-	Dvach            dvach.Config    `json:"dvach"`
-	Aconvert         aconvert.Config `json:"aconvert"`
-}
-
-func readConfig() *Config {
-	path := os.Getenv("CONFIG")
-	if path == "" {
-		panic("CONFIG not set")
-	}
-
-	cfg := new(Config)
-	if err := misc.ReadJSON(path, cfg); err != nil {
-		panic(err)
-	}
-
-	return cfg
-}
-
 func main() {
-	defer func() {
-		log.Infof("Exit")
-	}()
-
-	// Config
-	cfg := readConfig()
-
-	// Keeper
-	db := keeper.NewKeeper()
-	fsync, err := keeper.RunFileSync(db, cfg.Keeper)
-	if err != nil {
-		panic(err)
+	if len(os.Args) < 2 {
+		panic("config path is not specified")
 	}
 
-	defer func() {
-		fsync.Close()
-		fsync.Save()
-	}()
+	var (
+		config = ReadConfig(os.Args[1])
 
-	// Frontend
-	bot0 := telegram.Configure(cfg.Telegram)
-	conv := aconvert.Configure(cfg.Aconvert)
-	botx := bot.Wrap(bot0, conv, cfg.Bot)
-	dvch := dvach.Configure(cfg.Dvach)
-	ff := backend.NewFeedFactory(botx, dvch, db)
+		aconvert = Aconvert.ConfigureBalancer(config.Aconvert)
+		dvach    = Dvach.Configure(config.Dvach)
+		telegram = Telegram.Configure(config.Telegram, &Telegram.UpdatesOpts{
+			Timeout:        60,
+			AllowedUpdates: []string{"message", "edited_message"},
+		})
 
-	back := backend.Run(botx, ff)
-	front := frontend.New(botx, dvch, back)
-	for chat, threads := range db.GetOffsets() {
-		for thread, offset := range threads {
-			hash, err := front.Hashtag(thread)
-			if err != nil {
-				db.DeleteOffset(chat, thread)
-				log.Warningf("Unable to re-subscribe to %s: %s", thread, err)
-				continue
-			}
+		context = &Service.Context{telegram, dvach, aconvert}
+		service = Service.Init(context, config.SchedulerInterval.Duration(), config.Database)
+	)
 
-			back.Subscribe(chat, thread, hash, offset)
-		}
-	}
+	frontend.Init(service)
 
-	go back.GC(millis(cfg.BackendGCTimeout))
-	go front.Run()
+	logx.Get("init").Debug("Started")
 
-	// Signal handler
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	<-sig
+	loop()
 
-	misc.BroadcastCloser(conv, bot0)
+	//telegram.Updater.Close()
+	//aconvert.Close()
+	service.DB.Close()
+
+	println("Shutdown")
 }
 
-func millis(value int) time.Duration {
-	return time.Duration(value) * time.Millisecond
+func loop() {
+	var (
+		s     = make(chan os.Signal)
+		group sync.WaitGroup
+	)
+
+	group.Add(1)
+	go func() {
+		signal.Notify(s, os.Interrupt, os.Kill)
+		<-s
+		group.Done()
+	}()
+
+	group.Wait()
 }

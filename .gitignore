@@ -1,4 +1,7 @@
-./idea
+# IDEA
+.idea/
 *.iml
-*.json
-*.run
+
+# Application
+config.json
+*.db

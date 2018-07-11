@@ -5,13 +5,13 @@ import (
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w/hikkabot/util"
+	"github.com/jfk9w-go/gox/mathx"
 )
 
 func Search(list []*dvach.Thread, searchText []string) []string {
 	threads := searchThreads(list, searchText)
 	sort.Sort(PopularThreads(threads))
-	threads = threads[:util.MinInt(30, len(threads))]
+	threads = threads[:mathx.MinInt(30, len(threads))]
 
 	sb := &strings.Builder{}
 	hasText := false

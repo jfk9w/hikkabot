@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/hikkabot/common"
 )
 
 type Thread struct {
@@ -52,7 +53,7 @@ func FormatThread(thread Thread) string {
 	}
 
 	header := fmt.Sprintf("<b>%s</b>\n%s\n%d / %.2f/hr\n---\n",
-		thread.DateString, FormatRef(thread.Ref), thread.PostsCount, thread.PostsPerHour)
+		thread.DateString, common.RefTag(thread.Ref), thread.PostsCount, thread.PostsPerHour)
 
 	return header + chunks[0]
 }

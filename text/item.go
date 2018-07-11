@@ -2,6 +2,7 @@ package text
 
 import (
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/hikkabot/common"
 	"golang.org/x/net/html"
 )
 
@@ -27,8 +28,12 @@ func format(item dvach.Item, chunkSize int) []string {
 			switch data {
 			case "a":
 				if datanum, ok := attr(token, "data-num"); ok {
-					builder.write(Format(item.Board, datanum) + " ")
-					skip = true
+					var ref, err = dvach.ToRef(item.Board, datanum)
+					if err == nil {
+						builder.write(common.RefTag(ref) + " ")
+						skip = true
+					}
+
 					continue
 				}
 

@@ -5,14 +5,14 @@ import (
 	"testing"
 
 	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/misc"
-	"github.com/jfk9w-go/testx"
+	"github.com/jfk9w-go/gox/jsonx"
+	"github.com/jfk9w-go/gox/testx"
 )
 
 func TestFormatThread_176683748(t *testing.T) {
 	assert := testx.Assert(t)
 	thread := new(dvach.Thread)
-	if err := misc.ReadJSON("testdata/176683748.json", thread); err != nil {
+	if err := jsonx.ReadFile("testdata/176683748.json", thread); err != nil {
 		t.Fatal(err)
 	}
 
