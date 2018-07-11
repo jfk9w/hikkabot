@@ -5,7 +5,7 @@ import (
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/gox/schedx"
-	"github.com/jfk9w-go/hikkabot/text"
+	"github.com/jfk9w-go/hikkabot/common"
 	"github.com/jfk9w-go/logx"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
@@ -25,24 +25,16 @@ func Init(ctx *Context, interval time.Duration, filename string) *T {
 }
 
 func (svc *T) CreateSubscription(chat telegram.ChatID, ref dvach.Ref, lastPost int, feedType FeedType) error {
-	var err error
-	ref, err = svc.ParentThread(ref)
+	var info, err = svc.ThreadInfo(ref)
 	if err != nil {
 		return err
 	}
 
-	var thread *dvach.Thread
-	thread, err = svc.Dvach.Thread(ref)
-	if err != nil {
-		return err
-	}
-
-	var outline = text.FormatSubject(thread.Subject)
 	if !svc.DB.CreateSubscription(chat, FeedItem{
-		Ref:      ref,
+		Ref:      info.Ref,
 		LastPost: lastPost,
 		Type:     feedType,
-		Outline:  outline,
+		Header:   info.Header,
 	}) {
 		return errors.New("exists")
 	}
@@ -83,11 +75,9 @@ func (svc *T) work(any interface{}) {
 		return
 	}
 
-	log.Debugf("Checking for items for %v", chat.ID)
 	item = svc.Feed(chat.ID)
 	if !item.Exists {
 		svc.Cancel(any)
-		log.Debugf("No items for %v, job canceled", chat.ID)
 		return
 	}
 
@@ -97,25 +87,13 @@ func (svc *T) work(any interface{}) {
 	}
 
 	posts, err = svc.Posts(item.Ref, offset)
-	if err != nil {
-		svc.DB.SuspendSubscription(chat.ID, item.Ref, err)
-		go svc.NotifyAdministrators(chat, `#info
-Subscription paused.
-Chat: `+chat.Title+`
-Thread: `+text.FormatRef(item.Ref)+`
-Reason: `+err.Error())
+	if svc.pause(chat, item, err) {
 		return
 	}
 
 	for _, post := range posts {
-		err = svc.SendPost(chat, item.Outline, post, item.Type)
-		if err != nil {
-			svc.DB.SuspendSubscription(chat.ID, item.Ref, err)
-			go svc.NotifyAdministrators(chat, `#info
-Subscription paused.
-Chat: `+chat.Title+`
-Thread: `+text.FormatRef(item.Ref)+`
-Reason: `+err.Error())
+		err = svc.SendPost(chat, item.Header, post, item.Type)
+		if svc.pause(chat, item, err) {
 			return
 		}
 
@@ -128,6 +106,21 @@ Reason: `+err.Error())
 	if posts == nil {
 		svc.DB.UpdateSubscription(chat.ID, item)
 	}
+}
+
+func (svc *T) pause(chat *telegram.Chat, item FeedItem, err error) bool {
+	if err != nil {
+		svc.DB.SuspendSubscription(chat.ID, item.Ref, err)
+		go svc.NotifyAdministrators(chat.ID, `#info
+Subscription paused.
+Chat: `+common.ChatTitle(chat)+`
+Thread: `+item.Header+`
+Reason: `+err.Error())
+
+		return true
+	}
+
+	return false
 }
 
 func (svc *T) initScheduler() *T {

@@ -28,7 +28,7 @@ type FeedItem struct {
 	Ref      dvach.Ref
 	LastPost int
 	Type     FeedType
-	Outline  string
+	Header   string
 	Error    error
 	Exists   bool
 }
@@ -67,11 +67,11 @@ board TEXT NOT NULL,
 thread TEXT NOT NULL,
 last_post INTEGER NOT NULL DEFAULT 0,
 type TEXT NOT NULL,
-outline TEXT NOT NULL,
+header TEXT NOT NULL,
 updated INTEGER NOT NULL DEFAULT 0,
 error TEXT NOT NULL DEFAULT '')`)
 
-	db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__id ON feed (chat, thread, last_post)`)
+	db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__id ON feed (chat, board, thread)`)
 	return db
 }
 
@@ -82,7 +82,7 @@ func (db *DB) Feed(chat telegram.ChatID) (item FeedItem) {
 		err error
 	)
 
-	rs = db.query(`SELECT board, thread, last_post, type, outline
+	rs = db.query(`SELECT board, thread, last_post, type, header
 FROM feed
 WHERE chat = ? AND error = ''
 ORDER BY updated ASC
@@ -93,7 +93,7 @@ LIMIT 1`, chat)
 	}
 
 	var board, thread string
-	checkpanic(rs.Scan(&board, &thread, &item.LastPost, &item.Type, &item.Outline))
+	checkpanic(rs.Scan(&board, &thread, &item.LastPost, &item.Type, &item.Header))
 	checkpanic(rs.Close())
 
 	item.Ref, err = dvach.ToRef(board, thread)
@@ -135,9 +135,9 @@ WHERE chat = ? AND error = ''`,
 
 //language=SQL
 func (db *DB) CreateSubscription(chat telegram.ChatID, item FeedItem) bool {
-	return db.update(`INSERT OR IGNORE INTO feed (chat, type, board, thread, outline, last_post)
+	return db.update(`INSERT OR IGNORE INTO feed (chat, type, board, thread, header, last_post)
 VALUES (?, ?, ?, ?, ?, ?)`,
-		chat, item.Type, item.Ref.Board, item.Ref.NumString, item.Outline, item.LastPost,
+		chat, item.Type, item.Ref.Board, item.Ref.NumString, item.Header, item.LastPost,
 	) > 0
 }
 

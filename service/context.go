@@ -8,6 +8,7 @@ import (
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/gox/schedx"
 	"github.com/jfk9w-go/gox/syncx"
+	"github.com/jfk9w-go/hikkabot/common"
 	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/httpx"
 	"github.com/jfk9w-go/telegram"
@@ -26,26 +27,46 @@ type Context struct {
 	Aconvert
 }
 
-func (ctx *Context) ParentThread(ref dvach.Ref) (dvach.Ref, error) {
-	post, err := ctx.Dvach.Post(ref)
+type ThreadInfo struct {
+	dvach.Ref
+	Header string
+}
+
+func (ctx *Context) ThreadInfo(ref dvach.Ref) (*ThreadInfo, error) {
+	var post, err = ctx.Dvach.Post(ref)
 	if err != nil {
-		return dvach.Ref{}, err
+		return nil, err
 	}
 
+	var header string
 	if post.Parent != 0 {
 		ref.Num = post.Parent
 		ref.NumString = post.NumString
+
+		var thread, err = ctx.Dvach.Thread(ref)
+		if err != nil {
+			return nil, err
+		}
+
+		header = common.Header(&thread.Item)
+	} else {
+		header = common.Header(&post.Item)
 	}
 
-	return ref, nil
+	return &ThreadInfo{ref, header}, nil
 }
 
-func (ctx *Context) GetChatAdministrators(chat *telegram.Chat) ([]telegram.ChatID, error) {
+func (ctx *Context) GetChatAdministrators(id telegram.ChatID) ([]telegram.ChatID, error) {
+	var chat, err = ctx.Telegram.GetChat(id)
+	if err != nil {
+		return nil, err
+	}
+
 	var admins = make([]telegram.ChatID, 0)
 	if chat.Type == telegram.PrivateChatType {
 		admins = append(admins, chat.ID)
 	} else {
-		members, err := ctx.Telegram.GetChatAdministrators(chat.ID)
+		var members, err = ctx.Telegram.GetChatAdministrators(chat.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -60,14 +81,14 @@ func (ctx *Context) GetChatAdministrators(chat *telegram.Chat) ([]telegram.ChatI
 	return admins, nil
 }
 
-func (ctx *Context) NotifyAdministrators(chat *telegram.Chat, text string) {
-	var admins, _ = ctx.GetChatAdministrators(chat)
+func (ctx *Context) NotifyAdministrators(id telegram.ChatID, text string) {
+	var admins, _ = ctx.GetChatAdministrators(id)
 	for _, id := range admins {
 		go ctx.SendMessage(id, text, nil)
 	}
 }
 
-func (ctx *Context) SendPost(chat *telegram.Chat, outline string, post *dvach.Post, feedType FeedType) error {
+func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Post, feedType FeedType) error {
 	var (
 		group sync.WaitGroup
 		files = syncx.NewMap()
@@ -115,7 +136,7 @@ func (ctx *Context) SendPost(chat *telegram.Chat, outline string, post *dvach.Po
 	)
 
 	if feedType != Media {
-		var parts = text.FormatPost(text.Post{post, outline})
+		var parts = text.FormatPost(text.Post{post, header})
 		for _, part := range parts {
 			_, err = ctx.SendMessage(chat.ID, part, messageOpts)
 			if err != nil {
