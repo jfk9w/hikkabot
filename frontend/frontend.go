@@ -45,7 +45,14 @@ func (svc *T) process(command telegram.Command) {
 
 	case "front", "search":
 		svc.search(command)
+
+	case "status":
+		svc.status(command)
 	}
+}
+
+func (svc *T) status(command telegram.Command) {
+	svc.SendMessage(command.Chat, "alive", nil)
 }
 
 func (svc *T) search(command telegram.Command) {
@@ -68,7 +75,13 @@ func (svc *T) search(command telegram.Command) {
 
 	var parts = text.Search(catalog.Threads, tokens)
 	for _, part := range parts {
-		svc.SendMessage(command.Chat, part, nil)
+		svc.SendMessage(command.Chat, part, &telegram.MessageOpts{
+			SendOpts: &telegram.SendOpts{
+				ParseMode:           telegram.HTML,
+				DisableNotification: true,
+			},
+			DisableWebPagePreview: true,
+		})
 	}
 }
 
@@ -92,6 +105,11 @@ func (svc *T) subscribe(command telegram.Command, mode string) {
 		if !svc.check(command, err) {
 			return
 		}
+	}
+
+	err = svc.authorize(command.User, target)
+	if !svc.check(command, err) {
+		return
 	}
 
 	err = svc.CreateSubscription(target, ref, mode)
