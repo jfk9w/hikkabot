@@ -1,9 +1,12 @@
 package frontend
 
 import (
+	"strings"
+
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/common"
 	"github.com/jfk9w-go/hikkabot/service"
+	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
 )
@@ -39,6 +42,33 @@ func (svc *T) process(command telegram.Command) {
 
 	case "text":
 		svc.subscribe(command, service.Text)
+
+	case "front", "search":
+		svc.search(command)
+	}
+}
+
+func (svc *T) search(command telegram.Command) {
+	var board = command.Arg(0, "")
+	if board == "" {
+		svc.check(command, errors.New("invalid command"))
+		return
+	}
+
+	var catalog, err = svc.Catalog(board)
+	if !svc.check(command, err) {
+		return
+	}
+
+	var query = command.Arg(1, "")
+	var tokens []string = nil
+	if query != "" {
+		tokens = strings.Split(query, " ")
+	}
+
+	var parts = text.Search(catalog.Threads, tokens)
+	for _, part := range parts {
+		svc.SendMessage(command.Chat, part, nil)
 	}
 }
 
