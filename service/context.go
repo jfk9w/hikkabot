@@ -162,6 +162,10 @@ func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Pos
 			}
 		)
 
+		if mode == Media {
+			link += "\n" + header
+		}
+
 		if any, ok := files.Get(dfile.URL()); ok {
 			var (
 				file      = any.(*httpx.File)
