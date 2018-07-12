@@ -88,7 +88,7 @@ func (svc *T) search(command telegram.Command) {
 func (svc *T) subscribe(command telegram.Command, mode string) {
 	var (
 		ref    dvach.Ref
-		target telegram.Ref
+		target telegram.ChatID
 		err    error
 	)
 
@@ -101,10 +101,18 @@ func (svc *T) subscribe(command telegram.Command, mode string) {
 	if v == "" {
 		target = command.Chat
 	} else {
-		target, err = telegram.ParseRef(v)
+		var ref, err = telegram.ParseRef(v)
 		if !svc.check(command, err) {
 			return
 		}
+
+		var chat *telegram.Chat
+		chat, err = svc.GetChat(ref)
+		if !svc.check(command, err) {
+			return
+		}
+
+		target = chat.ID
 	}
 
 	err = svc.authorize(command.User, target)
