@@ -46,7 +46,7 @@ func (svc *T) process(command telegram.Command) {
 		svc.subscribe(command, service.Text)
 
 	case "unsub", "clear":
-		svc.uns
+		svc.unsubscribe(command)
 
 	case "front", "search":
 		svc.search(command)
