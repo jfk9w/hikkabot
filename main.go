@@ -32,7 +32,7 @@ func main() {
 		service = Service.Init(context, config.SchedulerInterval.Duration(), config.Database)
 	)
 
-	frontend.Init(service)
+	frontend.Init(service, config.Superusers)
 
 	logx.Get("init").Debug("Started")
 
