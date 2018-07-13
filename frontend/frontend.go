@@ -45,6 +45,9 @@ func (svc *T) process(command telegram.Command) {
 	case "text":
 		svc.subscribe(command, service.Text)
 
+	case "unsub", "clear":
+		svc.uns
+
 	case "front", "search":
 		svc.search(command)
 
@@ -132,6 +135,34 @@ func (svc *T) search(command telegram.Command) {
 			DisableWebPagePreview: true,
 		})
 	}
+}
+
+func (svc *T) unsubscribe(command telegram.Command) {
+	var (
+		target telegram.ChatID
+		err    error
+	)
+
+	var v = command.Arg(0, "")
+	if v == "" {
+		target = command.Chat
+	} else {
+		var ref, err = telegram.ParseRef(v)
+		if !svc.check(command, err) {
+			return
+		}
+
+		var chat *telegram.Chat
+		chat, err = svc.GetChat(ref)
+		if !svc.check(command, err) {
+			return
+		}
+
+		target = chat.ID
+	}
+
+	err = svc.SuspendAccount(target)
+	svc.check(command, err)
 }
 
 func (svc *T) subscribe(command telegram.Command, mode string) {
