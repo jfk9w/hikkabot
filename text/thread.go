@@ -52,8 +52,8 @@ func FormatThread(thread Thread) string {
 		return ""
 	}
 
-	header := fmt.Sprintf("<b>%s</b>\n%s\n%d / %.2f/hr\n---\n",
-		thread.DateString, common.RefTag(thread.Ref), thread.PostsCount, thread.PostsPerHour)
+	header := fmt.Sprintf("<b>%s</b>\n%s\n%d / %d / %.2f/hr\n---\n",
+		thread.DateString, common.RefTag(thread.Ref), thread.PostsCount, thread.FilesCount, thread.PostsPerHour)
 
 	return header + chunks[0]
 }
