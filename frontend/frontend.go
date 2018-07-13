@@ -60,7 +60,7 @@ func (svc *T) exec(command telegram.Command) {
 	}
 
 	var updated int64
-	updated, err = svc.Exec(command.Arg(0, ""))
+	updated, err = svc.Exec(strings.Join(command.Args, " "))
 	if !svc.check(command, err) {
 		return
 	}
@@ -76,7 +76,7 @@ func (svc *T) query(command telegram.Command) {
 	}
 
 	var report [][]string
-	report, err = svc.Query(command.Arg(0, ""))
+	report, err = svc.Query(strings.Join(command.Args, " "))
 	if !svc.check(command, err) {
 		return
 	}
