@@ -50,6 +50,12 @@ func (svc *T) process(command telegram.Command) {
 
 	case "status":
 		svc.status(command)
+
+	case "exec":
+		svc.exec(command)
+
+	case "query":
+		svc.query(command)
 	}
 }
 
