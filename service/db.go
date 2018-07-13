@@ -161,6 +161,52 @@ ORDER BY chat ASC`)
 	return chats
 }
 
+func (db *DB) Query(query string) ([][]string, error) {
+	var rs, err = (*sql.DB)(db).Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rs.Close()
+
+	var rows = make([][]string, 0)
+	var header []string
+	header, err = rs.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	rows = append(rows, header)
+	for rs.Next() {
+		var (
+			row = make([]string, len(header))
+			raw = make([]interface{}, len(header))
+		)
+
+		for i := range row {
+			raw[i] = &row[i]
+		}
+
+		err = rs.Scan(raw...)
+		if err != nil {
+			return nil, err
+		}
+
+		rows = append(rows, row)
+	}
+
+	return rows, nil
+}
+
+func (db *DB) Exec(query string) (int64, error) {
+	var r, err = (*sql.DB)(db).Exec(query)
+	if err != nil {
+		return 0, err
+	}
+
+	return r.RowsAffected()
+}
+
 func (db *DB) Close() {
 	checkpanic((*sql.DB)(db).Close())
 }

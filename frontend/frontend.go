@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
@@ -13,10 +14,11 @@ import (
 
 type T struct {
 	*service.T
+	superusers []telegram.ChatID
 }
 
-func Init(svc *service.T) *T {
-	var fe = &T{svc}
+func Init(svc *service.T, superusers []telegram.ChatID) *T {
+	var fe = &T{svc, superusers}
 	go fe.run()
 	return fe
 }
@@ -49,6 +51,47 @@ func (svc *T) process(command telegram.Command) {
 	case "status":
 		svc.status(command)
 	}
+}
+
+func (svc *T) exec(command telegram.Command) {
+	var err = svc.superuser(command.User)
+	if !svc.check(command, err) {
+		return
+	}
+
+	var updated int64
+	updated, err = svc.Exec(command.Arg(0, ""))
+	if !svc.check(command, err) {
+		return
+	}
+
+	var text = fmt.Sprintf("updated %d rows", updated)
+	svc.SendMessage(command.Chat, text, nil)
+}
+
+func (svc *T) query(command telegram.Command) {
+	var err = svc.superuser(command.User)
+	if !svc.check(command, err) {
+		return
+	}
+
+	var report [][]string
+	report, err = svc.Query(command.Arg(0, ""))
+	if !svc.check(command, err) {
+		return
+	}
+
+	var b = new(strings.Builder)
+	for _, row := range report {
+		for _, col := range row {
+			b.WriteString(col)
+			b.WriteRune(',')
+		}
+
+		b.WriteRune('\n')
+	}
+
+	svc.SendMessage(command.Chat, b.String(), nil)
 }
 
 func (svc *T) status(command telegram.Command) {
@@ -139,6 +182,16 @@ func (svc *T) check(command telegram.Command, err error) bool {
 	}
 
 	return true
+}
+
+func (svc *T) superuser(user telegram.ChatID) error {
+	for _, superuser := range svc.superusers {
+		if user == superuser {
+			return nil
+		}
+	}
+
+	return errors.New("forbidden")
 }
 
 func (svc *T) authorize(user, chat telegram.ChatID) error {

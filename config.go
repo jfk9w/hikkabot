@@ -10,11 +10,12 @@ import (
 )
 
 type Config struct {
-	Database          string          `json:"database"`
-	SchedulerInterval jsonx.Duration  `json:"scheduler_interval"`
-	Dvach             dvach.Config    `json:"dvach"`
-	Telegram          telegram.Config `json:"telegram"`
-	Aconvert          aconvert.Config `json:"aconvert"`
+	Database          string            `json:"database"`
+	Superusers        []telegram.ChatID `json:"superusers"`
+	SchedulerInterval jsonx.Duration    `json:"scheduler_interval"`
+	Dvach             dvach.Config      `json:"dvach"`
+	Telegram          telegram.Config   `json:"telegram"`
+	Aconvert          aconvert.Config   `json:"aconvert"`
 }
 
 func ReadConfig(path string) *Config {
