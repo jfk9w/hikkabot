@@ -8,9 +8,13 @@ import (
 	"github.com/jfk9w-go/gox/mathx"
 )
 
-func Search(list []*dvach.Thread, searchText []string) []string {
+func Search(list []*dvach.Thread, searchText []string, sorted bool, count int) []string {
 	threads := searchThreads(list, searchText)
-	sort.Sort(PopularThreads(threads))
+	if sorted {
+		sort.Sort(PopularThreads(threads))
+	}
+
+	count = mathx.MinInt(count, len(threads))
 	threads = threads[:mathx.MinInt(30, len(threads))]
 
 	sb := &strings.Builder{}

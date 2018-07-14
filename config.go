@@ -32,6 +32,7 @@ func ReadConfig(path string) *Config {
 		panic(err)
 	}
 
+	config.Telegram.RouterConfig = telegram.DefaultIntervals
 	return config
 }
 

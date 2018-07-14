@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
@@ -50,6 +51,9 @@ func (svc *T) process(command telegram.Command) {
 
 	case "front", "search":
 		svc.search(command)
+
+	case "catalog":
+		svc.catalog(command)
 
 	case "status":
 		svc.status(command)
@@ -107,6 +111,43 @@ func (svc *T) status(command telegram.Command) {
 	svc.SendMessage(command.Chat, "alive", nil)
 }
 
+func (svc *T) catalog(command telegram.Command) {
+	var board = command.Arg(0, "")
+	if board == "" {
+		svc.check(command, errors.New("invalid command"))
+		return
+	}
+
+	var catalog, err = svc.Catalog(board)
+	if !svc.check(command, err) {
+		return
+	}
+
+	var query = command.Arg(1, "")
+	var tokens []string = nil
+	if query != "" {
+		tokens = strings.Split(query, " ")
+	}
+
+	var countstr = command.Arg(2, "30")
+	var count int
+	count, err = strconv.Atoi(countstr)
+	if !svc.check(command, err) {
+		return
+	}
+
+	var parts = text.Search(catalog.Threads, tokens, false, count)
+	for _, part := range parts {
+		svc.SendMessage(command.Chat, part, &telegram.MessageOpts{
+			SendOpts: &telegram.SendOpts{
+				ParseMode:           telegram.HTML,
+				DisableNotification: true,
+			},
+			DisableWebPagePreview: true,
+		})
+	}
+}
+
 func (svc *T) search(command telegram.Command) {
 	var board = command.Arg(0, "")
 	if board == "" {
@@ -125,7 +166,14 @@ func (svc *T) search(command telegram.Command) {
 		tokens = strings.Split(query, " ")
 	}
 
-	var parts = text.Search(catalog.Threads, tokens)
+	var countstr = command.Arg(2, "30")
+	var count int
+	count, err = strconv.Atoi(countstr)
+	if !svc.check(command, err) {
+		return
+	}
+
+	var parts = text.Search(catalog.Threads, tokens, true, count)
 	for _, part := range parts {
 		svc.SendMessage(command.Chat, part, &telegram.MessageOpts{
 			SendOpts: &telegram.SendOpts{
