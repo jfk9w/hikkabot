@@ -176,15 +176,24 @@ func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Pos
 				}
 			)
 
-			switch dfile.Type {
-			case dvach.Gif, dvach.Webm, dvach.Mp4:
-				_, err = ctx.SendVideo(chat.ID, file, &telegram.VideoOpts{MediaOpts: mediaOpts})
+			for i := 0; i < 5; i++ {
+				switch dfile.Type {
+				case dvach.Gif, dvach.Webm, dvach.Mp4:
+					_, err = ctx.SendVideo(chat.ID, file, &telegram.VideoOpts{MediaOpts: mediaOpts})
 
-			default:
-				_, err = ctx.SendPhoto(chat.ID, file, mediaOpts)
+				default:
+					_, err = ctx.SendPhoto(chat.ID, file, mediaOpts)
+				}
+
+				if err == nil {
+					break
+				}
 			}
 
 			file.Delete()
+			if err != nil {
+				_, err = ctx.SendMessage(chat.ID, link, messageOpts)
+			}
 		} else {
 			_, err = ctx.SendMessage(chat.ID, link, messageOpts)
 		}
