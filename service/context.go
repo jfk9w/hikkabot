@@ -114,6 +114,7 @@ func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Pos
 
 				if dfile.Type == dvach.Webm {
 					url, err = ctx.Convert(file)
+					file.Delete()
 					if err != nil {
 						goto wrap
 					}
@@ -182,6 +183,8 @@ func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Pos
 			default:
 				_, err = ctx.SendPhoto(chat.ID, file, mediaOpts)
 			}
+
+			file.Delete()
 		} else {
 			_, err = ctx.SendMessage(chat.ID, link, messageOpts)
 		}
