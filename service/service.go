@@ -81,6 +81,10 @@ func (svc *T) SuspendAccount(id telegram.Ref) error {
 	}
 
 	svc.Cancel(chat)
+	go svc.NotifyAdministrators(chat.ID, `#info
+All subscriptions suspended.
+Chat: `+common.ChatTitle(chat))
+
 	return nil
 }
 
