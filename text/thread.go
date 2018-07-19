@@ -52,8 +52,12 @@ func FormatThread(thread Thread) string {
 		return ""
 	}
 
-	header := fmt.Sprintf("<b>%s</b>\n%s\n%d / %d / %.2f/hr\n---\n",
-		thread.DateString, common.RefTag(thread.Ref), thread.PostsCount, thread.FilesCount, thread.PostsPerHour)
+	header := fmt.Sprintf(`<b>%s</b> <a href="%s">[L]</a>\n%s\n%d / %d / %.2f/hr\n---\n`,
+		thread.DateString, toURL(thread.Ref), common.RefTag(thread.Ref), thread.PostsCount, thread.FilesCount, thread.PostsPerHour)
 
 	return header + chunks[0]
+}
+
+func toURL(ref dvach.Ref) string {
+	return dvach.Endpoint + "/" + ref.Board + "/res/" + ref.NumString + ".html"
 }

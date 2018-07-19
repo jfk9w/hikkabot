@@ -94,21 +94,19 @@ func (svc *T) query(command telegram.Command) {
 		return
 	}
 
-	var b = new(strings.Builder)
-	for _, row := range report {
-		for _, col := range row {
-			b.WriteString(col)
-			b.WriteRune(',')
-		}
-
-		b.WriteRune('\n')
+	var rows = make([]string, len(report))
+	for i := range report {
+		rows[i] = strings.Join(report[i], " ")
 	}
 
-	svc.SendMessage(command.Chat, b.String(), nil)
+	rows[0] = "<b>" + rows[0] + "</b>"
+	var text = strings.Join(rows, "\n")
+
+	svc.SendMessage(command.Chat, text, service.MessageOptsHTML)
 }
 
 func (svc *T) status(command telegram.Command) {
-	svc.SendMessage(command.Chat, "alive", nil)
+	svc.SendMessage(command.Chat, "alive", service.MessageOptsHTML)
 }
 
 func (svc *T) catalog(command telegram.Command) {
@@ -139,10 +137,7 @@ func (svc *T) catalog(command telegram.Command) {
 	var parts = text.Search(catalog.Threads, tokens, false, count)
 	for _, part := range parts {
 		svc.SendMessage(command.Chat, part, &telegram.MessageOpts{
-			SendOpts: &telegram.SendOpts{
-				ParseMode:           telegram.HTML,
-				DisableNotification: true,
-			},
+			SendOpts:              service.SendOptsHTML,
 			DisableWebPagePreview: true,
 		})
 	}
@@ -176,10 +171,7 @@ func (svc *T) search(command telegram.Command) {
 	var parts = text.Search(catalog.Threads, tokens, true, count)
 	for _, part := range parts {
 		svc.SendMessage(command.Chat, part, &telegram.MessageOpts{
-			SendOpts: &telegram.SendOpts{
-				ParseMode:           telegram.HTML,
-				DisableNotification: true,
-			},
+			SendOpts:              service.SendOptsHTML,
 			DisableWebPagePreview: true,
 		})
 	}
@@ -262,7 +254,7 @@ func (svc *T) mode(value string) (string, error) {
 
 func (svc *T) check(command telegram.Command, err error) bool {
 	if err != nil {
-		go svc.SendMessage(command.Chat, err.Error(), nil)
+		go svc.SendMessage(command.Chat, err.Error(), service.MessageOptsHTML)
 		return false
 	}
 

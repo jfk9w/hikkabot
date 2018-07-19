@@ -14,6 +14,17 @@ import (
 	"github.com/jfk9w-go/telegram"
 )
 
+var (
+	SendOptsHTML = &telegram.SendOpts{
+		ParseMode:           telegram.HTML,
+		DisableNotification: true,
+	}
+
+	MessageOptsHTML = &telegram.MessageOpts{
+		SendOpts: SendOptsHTML,
+	}
+)
+
 type (
 	Scheduler = *schedx.T
 	Telegram  = *telegram.T
@@ -155,14 +166,7 @@ func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Pos
 
 	group.Wait()
 	for _, dfile := range post.Files {
-		var (
-			link     = `<a href="` + html.EscapeString(dfile.URL()) + `">[A]</a>`
-			sendOpts = &telegram.SendOpts{
-				ParseMode:           telegram.HTML,
-				DisableNotification: true,
-			}
-		)
-
+		var link = `<a href="` + html.EscapeString(dfile.URL()) + `">[A]</a>`
 		if mode == Media {
 			link += "\n" + header
 		}
@@ -171,7 +175,7 @@ func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Pos
 			var (
 				file      = any.(*httpx.File)
 				mediaOpts = &telegram.MediaOpts{
-					SendOpts: sendOpts,
+					SendOpts: SendOptsHTML,
 					Caption:  link,
 				}
 			)
@@ -192,10 +196,10 @@ func (ctx *Context) SendPost(chat *telegram.Chat, header string, post *dvach.Pos
 
 			file.Delete()
 			if err != nil {
-				_, err = ctx.SendMessage(chat.ID, link, messageOpts)
+				_, err = ctx.SendMessage(chat.ID, link, MessageOptsHTML)
 			}
 		} else {
-			_, err = ctx.SendMessage(chat.ID, link, messageOpts)
+			_, err = ctx.SendMessage(chat.ID, link, MessageOptsHTML)
 		}
 
 		if err != nil {
