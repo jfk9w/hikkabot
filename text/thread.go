@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/hikkabot/common"
 )
 
 type Thread struct {
@@ -52,8 +51,12 @@ func FormatThread(thread Thread) string {
 		return ""
 	}
 
-	header := fmt.Sprintf(`<b>%s</b> <a href="%s">[L]</a>\n%s\n%d / %d / %.2f/hr\n---\n`,
-		thread.DateString, toURL(thread.Ref), common.RefTag(thread.Ref), thread.PostsCount, thread.FilesCount, thread.PostsPerHour)
+	header := fmt.Sprintf(`<b>%s</b>
+%s <a href="%s">[L]</a>
+%d / %d / %.2f/hr
+---
+`,
+		thread.DateString, thread.Subject, toURL(thread.Ref), thread.PostsCount, thread.FilesCount, thread.PostsPerHour)
 
 	return header + chunks[0]
 }
