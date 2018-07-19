@@ -2,9 +2,9 @@ package text
 
 import (
 	"fmt"
-	"time"
-
+	"html"
 	"strings"
+	"time"
 
 	"github.com/jfk9w-go/dvach"
 )
@@ -52,11 +52,10 @@ func FormatThread(thread Thread) string {
 	}
 
 	header := fmt.Sprintf(`<b>%s</b>
-%s <a href="%s">[L]</a>
-%d / %d / %.2f/hr
+<a href="%s">[L]</a> / %d / %d / %.2f/hr
 ---
 `,
-		thread.DateString, thread.Subject, toURL(thread.Ref), thread.PostsCount, thread.FilesCount, thread.PostsPerHour)
+		thread.DateString, html.EscapeString(toURL(thread.Ref)), thread.PostsCount, thread.FilesCount, thread.PostsPerHour)
 
 	return header + chunks[0]
 }
