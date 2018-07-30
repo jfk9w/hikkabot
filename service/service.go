@@ -27,6 +27,10 @@ func Init(ctx *Context, interval time.Duration, filename string) *T {
 	return svc.initScheduler()
 }
 
+func (svc *T) Kick(id telegram.Ref) {
+	svc.Schedule(id)
+}
+
 func (svc *T) CreateSubscription(id telegram.Ref, ref dvach.Ref, mode string) error {
 	var chat, err = svc.GetChat(id)
 	if err != nil {

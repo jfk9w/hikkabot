@@ -63,7 +63,36 @@ func (svc *T) process(command telegram.Command) {
 
 	case "query":
 		svc.query(command)
+
+	case "kick":
+		svc.kick(command)
 	}
+}
+
+func (svc *T) kick(command telegram.Command) {
+	var (
+		target telegram.ChatID
+		v      = command.Arg(0, "")
+	)
+
+	if v == "" {
+		target = command.Chat
+	} else {
+		var ref, err = telegram.ParseRef(v)
+		if !svc.check(command, err) {
+			return
+		}
+
+		var chat *telegram.Chat
+		chat, err = svc.GetChat(ref)
+		if !svc.check(command, err) {
+			return
+		}
+
+		target = chat.ID
+	}
+
+	svc.Kick(target)
 }
 
 func (svc *T) exec(command telegram.Command) {
