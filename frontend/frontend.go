@@ -5,121 +5,176 @@ import (
 	"strconv"
 	"strings"
 
+	"encoding/json"
+
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/common"
-	"github.com/jfk9w-go/hikkabot/service"
+	"github.com/jfk9w-go/hikkabot/engine"
+	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
 )
 
-type T struct {
-	*service.T
+type Engine = *engine.Engine
+
+var (
+	SendOptsHTML = &telegram.SendOpts{
+		ParseMode:           telegram.HTML,
+		DisableNotification: true,
+	}
+
+	MessageOptsHTML = &telegram.MessageOpts{
+		SendOpts: SendOptsHTML,
+	}
+)
+
+type Frontend struct {
+	engine     Engine
 	superusers []telegram.ChatID
 }
 
-func Init(svc *service.T, superusers []telegram.ChatID) *T {
-	var fe = &T{svc, superusers}
-	go fe.run()
-	return fe
+func Init(engine Engine, superusers []telegram.ChatID) *Frontend {
+	var frontend = &Frontend{engine, superusers}
+	go frontend.Run()
+	return frontend
 }
 
-func (svc *T) run() {
-	for command := range svc.CommandChannel() {
-		go svc.process(command)
+func (frontend *Frontend) Run() {
+	for command := range frontend.engine.CommandChannel() {
+		go frontend.OnCommand(command)
 	}
 }
 
-func (svc *T) process(command telegram.Command) {
-	switch command.Command {
-	case "sub", "subscribe", "all":
-		var mode, err = svc.mode(command.Arg(2, service.All))
-		if !svc.check(command, err) {
-			return
-		}
-
-		svc.subscribe(command, mode)
-
-	case "media":
-		svc.subscribe(command, service.Media)
-
-	case "text":
-		svc.subscribe(command, service.Text)
-
-	case "unsub", "clear":
-		svc.unsubscribe(command)
-
-	case "front", "search":
-		svc.search(command)
-
-	case "catalog":
-		svc.catalog(command)
-
-	case "status":
-		svc.status(command)
-
-	case "exec":
-		svc.exec(command)
-
-	case "query":
-		svc.query(command)
-
-	case "kick":
-		svc.kick(command)
-	}
-}
-
-func (svc *T) kick(command telegram.Command) {
-	var (
-		target telegram.ChatID
-		v      = command.Arg(0, "")
-	)
-
-	if v == "" {
+func (frontend *Frontend) ParseChat(command telegram.Command, idx int) (target telegram.ChatID, err error) {
+	var value = command.Arg(idx, ".")
+	if value == "." {
 		target = command.Chat
 	} else {
-		var ref, err = telegram.ParseRef(v)
-		if !svc.check(command, err) {
+		var ref telegram.Ref
+		ref, err = telegram.ParseRef(value)
+		if err != nil {
 			return
 		}
 
 		var chat *telegram.Chat
-		chat, err = svc.GetChat(ref)
-		if !svc.check(command, err) {
+		chat, err = frontend.engine.GetChat(ref)
+		if err != nil {
 			return
 		}
 
 		target = chat.ID
 	}
 
-	svc.Kick(target)
+	return
 }
 
-func (svc *T) exec(command telegram.Command) {
-	var err = svc.superuser(command.User)
-	if !svc.check(command, err) {
+func (frontend *Frontend) ParseState(
+	command telegram.Command) (
+	chat telegram.ChatID, state feed.State, err error) {
+
+	var dref dvach.Ref
+	dref, err = dvach.ParseUrl(command.Arg(0, ""))
+	if err == nil {
+		state.Type = feed.DvachType
+		state.ID = dref.Board + "/" + dref.NumString
+		state.Offset = "0"
+
+		var thread *dvach.Thread
+		thread, err = frontend.engine.Thread(dref)
+		if err != nil {
+			return
+		}
+
+		var meta feed.DvachMeta
+		meta.Title = common.Header(&thread.Item)
+		meta.Mode = command.Arg(2, feed.FullDvachMode)
+
+		state.Meta, err = json.Marshal(&meta)
+	}
+
+	if err != nil {
+		err = errors.New("invalid url")
+		return
+	}
+
+	chat, err = frontend.ParseChat(command, 1)
+	return
+}
+
+func (frontend *Frontend) OnCommand(command telegram.Command) {
+	switch command.Command {
+	case "status":
+		frontend.engine.SendMessage(command.Chat, "alive", MessageOptsHTML)
+
+	case "sub":
+		var chat, state, err = frontend.ParseState(command)
+		if err == nil {
+			if !frontend.engine.Start(chat, state) {
+				err = errors.New("exists")
+			}
+		}
+
+		frontend.CheckError(command, err)
+
+	case "unsub":
+		var chat, err = frontend.ParseChat(command, 0)
+		if err == nil {
+			if !frontend.engine.Suspend(chat) {
+				err = errors.New("absent")
+			}
+		}
+
+		frontend.CheckError(command, err)
+
+	case "force":
+		var chat, err = frontend.ParseChat(command, 0)
+		if !frontend.CheckError(command, err) {
+			return
+		}
+
+		frontend.engine.Schedule(chat)
+
+	case "front", "search":
+		frontend.CheckError(command, frontend.Search(command))
+
+	case "catalog":
+		frontend.CheckError(command, frontend.Catalog(command))
+
+	case "exec":
+		frontend.CheckError(command, frontend.Exec(command))
+
+	case "query":
+		frontend.CheckError(command, frontend.Query(command))
+	}
+}
+
+func (frontend *Frontend) Exec(command telegram.Command) (err error) {
+	err = frontend.CheckSuperuser(command.User)
+	if err != nil {
 		return
 	}
 
 	var updated int64
-	updated, err = svc.Exec(strings.Join(command.Args, " "))
-	if !svc.check(command, err) {
+	updated, err = frontend.engine.Exec(strings.Join(command.Args, " "))
+	if !frontend.CheckError(command, err) {
 		return
 	}
 
 	var text = fmt.Sprintf("updated %d rows", updated)
-	svc.SendMessage(command.Chat, text, nil)
+	_, err = frontend.engine.SendMessage(command.Chat, text, nil)
+	return
 }
 
-func (svc *T) query(command telegram.Command) {
-	var err = svc.superuser(command.User)
-	if !svc.check(command, err) {
+func (frontend *Frontend) Query(command telegram.Command) (err error) {
+	err = frontend.CheckSuperuser(command.User)
+	if err != nil {
 		return
 	}
 
 	var report [][]string
-	report, err = svc.Query(strings.Join(command.Args, " "))
-	if !svc.check(command, err) {
+	report, err = frontend.engine.Query(strings.Join(command.Args, " "))
+	if err != nil {
 		return
 	}
 
@@ -131,167 +186,103 @@ func (svc *T) query(command telegram.Command) {
 	rows[0] = "<b>" + rows[0] + "</b>"
 	var text = strings.Join(rows, "\n")
 
-	svc.SendMessage(command.Chat, text, service.MessageOptsHTML)
+	_, err = frontend.engine.SendMessage(command.Chat, text, MessageOptsHTML)
+	return
 }
 
-func (svc *T) status(command telegram.Command) {
-	svc.SendMessage(command.Chat, "alive", service.MessageOptsHTML)
-}
-
-func (svc *T) catalog(command telegram.Command) {
+func (frontend *Frontend) Catalog(command telegram.Command) (err error) {
 	var board = command.Arg(0, "")
 	if board == "" {
-		svc.check(command, errors.New("invalid command"))
+		err = errors.New("invalid command")
 		return
 	}
 
-	var catalog, err = svc.Catalog(board)
-	if !svc.check(command, err) {
+	var catalog *dvach.Catalog
+	catalog, err = frontend.engine.Catalog(board)
+	if err != nil {
 		return
 	}
 
-	var query = command.Arg(1, "")
-	var tokens []string = nil
+	var (
+		query  = command.Arg(1, "")
+		tokens []string
+
+		countstr = command.Arg(2, "30")
+		count    int
+	)
+
 	if query != "" {
 		tokens = strings.Split(query, " ")
 	}
 
-	var countstr = command.Arg(2, "30")
-	var count int
 	count, err = strconv.Atoi(countstr)
-	if !svc.check(command, err) {
+	if err != nil {
 		return
 	}
 
 	var parts = text.Search(catalog.Threads, tokens, false, count)
 	for _, part := range parts {
-		svc.SendMessage(command.Chat, part, &telegram.MessageOpts{
-			SendOpts:              service.SendOptsHTML,
-			DisableWebPagePreview: true,
-		})
+		_, err = frontend.engine.SendMessage(command.Chat, part, MessageOptsHTML)
+		if err != nil {
+			return
+		}
 	}
+
+	return
 }
 
-func (svc *T) search(command telegram.Command) {
+func (frontend *Frontend) Search(command telegram.Command) (err error) {
 	var board = command.Arg(0, "")
 	if board == "" {
-		svc.check(command, errors.New("invalid command"))
+		err = errors.New("invalid command")
 		return
 	}
 
-	var catalog, err = svc.Catalog(board)
-	if !svc.check(command, err) {
+	var catalog *dvach.Catalog
+	catalog, err = frontend.engine.Catalog(board)
+	if err != nil {
 		return
 	}
 
-	var query = command.Arg(1, "")
-	var tokens []string = nil
+	var (
+		query  = command.Arg(1, "")
+		tokens []string
+
+		countstr = command.Arg(2, "30")
+		count    int
+	)
+
 	if query != "" {
 		tokens = strings.Split(query, " ")
 	}
 
-	var countstr = command.Arg(2, "30")
-	var count int
 	count, err = strconv.Atoi(countstr)
-	if !svc.check(command, err) {
+	if err != nil {
 		return
 	}
 
 	var parts = text.Search(catalog.Threads, tokens, true, count)
 	for _, part := range parts {
-		svc.SendMessage(command.Chat, part, &telegram.MessageOpts{
-			SendOpts:              service.SendOptsHTML,
-			DisableWebPagePreview: true,
-		})
-	}
-}
-
-func (svc *T) unsubscribe(command telegram.Command) {
-	var (
-		target telegram.ChatID
-		err    error
-	)
-
-	var v = command.Arg(0, "")
-	if v == "" {
-		target = command.Chat
-	} else {
-		var ref, err = telegram.ParseRef(v)
-		if !svc.check(command, err) {
+		_, err = frontend.engine.SendMessage(command.Chat, part, MessageOptsHTML)
+		if err != nil {
 			return
 		}
-
-		var chat *telegram.Chat
-		chat, err = svc.GetChat(ref)
-		if !svc.check(command, err) {
-			return
-		}
-
-		target = chat.ID
 	}
 
-	err = svc.SuspendAccount(target)
-	svc.check(command, err)
+	return
 }
 
-func (svc *T) subscribe(command telegram.Command, mode string) {
-	var (
-		ref    dvach.Ref
-		target telegram.ChatID
-		err    error
-	)
-
-	ref, err = parseRef(command.Arg(0, ""))
-	if !svc.check(command, err) {
-		return
-	}
-
-	var v = command.Arg(1, "")
-	if v == "" {
-		target = command.Chat
-	} else {
-		var ref, err = telegram.ParseRef(v)
-		if !svc.check(command, err) {
-			return
-		}
-
-		var chat *telegram.Chat
-		chat, err = svc.GetChat(ref)
-		if !svc.check(command, err) {
-			return
-		}
-
-		target = chat.ID
-	}
-
-	err = svc.authorize(command.User, target)
-	if !svc.check(command, err) {
-		return
-	}
-
-	err = svc.CreateSubscription(target, ref, mode)
-	svc.check(command, err)
-}
-
-func (svc *T) mode(value string) (string, error) {
-	if value != service.All && value != service.Text && value != service.Media {
-		return "", errors.Errorf("invalid mode: %s", value)
-	}
-
-	return value, nil
-}
-
-func (svc *T) check(command telegram.Command, err error) bool {
+func (frontend *Frontend) CheckError(command telegram.Command, err error) bool {
 	if err != nil {
-		go svc.SendMessage(command.Chat, err.Error(), service.MessageOptsHTML)
+		go frontend.engine.SendMessage(command.Chat, err.Error(), MessageOptsHTML)
 		return false
 	}
 
 	return true
 }
 
-func (svc *T) superuser(user telegram.ChatID) error {
-	for _, superuser := range svc.superusers {
+func (frontend *Frontend) CheckSuperuser(user telegram.ChatID) error {
+	for _, superuser := range frontend.superusers {
 		if user == superuser {
 			return nil
 		}
@@ -300,27 +291,17 @@ func (svc *T) superuser(user telegram.ChatID) error {
 	return errors.New("forbidden")
 }
 
-func (svc *T) authorize(user, chat telegram.ChatID) error {
-	var admins, err = svc.GetChatAdministrators(chat)
+func (frontend *Frontend) Authorize(user, chat telegram.ChatID) error {
+	var enriched, err = frontend.engine.EnrichChat(chat)
 	if err != nil {
 		return err
 	}
 
-	for _, admin := range admins {
+	for _, admin := range enriched.Administrators {
 		if admin == user {
 			return nil
 		}
 	}
 
 	return errors.New("forbidden")
-}
-
-func parseRef(thread string) (ref dvach.Ref, err error) {
-	ref, err = common.ParseRefTag(thread)
-	if err == nil {
-		return
-	}
-
-	ref, err = dvach.ParseUrl(thread)
-	return
 }

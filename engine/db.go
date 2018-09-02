@@ -1,10 +1,10 @@
-package service
+package engine
 
 import (
 	"database/sql"
 	"time"
 
-	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/telegram"
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
@@ -15,21 +15,6 @@ var _ = sqlite3.Version
 var SuspendedByUser = errors.Errorf("interrupted by user")
 
 const driver = "sqlite3"
-
-const (
-	All   = "all"
-	Text  = "text"
-	Media = "media"
-)
-
-type FeedItem struct {
-	Ref      dvach.Ref
-	LastPost int
-	Mode     string
-	Header   string
-	Error    error
-	Exists   bool
-}
 
 type DB sql.DB
 
@@ -61,82 +46,58 @@ func (db *DB) update(query string, args ...interface{}) int64 {
 func (db *DB) InitSchema() *DB {
 	db.exec(`CREATE TABLE IF NOT EXISTS feed (
 chat INTEGER NOT NULL,
-board TEXT NOT NULL,
-thread TEXT NOT NULL,
-last_post INTEGER NOT NULL DEFAULT 0,
-mode TEXT NOT NULL,
-header TEXT NOT NULL,
+id TEXT NOT NULL,
+type TEXT NOT NULL,
+meta TEXT NOT NULL,
+offset TEXT NOT NULL,
 updated INTEGER NOT NULL DEFAULT 0,
 error TEXT NOT NULL DEFAULT '')`)
-
-	db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__id ON feed (chat, board, thread)`)
+	db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__id ON feed (chat, id, type)`)
 	return db
 }
 
 //language=SQL
-func (db *DB) Feed(chat telegram.ChatID) (item FeedItem) {
-	var (
-		rs  *sql.Rows
-		err error
-	)
-
-	rs = db.query(`SELECT board, thread, last_post, mode, header
+func (db *DB) NextState(chat telegram.ChatID) (state feed.State, ok bool) {
+	var rs = db.query(`SELECT id, type, meta, offset
 FROM feed
 WHERE chat = ? AND error = ''
 ORDER BY updated ASC
-LIMIT 1`, chat)
+LIMIT 1`,
+		chat)
 
 	if !rs.Next() {
 		return
 	}
 
-	var board, thread string
-	checkpanic(rs.Scan(&board, &thread, &item.LastPost, &item.Mode, &item.Header))
+	ok = true
+	checkpanic(rs.Scan(&state.ID, &state.Type, &state.Meta, &state.Offset))
 	checkpanic(rs.Close())
-
-	item.Ref, err = dvach.ToRef(board, thread)
-	checkpanic(err)
-
-	item.Exists = true
 	return
 }
 
 //language=SQL
-func (db *DB) UpdateSubscription(chat telegram.ChatID, item FeedItem) bool {
-	return db.update(`UPDATE feed
-SET updated = ?, last_post = ?
-WHERE chat = ? AND board = ? AND thread = ? AND error = ''`,
-		now(), item.LastPost,
-		chat, item.Ref.Board, item.Ref.NumString,
-	) > 0
+func (db *DB) PersistState(chat telegram.ChatID, state feed.State) {
+	db.exec(`UPDATE feed
+SET offset = ?, error = ?, updated = ?
+WHERE chat = ? AND id = ? AND type = ?`,
+		state.Offset, state.Err(), now(),
+		chat, state.ID, state.Type)
 }
 
 //language=SQL
-func (db *DB) SuspendSubscription(chat telegram.ChatID, ref dvach.Ref, reason error) bool {
-	return db.update(`UPDATE feed
-SET updated = ?, error = ?
-WHERE chat = ? AND board = ? AND thread = ? AND error = ''`,
-		now(), reason.Error(),
-		chat, ref.Board, ref.NumString,
-	) > 0
+func (db *DB) AppendState(chat telegram.ChatID, state feed.State) bool {
+	return db.update(`INSERT OR IGNORE INTO feed (chat, id, type, meta, offset, updated, error)
+VALUES (?, ?, ?, ?, ?, 0, '')`,
+		chat, state.ID, state.Type, state.Meta, state.Offset) > 0
 }
 
 //language=SQL
-func (db *DB) SuspendAccount(chat telegram.ChatID, reason error) int64 {
+func (db *DB) Suspend(chat telegram.ChatID) bool {
 	return db.update(`UPDATE feed
-SET updated = ?, error = ?
+SET error = ?, updated = ?
 WHERE chat = ? AND error = ''`,
-		now(), reason.Error(),
-		chat,
-	)
-}
-
-//language=SQL
-func (db *DB) CreateSubscription(chat telegram.ChatID, item FeedItem) bool {
-	return db.update(`INSERT OR IGNORE INTO feed (chat, mode, board, thread, header, last_post)
-VALUES (?, ?, ?, ?, ?, ?)`,
-		chat, item.Mode, item.Ref.Board, item.Ref.NumString, item.Header, item.LastPost,
-	) > 0
+		SuspendedByUser.Error(), now(),
+		chat) > 0
 }
 
 //language=SQL

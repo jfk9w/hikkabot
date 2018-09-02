@@ -7,8 +7,8 @@ import (
 
 	Aconvert "github.com/jfk9w-go/aconvert"
 	Dvach "github.com/jfk9w-go/dvach"
+	Engine "github.com/jfk9w-go/hikkabot/engine"
 	"github.com/jfk9w-go/hikkabot/frontend"
-	Service "github.com/jfk9w-go/hikkabot/service"
 	"github.com/jfk9w-go/logx"
 	Telegram "github.com/jfk9w-go/telegram"
 )
@@ -28,11 +28,11 @@ func main() {
 			AllowedUpdates: []string{"message", "edited_message"},
 		})
 
-		context = &Service.Context{telegram, dvach, aconvert}
-		service = Service.Init(context, config.SchedulerInterval.Duration(), config.Database)
+		context = &Engine.Context{telegram, dvach, &aconvert}
+		engine  = Engine.New(context, config.SchedulerInterval.Duration(), config.Database)
 	)
 
-	frontend.Init(service, config.Superusers)
+	frontend.Init(engine, config.Superusers)
 
 	logx.Get("init").Debug("Started")
 
@@ -40,7 +40,7 @@ func main() {
 
 	//telegram.Updater.Close()
 	//aconvert.Close()
-	service.DB.Close()
+	engine.DB.Close()
 
 	println("Shutdown")
 }
