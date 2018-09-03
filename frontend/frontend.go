@@ -1,13 +1,11 @@
 package frontend
 
 import (
+	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
-
-	"encoding/json"
-
-	"regexp"
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/common"
@@ -32,18 +30,19 @@ var (
 )
 
 type Frontend struct {
-	engine     Engine
+	Engine
+	ctx        *engine.Context
 	superusers []telegram.ChatID
 }
 
-func Init(engine Engine, superusers []telegram.ChatID) *Frontend {
-	var frontend = &Frontend{engine, superusers}
+func Init(engine Engine, ctx *engine.Context, superusers []telegram.ChatID) *Frontend {
+	var frontend = &Frontend{engine, ctx, superusers}
 	go frontend.Run()
 	return frontend
 }
 
 func (frontend *Frontend) Run() {
-	for command := range frontend.engine.CommandChannel() {
+	for command := range frontend.ctx.CommandChannel() {
 		go frontend.OnCommand(command)
 	}
 }
@@ -60,7 +59,7 @@ func (frontend *Frontend) ParseChat(command telegram.Command, idx int) (target t
 		}
 
 		var chat *telegram.Chat
-		chat, err = frontend.engine.GetChat(ref)
+		chat, err = frontend.ctx.GetChat(ref)
 		if err != nil {
 			return
 		}
@@ -94,7 +93,7 @@ func (frontend *Frontend) ParseState(
 		state.Offset = "0"
 
 		var thread *dvach.Thread
-		thread, err = frontend.engine.Thread(dref)
+		thread, err = frontend.ctx.Thread(dref)
 		if err != nil {
 			return
 		}
@@ -127,12 +126,12 @@ func (frontend *Frontend) ParseState(
 func (frontend *Frontend) OnCommand(command telegram.Command) {
 	switch command.Command {
 	case "status":
-		frontend.engine.SendMessage(command.Chat, "alive", MessageOptsHTML)
+		frontend.ctx.SendMessage(command.Chat, "alive", MessageOptsHTML)
 
 	case "sub":
 		var chat, state, err = frontend.ParseState(command)
 		if err == nil {
-			if !frontend.engine.Start(chat, state) {
+			if !frontend.Start(chat, state) {
 				err = errors.New("exists")
 			}
 		}
@@ -142,7 +141,7 @@ func (frontend *Frontend) OnCommand(command telegram.Command) {
 	case "unsub":
 		var chat, err = frontend.ParseChat(command, 0)
 		if err == nil {
-			if !frontend.engine.Suspend(chat) {
+			if !frontend.Suspend(chat) {
 				err = errors.New("absent")
 			}
 		}
@@ -155,7 +154,7 @@ func (frontend *Frontend) OnCommand(command telegram.Command) {
 			return
 		}
 
-		frontend.engine.Schedule(chat)
+		frontend.Schedule(chat)
 
 	case "front", "search":
 		frontend.CheckError(command, frontend.Search(command))
@@ -178,13 +177,13 @@ func (frontend *Frontend) Exec(command telegram.Command) (err error) {
 	}
 
 	var updated int64
-	updated, err = frontend.engine.Exec(strings.Join(command.Args, " "))
+	updated, err = frontend.DB.Exec(strings.Join(command.Args, " "))
 	if !frontend.CheckError(command, err) {
 		return
 	}
 
 	var text = fmt.Sprintf("updated %d rows", updated)
-	_, err = frontend.engine.SendMessage(command.Chat, text, nil)
+	_, err = frontend.ctx.SendMessage(command.Chat, text, nil)
 	return
 }
 
@@ -195,7 +194,7 @@ func (frontend *Frontend) Query(command telegram.Command) (err error) {
 	}
 
 	var report [][]string
-	report, err = frontend.engine.Query(strings.Join(command.Args, " "))
+	report, err = frontend.DB.Query(strings.Join(command.Args, " "))
 	if err != nil {
 		return
 	}
@@ -208,7 +207,7 @@ func (frontend *Frontend) Query(command telegram.Command) (err error) {
 	rows[0] = "<b>" + rows[0] + "</b>"
 	var text = strings.Join(rows, "\n")
 
-	_, err = frontend.engine.SendMessage(command.Chat, text, MessageOptsHTML)
+	_, err = frontend.ctx.SendMessage(command.Chat, text, MessageOptsHTML)
 	return
 }
 
@@ -220,7 +219,7 @@ func (frontend *Frontend) Catalog(command telegram.Command) (err error) {
 	}
 
 	var catalog *dvach.Catalog
-	catalog, err = frontend.engine.Catalog(board)
+	catalog, err = frontend.ctx.Catalog(board)
 	if err != nil {
 		return
 	}
@@ -244,7 +243,7 @@ func (frontend *Frontend) Catalog(command telegram.Command) (err error) {
 
 	var parts = text.Search(catalog.Threads, tokens, false, count)
 	for _, part := range parts {
-		_, err = frontend.engine.SendMessage(command.Chat, part, MessageOptsHTML)
+		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTML)
 		if err != nil {
 			return
 		}
@@ -261,7 +260,7 @@ func (frontend *Frontend) Search(command telegram.Command) (err error) {
 	}
 
 	var catalog *dvach.Catalog
-	catalog, err = frontend.engine.Catalog(board)
+	catalog, err = frontend.ctx.Catalog(board)
 	if err != nil {
 		return
 	}
@@ -285,7 +284,7 @@ func (frontend *Frontend) Search(command telegram.Command) (err error) {
 
 	var parts = text.Search(catalog.Threads, tokens, true, count)
 	for _, part := range parts {
-		_, err = frontend.engine.SendMessage(command.Chat, part, MessageOptsHTML)
+		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTML)
 		if err != nil {
 			return
 		}
@@ -296,7 +295,7 @@ func (frontend *Frontend) Search(command telegram.Command) (err error) {
 
 func (frontend *Frontend) CheckError(command telegram.Command, err error) bool {
 	if err != nil {
-		go frontend.engine.SendMessage(command.Chat, err.Error(), MessageOptsHTML)
+		go frontend.ctx.SendMessage(command.Chat, err.Error(), MessageOptsHTML)
 		return false
 	}
 
@@ -314,7 +313,7 @@ func (frontend *Frontend) CheckSuperuser(user telegram.ChatID) error {
 }
 
 func (frontend *Frontend) Authorize(user, chat telegram.ChatID) error {
-	var enriched, err = frontend.engine.EnrichChat(chat)
+	var enriched, err = frontend.ctx.EnrichChat(chat)
 	if err != nil {
 		return err
 	}

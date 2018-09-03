@@ -79,7 +79,7 @@ LIMIT 1`,
 func (db *DB) PersistState(chat telegram.ChatID, state feed.State) bool {
 	return db.update(`UPDATE feed
 SET offset = ?, error = ?, updated = ?
-WHERE chat = ? AND id = ? AND type = ?`,
+WHERE chat = ? AND id = ? AND type = ? AND error = ''`,
 		state.Offset, state.Err(), now(),
 		chat, state.ID, state.Type) > 0
 }

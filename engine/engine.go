@@ -26,16 +26,16 @@ var log = logx.Get("engine")
 type Engine struct {
 	Scheduler
 	*DB
-	*Context
-	feed.Service
+	ctx     *Context
+	service feed.Service
 }
 
 func New(ctx *Context, interval time.Duration, filename string) *Engine {
 	var engine = &Engine{
 		Scheduler: schedx.New(interval),
+		ctx:       ctx,
 		DB:        OpenDB(filename).InitSchema(),
-		Context:   ctx,
-		Service: &feed.GenericService{
+		service: &feed.GenericService{
 			Typed: map[feed.Type]feed.Service{
 				feed.DvachType: &feed.DvachService{
 					Dvach:    ctx.Dvach,
@@ -66,11 +66,11 @@ func (engine *Engine) Start(id telegram.ChatID, state feed.State) bool {
 	log.Infof("Chat %v: start %v", id, state.ID)
 
 	engine.Schedule(id)
-	go engine.NotifyAdministrators(id, func(chat *telegram.Chat) string {
+	go engine.ctx.NotifyAdministrators(id, func(chat *telegram.Chat) string {
 		return `#info
 Subscription OK.
 Chat: ` + common.ChatTitle(chat) + `
-Thread: ` + engine.Title(state)
+Thread: ` + engine.service.Title(state)
 	})
 
 	return true
@@ -84,7 +84,7 @@ func (engine *Engine) Suspend(id telegram.ChatID) bool {
 
 	log.Infof("Chat %v: suspend", id)
 
-	go engine.NotifyAdministrators(id, func(chat *telegram.Chat) string {
+	go engine.ctx.NotifyAdministrators(id, func(chat *telegram.Chat) string {
 		return `#info
 All subscriptions suspended.
 Chat: ` + common.ChatTitle(chat)
@@ -109,7 +109,7 @@ func (engine *Engine) Run(id interface{}) {
 
 	log.Debugf("Chat %v: state %v, offset %v", id, state.ID, state.Offset)
 
-	var load, err = engine.Load(state)
+	var load, err = engine.service.Load(state)
 	if !engine.CheckError(chat, state, err) {
 		return
 	}
@@ -125,9 +125,9 @@ func (engine *Engine) Run(id interface{}) {
 
 			switch event := event.(type) {
 			case feed.Item:
-				err = event.Send(engine.Telegram, chat)
+				err = event.Send(engine.ctx.Telegram, chat)
 				if err != nil {
-					err = event.Retry(engine.Telegram, chat)
+					err = event.Retry(engine.ctx.Telegram, chat)
 				}
 
 				engine.CheckError(chat, state, err)
@@ -155,11 +155,11 @@ func (engine *Engine) CheckError(chat telegram.ChatID, state feed.State, err err
 
 	log.Debugf("Chat %v: persisting state %v with error (%v)", chat, state.ID, err)
 	engine.PersistState(chat, state.WithError(err))
-	go engine.NotifyAdministrators(chat, func(chat *telegram.Chat) string {
+	go engine.ctx.NotifyAdministrators(chat, func(chat *telegram.Chat) string {
 		return `#info
 Subscription paused.
 Chat: ` + common.ChatTitle(chat) + `
-Title: ` + engine.Title(state) + `
+Title: ` + engine.service.Title(state) + `
 Reason: ` + err.Error()
 	})
 

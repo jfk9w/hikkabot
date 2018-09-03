@@ -30,11 +30,12 @@ const (
 type Offset = string
 
 type State struct {
-	ID     string
-	Type   Type
-	Meta   json.RawMessage
-	Offset Offset
-	Error  error
+	ID      string
+	Type    Type
+	Meta    json.RawMessage
+	Offset  Offset
+	Error   error
+	Updated int64
 }
 
 func (s State) ParseMeta(v interface{}) error {

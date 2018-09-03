@@ -161,7 +161,7 @@ func (load *RedLoad) Next(events chan<- Event) {
 			events <- &TextItem{caption}
 		}
 	} else {
-		//events <- &TextItem{caption}
+		log.Warnf("Unsupported domain: %s", data.Domain)
 	}
 
 	events <- &End{data.Name}

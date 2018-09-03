@@ -34,7 +34,7 @@ func main() {
 		engine  = Engine.New(context, config.SchedulerInterval.Duration(), config.Database)
 	)
 
-	frontend.Init(engine, config.Superusers)
+	frontend.Init(engine, context, config.Superusers)
 
 	logx.Get("init").Debug("Started")
 
