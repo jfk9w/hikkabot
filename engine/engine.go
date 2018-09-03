@@ -9,12 +9,14 @@ import (
 	"github.com/jfk9w-go/hikkabot/common"
 	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/logx"
+	"github.com/jfk9w-go/red"
 	"github.com/jfk9w-go/telegram"
 )
 
 type (
 	Dvach     = *dvach.API
 	Aconvert  = *aconvert.Balancer
+	Red       = *red.API
 	Scheduler = *schedx.T
 	Telegram  = *telegram.T
 )
@@ -33,9 +35,16 @@ func New(ctx *Context, interval time.Duration, filename string) *Engine {
 		Scheduler: schedx.New(interval),
 		DB:        OpenDB(filename).InitSchema(),
 		Context:   ctx,
-		Service: &feed.DvachService{
-			Dvach:    ctx.Dvach,
-			Aconvert: ctx.Aconvert,
+		Service: &feed.GenericService{
+			Typed: map[feed.Type]feed.Service{
+				feed.DvachType: &feed.DvachService{
+					Dvach:    ctx.Dvach,
+					Aconvert: ctx.Aconvert,
+				},
+				feed.RedType: &feed.RedService{
+					Red: ctx.Red,
+				},
+			},
 		},
 	}
 
@@ -125,7 +134,9 @@ func (engine *Engine) Run(id interface{}) {
 
 			case *feed.End:
 				log.Debugf("Chat %v: persisting state %v, offset %v", id, state.ID, event.Offset)
-				engine.DB.PersistState(chat, state.WithOffset(event.Offset))
+				if !engine.PersistState(chat, state.WithOffset(event.Offset)) {
+					log.Debugf("Chat %v: state %v interrupted", id, state.ID)
+				}
 			}
 		}
 

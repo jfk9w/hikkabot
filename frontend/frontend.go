@@ -7,6 +7,8 @@ import (
 
 	"encoding/json"
 
+	"regexp"
+
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/common"
 	"github.com/jfk9w-go/hikkabot/engine"
@@ -69,6 +71,17 @@ func (frontend *Frontend) ParseChat(command telegram.Command, idx int) (target t
 	return
 }
 
+var RedRegexp = regexp.MustCompile(`^(/r/[a-zA-Z0-9_]+)/(hot|new)$`)
+
+func ParseRed(value string) (string, string, bool) {
+	var groups = RedRegexp.FindStringSubmatch(value)
+	if len(groups) == 3 {
+		return groups[1], groups[2], true
+	}
+
+	return "", "", false
+}
+
 func (frontend *Frontend) ParseState(
 	command telegram.Command) (
 	chat telegram.ChatID, state feed.State, err error) {
@@ -91,10 +104,19 @@ func (frontend *Frontend) ParseState(
 		meta.Mode = command.Arg(2, feed.FullDvachMode)
 
 		state.Meta, err = json.Marshal(&meta)
+	} else if subreddit, mode, ok := ParseRed(command.Arg(0, "")); ok {
+		state.Type = feed.RedType
+		state.ID = subreddit
+
+		var meta feed.RedMeta
+		meta.Mode = mode
+
+		state.Meta, err = json.Marshal(&meta)
+	} else {
+		err = errors.New("invalid url")
 	}
 
 	if err != nil {
-		err = errors.New("invalid url")
 		return
 	}
 

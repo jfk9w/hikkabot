@@ -76,12 +76,12 @@ LIMIT 1`,
 }
 
 //language=SQL
-func (db *DB) PersistState(chat telegram.ChatID, state feed.State) {
-	db.exec(`UPDATE feed
+func (db *DB) PersistState(chat telegram.ChatID, state feed.State) bool {
+	return db.update(`UPDATE feed
 SET offset = ?, error = ?, updated = ?
 WHERE chat = ? AND id = ? AND type = ?`,
 		state.Offset, state.Err(), now(),
-		chat, state.ID, state.Type)
+		chat, state.ID, state.Type) > 0
 }
 
 //language=SQL

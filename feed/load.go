@@ -8,6 +8,7 @@ import (
 	"github.com/jfk9w-go/gox/syncx"
 	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/httpx"
+	"github.com/jfk9w-go/red"
 	"github.com/jfk9w-go/telegram"
 )
 
@@ -24,6 +25,10 @@ func (_ *DummyLoad) HasNext() bool {
 
 func (_ *DummyLoad) Next(events chan<- Event) {
 	close(events)
+}
+
+func A(link string) string {
+	return `<a href="` + html.EscapeString(link) + `">[A]</a>`
 }
 
 type DvachLoad struct {
@@ -84,7 +89,7 @@ func (load *DvachLoad) Next(events chan<- Event) {
 
 	group.Wait()
 	for _, dfile := range post.Files {
-		var link = `<a href="` + html.EscapeString(dfile.URL()) + `">[A]</a>`
+		var link = A(dfile.URL())
 		if load.Mode == MediaDvachMode {
 			link += "\n" + load.Title
 		}
@@ -112,5 +117,53 @@ func (load *DvachLoad) Next(events chan<- Event) {
 	}
 
 	events <- &End{post.NumString}
+	close(events)
+}
+
+type RedLoad struct {
+	Red
+	Data  []red.ThingData
+	Index int
+}
+
+var AllowedRedDomains = []string{
+	"i.redd.it", "i.imgur.com",
+}
+
+func (load *RedLoad) IsAllowed(data red.ThingData) bool {
+	for _, allowed := range AllowedRedDomains {
+		if data.Domain == allowed {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (load *RedLoad) HasNext() bool {
+	return load.Index >= 0
+}
+
+func (load *RedLoad) Next(events chan<- Event) {
+	var data = load.Data[load.Index]
+	load.Index -= 1
+
+	var caption = "#" + data.Subreddit + "\n" + data.Title + "\n" + A(data.URL)
+	if load.IsAllowed(data) {
+		var (
+			file = new(httpx.File)
+			err  = load.Red.Get(data.URL, nil, file)
+		)
+
+		if err == nil {
+			events <- &ImageItem{file, caption}
+		} else {
+			events <- &TextItem{caption}
+		}
+	} else {
+		//events <- &TextItem{caption}
+	}
+
+	events <- &End{data.Name}
 	close(events)
 }

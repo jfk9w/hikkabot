@@ -6,6 +6,7 @@ type Context struct {
 	Telegram
 	Dvach
 	Aconvert
+	Red
 }
 
 type EnrichedChat struct {

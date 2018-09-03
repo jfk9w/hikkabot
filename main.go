@@ -10,6 +10,7 @@ import (
 	Engine "github.com/jfk9w-go/hikkabot/engine"
 	"github.com/jfk9w-go/hikkabot/frontend"
 	"github.com/jfk9w-go/logx"
+	Red "github.com/jfk9w-go/red"
 	Telegram "github.com/jfk9w-go/telegram"
 )
 
@@ -23,12 +24,13 @@ func main() {
 
 		aconvert = Aconvert.ConfigureBalancer(config.Aconvert)
 		dvach    = Dvach.Configure(config.Dvach)
+		red      = Red.Configure(config.Red)
 		telegram = Telegram.Configure(config.Telegram, &Telegram.UpdatesOpts{
 			Timeout:        60,
 			AllowedUpdates: []string{"message", "edited_message"},
 		})
 
-		context = &Engine.Context{telegram, dvach, &aconvert}
+		context = &Engine.Context{telegram, dvach, &aconvert, red}
 		engine  = Engine.New(context, config.SchedulerInterval.Duration(), config.Database)
 	)
 

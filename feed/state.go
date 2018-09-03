@@ -16,11 +16,15 @@ type DvachMeta struct {
 	Mode  DvachMode `json:"mode"`
 }
 
+type RedMeta struct {
+	Mode string `json:"mode"`
+}
+
 type Type string
 
 const (
-	DvachType  Type = "dvach"
-	RedditType Type = "reddit"
+	DvachType Type = "dvach"
+	RedType   Type = "red"
 )
 
 type Offset = string

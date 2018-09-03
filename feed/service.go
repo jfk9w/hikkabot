@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/red"
 	. "github.com/pkg/errors"
 )
 
@@ -108,4 +109,33 @@ func (service *DvachService) Title(state State) string {
 	}
 
 	return meta.Title
+}
+
+type RedService struct {
+	Red
+}
+
+func (service *RedService) Load(state State) (Load, error) {
+	var (
+		before = state.Offset
+		meta   = new(RedMeta)
+		data   []red.ThingData
+		err    error
+	)
+
+	err = state.ParseMeta(meta)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err = service.Listing(state.ID+"/"+meta.Mode, before)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RedLoad{service.Red, data, len(data) - 1}, nil
+}
+
+func (service *RedService) Title(state State) string {
+	return state.ID
 }

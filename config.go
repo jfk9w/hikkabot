@@ -6,6 +6,7 @@ import (
 	"github.com/jfk9w-go/gox/fsx"
 	"github.com/jfk9w-go/gox/jsonx"
 	"github.com/jfk9w-go/logx"
+	"github.com/jfk9w-go/red"
 	"github.com/jfk9w-go/telegram"
 )
 
@@ -16,6 +17,7 @@ type Config struct {
 	Dvach             dvach.Config      `json:"dvach"`
 	Telegram          telegram.Config   `json:"telegram"`
 	Aconvert          aconvert.Config   `json:"aconvert"`
+	Red               red.Config        `json:"red"`
 }
 
 func ReadConfig(path string) *Config {
