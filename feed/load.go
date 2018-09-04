@@ -116,7 +116,7 @@ func (load *DvachLoad) Next(events chan<- Event) {
 		}
 	}
 
-	events <- &End{post.NumString}
+	events <- &End{post.Num}
 	close(events)
 }
 
@@ -161,9 +161,9 @@ func (load *RedLoad) Next(events chan<- Event) {
 			events <- &TextItem{caption}
 		}
 	} else {
-		log.Warnf("Unsupported domain: %s", data.Domain)
+		log.Warnf("Unsupported domain: %s, url: %s", data.Domain, data.URL)
 	}
 
-	events <- &End{data.Name}
+	events <- &End{data.CreatedUTC}
 	close(events)
 }

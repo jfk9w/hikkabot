@@ -27,7 +27,7 @@ const (
 	RedType   Type = "red"
 )
 
-type Offset = string
+type Offset = int
 
 type State struct {
 	ID      string

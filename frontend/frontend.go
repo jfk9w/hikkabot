@@ -90,7 +90,6 @@ func (frontend *Frontend) ParseState(
 	if err == nil {
 		state.Type = feed.DvachType
 		state.ID = dref.Board + "/" + dref.NumString
-		state.Offset = "0"
 
 		var thread *dvach.Thread
 		thread, err = frontend.ctx.Thread(dref)

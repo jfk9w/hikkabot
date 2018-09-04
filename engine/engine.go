@@ -146,6 +146,7 @@ func (engine *Engine) Run(id interface{}) {
 	}
 
 	log.Debugf("Chat %v: no more events for state %v", id, state.ID)
+	engine.PersistState(chat, state) // update for sort
 }
 
 func (engine *Engine) CheckError(chat telegram.ChatID, state feed.State, err error) bool {

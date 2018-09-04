@@ -1,7 +1,6 @@
 package feed
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/jfk9w-go/dvach"
@@ -55,13 +54,8 @@ func ParseDvachRef(value string) (dvach.Ref, error) {
 	return dvach.ToRef(tokens[0], tokens[1])
 }
 
-func (service *DvachService) ParseState(state State) (ref dvach.Ref, offset int, meta *DvachMeta, err error) {
+func (service *DvachService) ParseState(state State) (ref dvach.Ref, meta *DvachMeta, err error) {
 	ref, err = ParseDvachRef(state.ID)
-	if err != nil {
-		return
-	}
-
-	offset, err = strconv.Atoi(state.Offset)
 	if err != nil {
 		return
 	}
@@ -74,13 +68,13 @@ func (service *DvachService) ParseState(state State) (ref dvach.Ref, offset int,
 func (service *DvachService) Load(state State) (Load, error) {
 	var (
 		ref    dvach.Ref
-		offset int
+		offset = state.Offset
 		meta   *DvachMeta
 		posts  []*dvach.Post
 		err    error
 	)
 
-	ref, offset, meta, err = service.ParseState(state)
+	ref, meta, err = service.ParseState(state)
 	if err != nil {
 		return nil, err
 	}
@@ -117,10 +111,9 @@ type RedService struct {
 
 func (service *RedService) Load(state State) (Load, error) {
 	var (
-		before = state.Offset
-		meta   = new(RedMeta)
-		data   []red.ThingData
-		err    error
+		meta = new(RedMeta)
+		data []red.ThingData
+		err  error
 	)
 
 	err = state.ParseMeta(meta)
@@ -128,12 +121,20 @@ func (service *RedService) Load(state State) (Load, error) {
 		return nil, err
 	}
 
-	data, err = service.Listing(state.ID+"/"+meta.Mode, before)
+	data, err = service.Listing(state.ID+"/"+meta.Mode, 10)
 	if err != nil {
 		return nil, err
 	}
 
-	return &RedLoad{service.Red, data, len(data) - 1}, nil
+	var index = len(data)
+	for i, datum := range data {
+		if state.Offset >= datum.CreatedUTC {
+			index = i
+			break
+		}
+	}
+
+	return &RedLoad{service.Red, data, index - 1}, nil
 }
 
 func (service *RedService) Title(state State) string {
