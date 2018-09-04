@@ -128,7 +128,7 @@ func (service *RedService) Load(state State) (Load, error) {
 
 	var index = len(data)
 	for i, datum := range data {
-		if state.Offset >= datum.CreatedUTC {
+		if state.Offset >= int(datum.CreatedUTC) {
 			index = i
 			break
 		}

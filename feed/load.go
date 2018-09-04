@@ -164,6 +164,6 @@ func (load *RedLoad) Next(events chan<- Event) {
 		log.Warnf("Unsupported domain: %s, url: %s", data.Domain, data.URL)
 	}
 
-	events <- &End{data.CreatedUTC}
+	events <- &End{int(data.CreatedUTC)}
 	close(events)
 }
