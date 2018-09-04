@@ -38,21 +38,21 @@ type State struct {
 	Updated int64
 }
 
-func (s State) ParseMeta(v interface{}) error {
+func (s *State) ParseMeta(v interface{}) error {
 	return json.Unmarshal(s.Meta, v)
 }
 
-func (s State) WithOffset(offset Offset) State {
+func (s *State) WithOffset(offset Offset) *State {
 	s.Offset = offset
 	return s
 }
 
-func (s State) WithError(err error) State {
+func (s *State) WithError(err error) *State {
 	s.Error = err
 	return s
 }
 
-func (s State) Err() string {
+func (s *State) Err() string {
 	if s.Error == nil {
 		return ""
 	}

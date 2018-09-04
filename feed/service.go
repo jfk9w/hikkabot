@@ -9,15 +9,15 @@ import (
 )
 
 type Service interface {
-	Load(State) (Load, error)
-	Title(State) string
+	Load(*State) (Load, error)
+	Title(*State) string
 }
 
 type GenericService struct {
 	Typed map[Type]Service
 }
 
-func (service *GenericService) Load(state State) (Load, error) {
+func (service *GenericService) Load(state *State) (Load, error) {
 	var concrete, ok = service.Typed[state.Type]
 	if ok {
 		var load, err = concrete.Load(state)
@@ -31,7 +31,7 @@ func (service *GenericService) Load(state State) (Load, error) {
 	return &DummyLoad{}, Errorf("unsupported type: %s", state.Type)
 }
 
-func (service *GenericService) Title(state State) string {
+func (service *GenericService) Title(state *State) string {
 	var concrete, ok = service.Typed[state.Type]
 	if ok {
 		return concrete.Title(state)
@@ -54,7 +54,7 @@ func ParseDvachRef(value string) (dvach.Ref, error) {
 	return dvach.ToRef(tokens[0], tokens[1])
 }
 
-func (service *DvachService) ParseState(state State) (ref dvach.Ref, meta *DvachMeta, err error) {
+func (service *DvachService) ParseState(state *State) (ref dvach.Ref, meta *DvachMeta, err error) {
 	ref, err = ParseDvachRef(state.ID)
 	if err != nil {
 		return
@@ -65,7 +65,7 @@ func (service *DvachService) ParseState(state State) (ref dvach.Ref, meta *Dvach
 	return
 }
 
-func (service *DvachService) Load(state State) (Load, error) {
+func (service *DvachService) Load(state *State) (Load, error) {
 	var (
 		ref    dvach.Ref
 		offset = state.Offset
@@ -91,7 +91,7 @@ func (service *DvachService) Load(state State) (Load, error) {
 	return &DvachLoad{service.Dvach, service.Aconvert, meta, posts, 0}, nil
 }
 
-func (service *DvachService) Title(state State) string {
+func (service *DvachService) Title(state *State) string {
 	var (
 		meta = new(DvachMeta)
 		err  error
@@ -109,7 +109,7 @@ type RedService struct {
 	Red
 }
 
-func (service *RedService) Load(state State) (Load, error) {
+func (service *RedService) Load(state *State) (Load, error) {
 	var (
 		meta = new(RedMeta)
 		data []red.ThingData
@@ -137,6 +137,6 @@ func (service *RedService) Load(state State) (Load, error) {
 	return &RedLoad{service.Red, data, index - 1}, nil
 }
 
-func (service *RedService) Title(state State) string {
+func (service *RedService) Title(state *State) string {
 	return state.ID
 }

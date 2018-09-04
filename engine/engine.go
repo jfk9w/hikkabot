@@ -58,7 +58,7 @@ func New(ctx *Context, interval time.Duration, filename string) *Engine {
 	return engine
 }
 
-func (engine *Engine) Start(id telegram.ChatID, state feed.State) bool {
+func (engine *Engine) Start(id telegram.ChatID, state *feed.State) bool {
 	if !engine.AppendState(id, state) {
 		return false
 	}
@@ -97,11 +97,11 @@ func (engine *Engine) Run(id interface{}) {
 	log.Debugf("Chat %v: loading state", id)
 
 	var (
-		chat      = id.(telegram.ChatID)
-		state, ok = engine.NextState(chat)
+		chat  = id.(telegram.ChatID)
+		state = engine.NextState(chat)
 	)
 
-	if !ok {
+	if state == nil {
 		log.Debugf("Chat %v: empty", id)
 		engine.Cancel(id)
 		return
@@ -136,12 +136,13 @@ func (engine *Engine) Run(id interface{}) {
 				log.Debugf("Chat %v: persisting state %v, offset %v", id, state.ID, event.Offset)
 				if !engine.PersistState(chat, state.WithOffset(event.Offset)) {
 					log.Debugf("Chat %v: state %v interrupted", id, state.ID)
+					return
 				}
 			}
 		}
 
 		if err != nil {
-			break
+			return
 		}
 	}
 
@@ -149,7 +150,7 @@ func (engine *Engine) Run(id interface{}) {
 	engine.PersistState(chat, state) // update for sort
 }
 
-func (engine *Engine) CheckError(chat telegram.ChatID, state feed.State, err error) bool {
+func (engine *Engine) CheckError(chat telegram.ChatID, state *feed.State, err error) bool {
 	if err == nil {
 		return true
 	}

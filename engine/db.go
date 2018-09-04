@@ -57,7 +57,7 @@ error TEXT NOT NULL DEFAULT '')`)
 }
 
 //language=SQL
-func (db *DB) NextState(chat telegram.ChatID) (state feed.State, ok bool) {
+func (db *DB) NextState(chat telegram.ChatID) *feed.State {
 	var rs = db.query(`SELECT id, type, meta, offset
 FROM feed
 WHERE chat = ? AND error = ''
@@ -66,17 +66,18 @@ LIMIT 1`,
 		chat)
 
 	if !rs.Next() {
-		return
+		return nil
 	}
 
-	ok = true
+	var state = new(feed.State)
 	checkpanic(rs.Scan(&state.ID, &state.Type, &state.Meta, &state.Offset))
 	checkpanic(rs.Close())
-	return
+
+	return state
 }
 
 //language=SQL
-func (db *DB) PersistState(chat telegram.ChatID, state feed.State) bool {
+func (db *DB) PersistState(chat telegram.ChatID, state *feed.State) bool {
 	return db.update(`UPDATE feed
 SET offset = ?, error = ?, updated = ?
 WHERE chat = ? AND id = ? AND type = ? AND error = ''`,
@@ -85,7 +86,7 @@ WHERE chat = ? AND id = ? AND type = ? AND error = ''`,
 }
 
 //language=SQL
-func (db *DB) AppendState(chat telegram.ChatID, state feed.State) bool {
+func (db *DB) AppendState(chat telegram.ChatID, state *feed.State) bool {
 	return db.update(`INSERT OR IGNORE INTO feed (chat, id, type, meta, offset, updated, error)
 VALUES (?, ?, ?, ?, ?, 0, '')`,
 		chat, state.ID, state.Type, state.Meta, state.Offset) > 0

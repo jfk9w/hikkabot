@@ -83,7 +83,9 @@ func ParseRed(value string) (string, string, bool) {
 
 func (frontend *Frontend) ParseState(
 	command telegram.Command) (
-	chat telegram.ChatID, state feed.State, err error) {
+	chat telegram.ChatID, state *feed.State, err error) {
+
+	state = new(feed.State)
 
 	var dref dvach.Ref
 	dref, err = dvach.ParseUrl(command.Arg(0, ""))
