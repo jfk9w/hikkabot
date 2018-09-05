@@ -124,7 +124,7 @@ func (service *RedService) Load(state *State) (Load, error) {
 		return nil, err
 	}
 
-	data, err = service.Listing(state.ID+"/"+meta.Mode, 10)
+	data, err = service.Listing(state.ID+"/"+meta.Mode, 100)
 	if err != nil {
 		return nil, err
 	}
