@@ -127,7 +127,7 @@ type RedLoad struct {
 }
 
 var AllowedRedDomains = []string{
-	"i.redd.it", "i.imgur.com",
+	"i.redd.it", "i.imgur.com", "imgur.com",
 }
 
 func (load *RedLoad) IsAllowed(data red.ThingData) bool {
@@ -141,12 +141,12 @@ func (load *RedLoad) IsAllowed(data red.ThingData) bool {
 }
 
 func (load *RedLoad) HasNext() bool {
-	return load.Index >= 0
+	return load.Index < len(load.Data)
 }
 
 func (load *RedLoad) Next(events chan<- Event) {
 	var data = load.Data[load.Index]
-	load.Index -= 1
+	load.Index += 1
 
 	var caption = "#" + data.Subreddit + "\n" + data.Title + "\n" + A(data.URL)
 	if load.IsAllowed(data) {

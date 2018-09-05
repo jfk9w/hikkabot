@@ -3,6 +3,8 @@ package feed
 import (
 	"strings"
 
+	"sort"
+
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/red"
 	. "github.com/pkg/errors"
@@ -111,9 +113,10 @@ type RedService struct {
 
 func (service *RedService) Load(state *State) (Load, error) {
 	var (
-		meta = new(RedMeta)
-		data []red.ThingData
-		err  error
+		offset = float32(state.Offset)
+		meta   = new(RedMeta)
+		data   []red.ThingData
+		err    error
 	)
 
 	err = state.ParseMeta(meta)
@@ -126,17 +129,30 @@ func (service *RedService) Load(state *State) (Load, error) {
 		return nil, err
 	}
 
-	var index = len(data)
+	sort.Sort(SortRedData(data))
 	for i, datum := range data {
-		if state.Offset >= int(datum.CreatedUTC) {
-			index = i
-			break
+		if datum.CreatedUTC > offset {
+			return &RedLoad{service.Red, data, i}, nil
 		}
 	}
 
-	return &RedLoad{service.Red, data, index - 1}, nil
+	return &DummyLoad{}, nil
 }
 
 func (service *RedService) Title(state *State) string {
 	return state.ID
+}
+
+type SortRedData []red.ThingData
+
+func (data SortRedData) Len() int {
+	return len(data)
+}
+
+func (data SortRedData) Less(i, j int) bool {
+	return data[i].CreatedUTC < data[j].CreatedUTC
+}
+
+func (data SortRedData) Swap(i, j int) {
+	data[i], data[j] = data[j], data[i]
 }
