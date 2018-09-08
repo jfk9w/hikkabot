@@ -152,8 +152,8 @@ func (service *RedService) Load(state *State) (Load, error) {
 	var moment = time.Now().Unix()
 	for _, datum := range data {
 		if metrics != nil {
-			metrics.WriteString(fmt.Sprintf("%d,%s,%s,%.0f,%d\n",
-				moment, state.ID, meta.Mode, datum.CreatedUTC, datum.Ups))
+			metrics.WriteString(fmt.Sprintf("%d,%s,%s,%s,%.0f,%d\n",
+				moment, state.ID, meta.Mode, datum.Name, datum.CreatedUTC, datum.Ups))
 		}
 
 		if datum.CreatedUTC > offset && datum.Ups > meta.Ups {
