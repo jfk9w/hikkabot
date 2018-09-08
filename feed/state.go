@@ -2,6 +2,8 @@ package feed
 
 import (
 	"encoding/json"
+
+	"github.com/jfk9w-go/telegram"
 )
 
 type DvachMode = string
@@ -18,6 +20,7 @@ type DvachMeta struct {
 
 type RedMeta struct {
 	Mode string `json:"mode"`
+	Ups  int    `json:"ups"`
 }
 
 type Type string
@@ -30,6 +33,7 @@ const (
 type Offset = int
 
 type State struct {
+	Chat    telegram.ChatID
 	ID      string
 	Type    Type
 	Meta    json.RawMessage

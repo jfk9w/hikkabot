@@ -30,11 +30,13 @@ type Engine struct {
 	service feed.Service
 }
 
-func New(ctx *Context, interval time.Duration, filename string) *Engine {
+func New(ctx *Context, interval time.Duration, dbFile string,
+	redMetricsFile string, redMetricsChatID telegram.ChatID) *Engine {
+
 	var engine = &Engine{
 		Scheduler: schedx.New(interval),
 		ctx:       ctx,
-		DB:        OpenDB(filename).InitSchema(),
+		DB:        OpenDB(dbFile).InitSchema(),
 		service: &feed.GenericService{
 			Typed: map[feed.Type]feed.Service{
 				feed.DvachType: &feed.DvachService{
@@ -42,7 +44,9 @@ func New(ctx *Context, interval time.Duration, filename string) *Engine {
 					Aconvert: ctx.Aconvert,
 				},
 				feed.RedType: &feed.RedService{
-					Red: ctx.Red,
+					Red:           ctx.Red,
+					MetricsFile:   redMetricsFile,
+					MetricsChatID: redMetricsChatID,
 				},
 			},
 		},

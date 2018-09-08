@@ -73,6 +73,7 @@ LIMIT 1`,
 	checkpanic(rs.Scan(&state.ID, &state.Type, &state.Meta, &state.Offset))
 	checkpanic(rs.Close())
 
+	state.Chat = chat
 	return state
 }
 

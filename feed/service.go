@@ -5,8 +5,14 @@ import (
 
 	"sort"
 
+	"os"
+
+	"fmt"
+	"time"
+
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/red"
+	"github.com/jfk9w-go/telegram"
 	. "github.com/pkg/errors"
 )
 
@@ -109,6 +115,8 @@ func (service *DvachService) Title(state *State) string {
 
 type RedService struct {
 	Red
+	MetricsFile   string
+	MetricsChatID telegram.ChatID
 }
 
 func (service *RedService) Load(state *State) (Load, error) {
@@ -130,13 +138,34 @@ func (service *RedService) Load(state *State) (Load, error) {
 	}
 
 	sort.Sort(SortRedData(data))
-	for i, datum := range data {
-		if datum.CreatedUTC > offset {
-			return &RedLoad{service.Red, data, i}, nil
+
+	var metrics *os.File
+	if service.MetricsFile != "" && service.MetricsChatID != 0 {
+		metrics, err = os.OpenFile(service.MetricsFile, os.O_RDWR|os.O_APPEND, 0660)
+		if err != nil {
+			log.Warnf("Failed to open file %s: %s", service.MetricsFile, err.Error())
+			metrics = nil
 		}
 	}
 
-	return &DummyLoad{}, nil
+	var filtered = make([]red.ThingData, 0)
+	var moment = time.Now().Unix()
+	for _, datum := range data {
+		if metrics != nil {
+			metrics.WriteString(fmt.Sprintf("%d,%s,%s,%s,%.0f,%d\n",
+				moment, state.ID, meta.Mode, datum.Name, datum.CreatedUTC, datum.Ups))
+		}
+
+		if datum.CreatedUTC > offset && datum.Ups > meta.Ups {
+			filtered = append(filtered, datum)
+		}
+	}
+
+	if metrics != nil {
+		metrics.Close()
+	}
+
+	return &RedLoad{service.Red, filtered, 0}, nil
 }
 
 func (service *RedService) Title(state *State) string {

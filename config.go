@@ -17,7 +17,13 @@ type Config struct {
 	Dvach             dvach.Config      `json:"dvach"`
 	Telegram          telegram.Config   `json:"telegram"`
 	Aconvert          aconvert.Config   `json:"aconvert"`
-	Red               red.Config        `json:"red"`
+	Red               RedConfig         `json:"red"`
+}
+
+type RedConfig struct {
+	red.Config
+	MetricsFile   string          `json:"metrics_file"`
+	MetricsChatID telegram.ChatID `json:"metrics_chat_id"`
 }
 
 func ReadConfig(path string) *Config {

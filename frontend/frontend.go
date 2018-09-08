@@ -108,8 +108,12 @@ func (frontend *Frontend) ParseState(
 		state.Type = feed.RedType
 		state.ID = subreddit
 
+		var ups int
+		ups, err = strconv.Atoi(command.Arg(2, "0"))
+
 		var meta feed.RedMeta
 		meta.Mode = mode
+		meta.Ups = ups
 
 		state.Meta, err = json.Marshal(&meta)
 	} else {

@@ -7,6 +7,7 @@ import (
 
 	Aconvert "github.com/jfk9w-go/aconvert"
 	Dvach "github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/gox/fsx"
 	Engine "github.com/jfk9w-go/hikkabot/engine"
 	"github.com/jfk9w-go/hikkabot/frontend"
 	"github.com/jfk9w-go/logx"
@@ -24,15 +25,25 @@ func main() {
 
 		aconvert = Aconvert.ConfigureBalancer(config.Aconvert)
 		dvach    = Dvach.Configure(config.Dvach)
-		red      = Red.Configure(config.Red)
+		red      = Red.Configure(config.Red.Config)
 		telegram = Telegram.Configure(config.Telegram, &Telegram.UpdatesOpts{
 			Timeout:        60,
 			AllowedUpdates: []string{"message", "edited_message"},
 		})
 
 		context = &Engine.Context{telegram, dvach, &aconvert, red}
-		engine  = Engine.New(context, config.SchedulerInterval.Duration(), config.Database)
 	)
+
+	var redMetricsFile = config.Red.MetricsFile
+	if redMetricsFile != "" {
+		var err error
+		redMetricsFile, err = fsx.Path(redMetricsFile)
+		checkpanic(err)
+		checkpanic(fsx.EnsureParent(redMetricsFile))
+	}
+
+	var engine = Engine.New(context, config.SchedulerInterval.Duration(), config.Database,
+		redMetricsFile, config.Red.MetricsChatID)
 
 	frontend.Init(engine, context, config.Superusers)
 
