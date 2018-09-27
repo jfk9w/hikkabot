@@ -155,9 +155,13 @@ func (load *RedLoad) Next(events chan<- Event) {
 			err  = load.Red.Get(data.URL, nil, file)
 		)
 
-		if err == nil {
+		if err == nil && file.Size <= telegram.MaxPhotoSize {
 			events <- &ImageItem{file, caption}
 		} else {
+			if file != nil {
+				file.Delete()
+			}
+
 			events <- &TextItem{caption}
 		}
 	} else {
