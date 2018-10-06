@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/jfk9w-go/gox"
+
 	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/telegram"
 	"github.com/mattn/go-sqlite3"
@@ -20,25 +22,25 @@ type DB sql.DB
 
 func OpenDB(filename string) *DB {
 	db, err := sql.Open(driver, filename)
-	checkpanic(err)
+	gox.Check(err)
 	return (*DB)(db)
 }
 
 func (db *DB) query(query string, args ...interface{}) *sql.Rows {
 	rows, err := (*sql.DB)(db).Query(query, args...)
-	checkpanic(err)
+	gox.Check(err)
 	return rows
 }
 
 func (db *DB) exec(query string, args ...interface{}) sql.Result {
 	result, err := (*sql.DB)(db).Exec(query, args...)
-	checkpanic(err)
+	gox.Check(err)
 	return result
 }
 
 func (db *DB) update(query string, args ...interface{}) int64 {
 	rows, err := db.exec(query, args...).RowsAffected()
-	checkpanic(err)
+	gox.Check(err)
 	return rows
 }
 
@@ -70,8 +72,8 @@ LIMIT 1`,
 	}
 
 	var state = new(feed.State)
-	checkpanic(rs.Scan(&state.ID, &state.Type, &state.Meta, &state.Offset))
-	checkpanic(rs.Close())
+	gox.Check(rs.Scan(&state.ID, &state.Type, &state.Meta, &state.Offset))
+	gox.Check(rs.Close())
 
 	state.Chat = chat
 	return state
@@ -116,11 +118,11 @@ ORDER BY chat ASC`)
 
 	for rs.Next() {
 		var chat telegram.ChatID
-		checkpanic(rs.Scan(&chat))
+		gox.Check(rs.Scan(&chat))
 		chats = append(chats, chat)
 	}
 
-	checkpanic(rs.Close())
+	gox.Check(rs.Close())
 	return chats
 }
 
@@ -171,15 +173,9 @@ func (db *DB) Exec(query string) (int64, error) {
 }
 
 func (db *DB) Close() {
-	checkpanic((*sql.DB)(db).Close())
+	gox.Check((*sql.DB)(db).Close())
 }
 
 func now() int64 {
 	return time.Now().UnixNano() / 1e3
-}
-
-func checkpanic(err error) {
-	if err != nil {
-		panic(err)
-	}
 }

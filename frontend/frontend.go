@@ -1,21 +1,21 @@
 package frontend
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/jfk9w-go/gox/fsx"
-	"github.com/jfk9w-go/httpx"
-
 	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/gox/fsx"
 	"github.com/jfk9w-go/hikkabot/common"
 	"github.com/jfk9w-go/hikkabot/engine"
 	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/hikkabot/text"
+	"github.com/jfk9w-go/httpx"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
 )
@@ -35,12 +35,12 @@ var (
 
 type Frontend struct {
 	Engine
-	ctx        *engine.Context
-	superusers []telegram.ChatID
+	ctx    *engine.Context
+	config Config
 }
 
-func Init(engine Engine, ctx *engine.Context, superusers []telegram.ChatID) *Frontend {
-	var frontend = &Frontend{engine, ctx, superusers}
+func Init(engine Engine, ctx *engine.Context, config Config) *Frontend {
+	var frontend = &Frontend{engine, ctx, config}
 	go frontend.Run()
 	return frontend
 }
@@ -196,8 +196,6 @@ func (frontend *Frontend) Exec(command telegram.Command) (err error) {
 	return
 }
 
-const tempDir = "/tmp/hikkabot"
-
 func (frontend *Frontend) Query(command telegram.Command) (err error) {
 	err = frontend.CheckSuperuser(command.User)
 	if err != nil {
@@ -210,28 +208,28 @@ func (frontend *Frontend) Query(command telegram.Command) (err error) {
 		return
 	}
 
-	file, err := ioutil.TempFile(tempDir, "query")
+	var path = fsx.TempFile(frontend.config.TempStorage)
+	err = fsx.EnsureParent(path)
 	if err != nil {
 		return
 	}
 
-	for _, row := range report {
-		file.WriteString(`"` + strings.Join(row, `","`) + `"
-`)
-	}
+	var file = &httpx.File{Path: path}
+	defer file.Delete()
 
-	stat, err := file.Stat()
+	realFile, err := os.Create(path)
 	if err != nil {
 		return
 	}
 
-	file.Close()
-	var data = &httpx.File{
-		Path: fsx.Join(tempDir, stat.Name()),
+	defer realFile.Close()
+
+	err = csv.NewWriter(realFile).WriteAll(report)
+	if err != nil {
+		return
 	}
 
-	_, err = frontend.ctx.SendDocument(command.Chat, data, &telegram.MediaOpts{})
-	data.Delete()
+	_, err = frontend.ctx.SendDocument(command.Chat, file, &telegram.MediaOpts{})
 	return
 }
 
@@ -327,7 +325,7 @@ func (frontend *Frontend) CheckError(command telegram.Command, err error) bool {
 }
 
 func (frontend *Frontend) CheckSuperuser(user telegram.ChatID) error {
-	for _, superuser := range frontend.superusers {
+	for _, superuser := range frontend.config.Superusers {
 		if user == superuser {
 			return nil
 		}

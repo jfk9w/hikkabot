@@ -5,6 +5,8 @@ import (
 	"os/signal"
 	"sync"
 
+	"github.com/jfk9w-go/gox"
+
 	Aconvert "github.com/jfk9w-go/aconvert"
 	Dvach "github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/gox/fsx"
@@ -38,14 +40,14 @@ func main() {
 	if redMetricsFile != "" {
 		var err error
 		redMetricsFile, err = fsx.Path(redMetricsFile)
-		checkpanic(err)
-		checkpanic(fsx.EnsureParent(redMetricsFile))
+		gox.Check(err)
+		gox.Check(fsx.EnsureParent(redMetricsFile))
 	}
 
 	var engine = Engine.New(context, config.SchedulerInterval.Duration(), config.Database,
 		redMetricsFile, config.Red.MetricsChatID)
 
-	frontend.Init(engine, context, config.Superusers)
+	frontend.Init(engine, context, config.Frontend)
 
 	logx.Get("init").Debug("Started")
 
