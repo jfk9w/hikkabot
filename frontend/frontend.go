@@ -216,7 +216,8 @@ func (frontend *Frontend) Query(command telegram.Command) (err error) {
 	}
 
 	for _, row := range report {
-		file.WriteString(`"` + strings.Join(row, `","`) + `"`)
+		file.WriteString(`"` + strings.Join(row, `","`) + `"
+`)
 	}
 
 	stat, err := file.Stat()
