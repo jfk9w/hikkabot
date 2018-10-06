@@ -3,9 +3,13 @@ package frontend
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/jfk9w-go/gox/fsx"
+	"github.com/jfk9w-go/httpx"
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/hikkabot/common"
@@ -192,6 +196,8 @@ func (frontend *Frontend) Exec(command telegram.Command) (err error) {
 	return
 }
 
+const tempDir = "/tmp/hikkabot"
+
 func (frontend *Frontend) Query(command telegram.Command) (err error) {
 	err = frontend.CheckSuperuser(command.User)
 	if err != nil {
@@ -204,15 +210,27 @@ func (frontend *Frontend) Query(command telegram.Command) (err error) {
 		return
 	}
 
-	var rows = make([]string, len(report))
-	for i := range report {
-		rows[i] = strings.Join(report[i], " ")
+	file, err := ioutil.TempFile(tempDir, "query")
+	if err != nil {
+		return
 	}
 
-	rows[0] = "<b>" + rows[0] + "</b>"
-	var text = strings.Join(rows, "\n")
+	for _, row := range report {
+		file.WriteString(`"` + strings.Join(row, `","`) + `"`)
+	}
 
-	_, err = frontend.ctx.SendMessage(command.Chat, text, MessageOptsHTML)
+	stat, err := file.Stat()
+	if err != nil {
+		return
+	}
+
+	file.Close()
+	var data = &httpx.File{
+		Path: fsx.Join(tempDir, stat.Name()),
+	}
+
+	_, err = frontend.ctx.SendDocument(command.Chat, data, &telegram.MediaOpts{})
+	data.Delete()
 	return
 }
 
