@@ -132,6 +132,12 @@ func (frontend *Frontend) ParseState(
 	return
 }
 
+//language=SQL
+const resumeQuery = `update feed set error = ''
+where error like 'invalid%'
+   or error like 'Get%'
+   or error like 'Post%'`
+
 func (frontend *Frontend) OnCommand(command telegram.Command) {
 	switch command.Command {
 	case "status":
@@ -172,21 +178,29 @@ func (frontend *Frontend) OnCommand(command telegram.Command) {
 		frontend.CheckError(command, frontend.Catalog(command))
 
 	case "exec":
-		frontend.CheckError(command, frontend.Exec(command))
+		frontend.CheckError(command, frontend.Exec(command, strings.Join(command.Args, " ")))
 
 	case "query":
 		frontend.CheckError(command, frontend.Query(command))
+
+	case "resume":
+		if frontend.CheckError(command, frontend.Exec(command, resumeQuery)) {
+			var active = frontend.LoadActiveAccounts()
+			for _, chat := range active {
+				frontend.Schedule(chat)
+			}
+		}
 	}
 }
 
-func (frontend *Frontend) Exec(command telegram.Command) (err error) {
+func (frontend *Frontend) Exec(command telegram.Command, query string) (err error) {
 	err = frontend.CheckSuperuser(command.User)
 	if err != nil {
 		return
 	}
 
 	var updated int64
-	updated, err = frontend.DB.Exec(strings.Join(command.Args, " "))
+	updated, err = frontend.DB.Exec(query)
 	if !frontend.CheckError(command, err) {
 		return
 	}
