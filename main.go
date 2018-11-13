@@ -1,8 +1,11 @@
 package main
 
 import (
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 
 	"github.com/jfk9w-go/gox"
@@ -51,6 +54,7 @@ func main() {
 
 	logx.Get("init").Debug("Started")
 
+	go profiler()
 	loop()
 
 	//telegram.Updater.Close()
@@ -74,4 +78,10 @@ func loop() {
 	}()
 
 	group.Wait()
+}
+
+func profiler() {
+	runtime.SetBlockProfileRate(10)
+	runtime.SetMutexProfileFraction(10)
+	logx.Get("profiler").Println(http.ListenAndServe("0.0.0.0:6060", nil))
 }
