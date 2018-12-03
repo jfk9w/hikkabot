@@ -195,8 +195,8 @@ func SearchDvachCatalog(threads []*dvach.Thread, sortType DvachSortType, query [
 		sort.Sort(sorter)
 	}
 
-	if limit > 0 {
-		threads = threads[:mathx.MinInt(limit, len(threads))]
+	if limit > 0 && len(threads) > 0 {
+		threads = threads[:mathx.MinInt(limit, len(threads)-1)]
 	}
 
 	return threads
