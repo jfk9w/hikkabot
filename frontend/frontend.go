@@ -89,6 +89,17 @@ func ParseRed(value string) (string, string, bool) {
 	return "", "", false
 }
 
+var DvachWatchRegexp = regexp.MustCompile(`^/watch/([a-z]+)/(.*)$`)
+
+func ParseDvachWatch(value string) (dvach.Board, []string, bool) {
+	var groups = DvachWatchRegexp.FindStringSubmatch(value)
+	if len(groups) == 3 {
+		return dvach.Board(groups[1]), strings.Split(groups[2], ","), true
+	}
+
+	return "", nil, false
+}
+
 func (frontend *Frontend) ParseState(
 	command telegram.Command) (
 	chat telegram.ChatID, state *feed.State, err error) {
@@ -122,6 +133,14 @@ func (frontend *Frontend) ParseState(
 		var meta feed.RedMeta
 		meta.Mode = mode
 		meta.Ups = ups
+
+		state.Meta, err = json.Marshal(&meta)
+	} else if board, query, ok := ParseDvachWatch(command.Arg(0, "")); ok {
+		state.Type = feed.DvachWatchType
+		state.ID = board
+
+		var meta feed.DvachWatchMeta
+		meta.Query = query
 
 		state.Meta, err = json.Marshal(&meta)
 	} else {
@@ -281,7 +300,8 @@ func (frontend *Frontend) Catalog(command telegram.Command) (err error) {
 		return
 	}
 
-	var parts = content.SearchDvachCatalog(catalog.Threads, content.DvachUnsorted, tokens, limit)
+	var parts = content.FormatDvachCatalog(
+		content.SearchDvachCatalog(catalog.Threads, content.DvachUnsorted, tokens, limit))
 	for _, part := range parts {
 		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTMLNoPreview)
 		if err != nil {
@@ -322,7 +342,8 @@ func (frontend *Frontend) Search(command telegram.Command) (err error) {
 		return
 	}
 
-	var parts = content.SearchDvachCatalog(catalog.Threads, content.DvachSortByPace, tokens, limit)
+	var parts = content.FormatDvachCatalog(
+		content.SearchDvachCatalog(catalog.Threads, content.DvachSortByPace, tokens, limit))
 	for _, part := range parts {
 		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTMLNoPreview)
 		if err != nil {

@@ -18,6 +18,10 @@ type DvachMeta struct {
 	Mode  DvachMode `json:"mode"`
 }
 
+type DvachWatchMeta struct {
+	Query []string `json:"query"`
+}
+
 type RedMeta struct {
 	Mode string `json:"mode"`
 	Ups  int    `json:"ups"`
@@ -26,8 +30,9 @@ type RedMeta struct {
 type Type string
 
 const (
-	DvachType Type = "dvach"
-	RedType   Type = "red"
+	DvachType      Type = "dvach"
+	DvachWatchType Type = "dvach_watch"
+	RedType        Type = "red"
 )
 
 type Offset = int

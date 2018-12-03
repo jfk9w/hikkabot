@@ -56,12 +56,7 @@ var (
 		ProcessLink: dvachProcessLink,
 	}).SetDefaults()
 
-	dvachPreviewsPerMessage = paddedMaxMessageSize / dvachPreviewFormat.ChunkSize
-
-	dvachUnboundFormat = (&Format{
-		ProcessLink: dvachProcessLink,
-	}).SetDefaults()
-
+	DvachPreviewsPerMessage = paddedMaxMessageSize / dvachPreviewFormat.ChunkSize
 	dvachThreadTagSanitizer = regexp.MustCompile("[^0-9A-Za-zА-Яа-я]+")
 )
 
@@ -131,6 +126,7 @@ type DvachSortType uint8
 const (
 	DvachUnsorted DvachSortType = iota
 	DvachSortByPace
+	DvachSortByNum
 )
 
 type DvachThreadsByPace []*dvach.Thread
@@ -152,7 +148,21 @@ func (threads DvachThreadsByPace) Swap(i, j int) {
 	threads[i], threads[j] = threads[j], threads[i]
 }
 
-func SearchDvachCatalog(threads []*dvach.Thread, sortType DvachSortType, query []string, limit int) []string {
+type DvachThreadsByNum []*dvach.Thread
+
+func (threads DvachThreadsByNum) Len() int {
+	return len(threads)
+}
+
+func (threads DvachThreadsByNum) Less(i, j int) bool {
+	return threads[i].Num < threads[j].Num
+}
+
+func (threads DvachThreadsByNum) Swap(i, j int) {
+	threads[i], threads[j] = threads[j], threads[i]
+}
+
+func SearchDvachCatalog(threads []*dvach.Thread, sortType DvachSortType, query []string, limit int) []*dvach.Thread {
 	if query != nil {
 		for i := range query {
 			query[i] = strings.ToLower(query[i])
@@ -189,18 +199,22 @@ func SearchDvachCatalog(threads []*dvach.Thread, sortType DvachSortType, query [
 		threads = threads[:mathx.MinInt(limit, len(threads))]
 	}
 
+	return threads
+}
+
+func FormatDvachCatalog(threads []*dvach.Thread) []string {
 	var previews = make([]string, len(threads))
 	for i, thread := range threads {
 		previews[i] = formatDvachPreview(thread)
 	}
 
 	var (
-		chunkCount = int(math.Ceil(float64(len(threads)) / float64(dvachPreviewsPerMessage)))
+		chunkCount = int(math.Ceil(float64(len(threads)) / float64(DvachPreviewsPerMessage)))
 		chunks     = make([]string, chunkCount)
 	)
 
 	for i := range chunks {
-		chunks[i] = strings.Join(previews[i:mathx.MinInt(i+dvachPreviewsPerMessage, len(previews))], "\n\n---\n\n")
+		chunks[i] = strings.Join(previews[i:mathx.MinInt(i+DvachPreviewsPerMessage, len(previews))], "\n\n---\n\n")
 	}
 
 	if chunkCount == 0 {

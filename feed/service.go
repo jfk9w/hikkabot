@@ -1,7 +1,12 @@
 package feed
 
 import (
+	"encoding/json"
 	"strings"
+
+	"github.com/jfk9w-go/gox/mathx"
+
+	"github.com/jfk9w-go/hikkabot/content"
 
 	"sort"
 
@@ -111,6 +116,59 @@ func (service *DvachService) Title(state *State) string {
 	}
 
 	return meta.Title
+}
+
+type DvachWatchService struct {
+	Dvach
+}
+
+func (service *DvachWatchService) Load(state *State) (Load, error) {
+	var (
+		offset  = state.Offset
+		meta    = new(DvachWatchMeta)
+		catalog *dvach.Catalog
+		threads []*dvach.Thread
+		results []string
+		offsets []int
+		err     error
+	)
+
+	err = json.Unmarshal(state.Meta, meta)
+	if err != nil {
+		return nil, err
+	}
+
+	catalog, err = service.Catalog(state.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	threads = make([]*dvach.Thread, 0)
+	for _, thread := range catalog.Threads {
+		if thread.Num > offset {
+			threads = append(threads, thread)
+		}
+	}
+
+	threads = content.SearchDvachCatalog(threads, content.DvachSortByNum, meta.Query, -1)
+	results = content.FormatDvachCatalog(threads)
+	if len(threads) > 0 {
+		offsets = make([]int, len(results))
+		for i := range results {
+			var idx = mathx.MaxInt(0,
+				mathx.MinInt(
+					(i+1)*content.DvachPreviewsPerMessage-1,
+					len(threads)-1))
+
+			offsets[i] = threads[idx].Num
+		}
+	}
+
+	return &DvachWatchLoad{results, offsets, 0}, nil
+}
+
+func (service *DvachWatchService) Title(state *State) string {
+	return "2ch/" + state.ID + " watcher"
 }
 
 type RedService struct {

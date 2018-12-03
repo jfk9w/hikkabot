@@ -120,24 +120,44 @@ func (load *DvachLoad) Next(events chan<- Event) {
 	close(events)
 }
 
+type DvachWatchLoad struct {
+	Result []string
+	Offset []Offset
+	Index  int
+}
+
+func (load *DvachWatchLoad) Get(i int) (string, Offset) {
+	return load.Result[i], load.Offset[i]
+}
+
+func (load *DvachWatchLoad) HasNext() bool {
+	return load.Index < len(load.Offset)
+}
+
+func (load *DvachWatchLoad) Next(events chan<- Event) {
+	var result, offset = load.Get(load.Index)
+	load.Index += 1
+
+	events <- &TextItem{result}
+	events <- &End{offset}
+	close(events)
+}
+
 type RedLoad struct {
 	Red
 	Data  []red.ThingData
 	Index int
 }
 
-var AllowedRedDomains = []string{
-	"i.redd.it", "i.imgur.com", "imgur.com",
+var AllowedRedDomains = map[string]struct{}{
+	"i.redd.it":   {},
+	"i.imgur.com": {},
+	"imgur.com":   {},
 }
 
 func (load *RedLoad) IsAllowed(data red.ThingData) bool {
-	for _, allowed := range AllowedRedDomains {
-		if data.Domain == allowed {
-			return true
-		}
-	}
-
-	return false
+	var _, ok = AllowedRedDomains[data.Domain]
+	return ok
 }
 
 func (load *RedLoad) HasNext() bool {

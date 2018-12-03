@@ -3,11 +3,10 @@ package engine
 import (
 	"time"
 
-	"github.com/jfk9w-go/hikkabot/content"
-
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/gox/schedx"
+	"github.com/jfk9w-go/hikkabot/content"
 	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/logx"
 	"github.com/jfk9w-go/red"
@@ -48,6 +47,9 @@ func New(ctx *Context, interval time.Duration, dbFile string,
 					Red:           ctx.Red,
 					MetricsFile:   redMetricsFile,
 					MetricsChatID: redMetricsChatID,
+				},
+				feed.DvachWatchType: &feed.DvachWatchService{
+					Dvach: ctx.Dvach,
 				},
 			},
 		},
