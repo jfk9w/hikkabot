@@ -3,10 +3,11 @@ package engine
 import (
 	"time"
 
+	"github.com/jfk9w-go/hikkabot/content"
+
 	"github.com/jfk9w-go/aconvert"
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/gox/schedx"
-	"github.com/jfk9w-go/hikkabot/common"
 	"github.com/jfk9w-go/hikkabot/feed"
 	"github.com/jfk9w-go/logx"
 	"github.com/jfk9w-go/red"
@@ -73,7 +74,7 @@ func (engine *Engine) Start(id telegram.ChatID, state *feed.State) bool {
 	go engine.ctx.NotifyAdministrators(id, func(chat *telegram.Chat) string {
 		return `#info
 Subscription OK.
-Chat: ` + common.ChatTitle(chat) + `
+Chat: ` + content.FormatChatTitle(chat) + `
 Thread: ` + engine.service.Title(state)
 	})
 
@@ -91,7 +92,7 @@ func (engine *Engine) Suspend(id telegram.ChatID) bool {
 	go engine.ctx.NotifyAdministrators(id, func(chat *telegram.Chat) string {
 		return `#info
 All subscriptions suspended.
-Chat: ` + common.ChatTitle(chat)
+Chat: ` + content.FormatChatTitle(chat)
 	})
 
 	return true
@@ -164,7 +165,7 @@ func (engine *Engine) CheckError(chat telegram.ChatID, state *feed.State, err er
 	go engine.ctx.NotifyAdministrators(chat, func(chat *telegram.Chat) string {
 		return `#info
 Subscription paused.
-Chat: ` + common.ChatTitle(chat) + `
+Chat: ` + content.FormatChatTitle(chat) + `
 Title: ` + engine.service.Title(state) + `
 Reason: ` + err.Error()
 	})
