@@ -6,7 +6,7 @@ import (
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/gox/syncx"
-	"github.com/jfk9w-go/hikkabot/text"
+	"github.com/jfk9w-go/hikkabot/content"
 	"github.com/jfk9w-go/httpx"
 	"github.com/jfk9w-go/red"
 	"github.com/jfk9w-go/telegram"
@@ -81,7 +81,7 @@ func (load *DvachLoad) Next(events chan<- Event) {
 	}
 
 	if load.Mode != MediaDvachMode {
-		var parts = text.FormatPost(text.Post{post, load.Title})
+		var parts = content.FormatDvachPost(post, load.Title)
 		for _, part := range parts {
 			events <- &TextItem{part}
 		}

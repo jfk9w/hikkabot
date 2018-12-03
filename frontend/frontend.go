@@ -11,10 +11,9 @@ import (
 
 	"github.com/jfk9w-go/dvach"
 	"github.com/jfk9w-go/gox/fsx"
-	"github.com/jfk9w-go/hikkabot/common"
+	"github.com/jfk9w-go/hikkabot/content"
 	"github.com/jfk9w-go/hikkabot/engine"
 	"github.com/jfk9w-go/hikkabot/feed"
-	"github.com/jfk9w-go/hikkabot/text"
 	"github.com/jfk9w-go/httpx"
 	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
@@ -30,6 +29,11 @@ var (
 
 	MessageOptsHTML = &telegram.MessageOpts{
 		SendOpts: SendOptsHTML,
+	}
+
+	MessageOptsHTMLNoPreview = &telegram.MessageOpts{
+		SendOpts:              SendOptsHTML,
+		DisableWebPagePreview: true,
 	}
 )
 
@@ -104,7 +108,7 @@ func (frontend *Frontend) ParseState(
 		}
 
 		var meta feed.DvachMeta
-		meta.Title = common.Header(&thread.Item)
+		meta.Title = content.FormatDvachThreadTag(thread)
 		meta.Mode = command.Arg(2, feed.FullDvachMode)
 
 		state.Meta, err = json.Marshal(&meta)
@@ -264,22 +268,22 @@ func (frontend *Frontend) Catalog(command telegram.Command) (err error) {
 		query  = command.Arg(1, "")
 		tokens []string
 
-		countstr = command.Arg(2, "30")
-		count    int
+		limitString = command.Arg(2, "30")
+		limit       int
 	)
 
 	if query != "" {
 		tokens = strings.Split(query, " ")
 	}
 
-	count, err = strconv.Atoi(countstr)
+	limit, err = strconv.Atoi(limitString)
 	if err != nil {
 		return
 	}
 
-	var parts = text.Search(catalog.Threads, tokens, false, count)
+	var parts = content.SearchDvachCatalog(catalog.Threads, content.DvachUnsorted, tokens, limit)
 	for _, part := range parts {
-		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTML)
+		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTMLNoPreview)
 		if err != nil {
 			return
 		}
@@ -305,22 +309,22 @@ func (frontend *Frontend) Search(command telegram.Command) (err error) {
 		query  = command.Arg(1, "")
 		tokens []string
 
-		countstr = command.Arg(2, "30")
-		count    int
+		limitString = command.Arg(2, "30")
+		limit       int
 	)
 
 	if query != "" {
 		tokens = strings.Split(query, " ")
 	}
 
-	count, err = strconv.Atoi(countstr)
+	limit, err = strconv.Atoi(limitString)
 	if err != nil {
 		return
 	}
 
-	var parts = text.Search(catalog.Threads, tokens, true, count)
+	var parts = content.SearchDvachCatalog(catalog.Threads, content.DvachSortByPace, tokens, limit)
 	for _, part := range parts {
-		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTML)
+		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTMLNoPreview)
 		if err != nil {
 			return
 		}
