@@ -137,7 +137,7 @@ func (frontend *Frontend) ParseState(
 		state.Meta, err = json.Marshal(&meta)
 	} else if board, query, ok := ParseDvachWatch(command.Arg(0, "")); ok {
 		state.Type = feed.DvachWatchType
-		state.ID = board
+		state.ID = board + "/" + strings.Join(query, ",")
 
 		var meta feed.DvachWatchMeta
 		meta.Query = query
