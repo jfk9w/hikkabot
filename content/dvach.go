@@ -189,13 +189,16 @@ func SearchDvachCatalog(threads []*dvach.Thread, sortType DvachSortType, query [
 	switch sortType {
 	case DvachSortByPace:
 		sorter = DvachThreadsByPace(threads)
+
+	case DvachSortByNum:
+		sorter = DvachThreadsByNum(threads)
 	}
 
 	if sorter != nil {
 		sort.Sort(sorter)
 	}
 
-	if limit > 0 && len(threads) > 0 {
+	if limit > 0 && len(threads) > 1 {
 		threads = threads[:mathx.MinInt(limit, len(threads)-1)]
 	}
 
