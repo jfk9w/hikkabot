@@ -3,6 +3,8 @@ package feed
 import (
 	"encoding/json"
 
+	"github.com/jfk9w-go/dvach"
+
 	"github.com/jfk9w-go/telegram"
 )
 
@@ -19,7 +21,8 @@ type DvachMeta struct {
 }
 
 type DvachWatchMeta struct {
-	Query []string `json:"query"`
+	Board dvach.Board `json:"board"`
+	Query []string    `json:"query"`
 }
 
 type RedMeta struct {

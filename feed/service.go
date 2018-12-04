@@ -138,7 +138,7 @@ func (service *DvachWatchService) Load(state *State) (Load, error) {
 		return nil, err
 	}
 
-	catalog, err = service.Catalog(state.ID)
+	catalog, err = service.Catalog(meta.Board)
 	if err != nil {
 		return nil, err
 	}

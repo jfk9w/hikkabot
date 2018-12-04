@@ -140,6 +140,7 @@ func (frontend *Frontend) ParseState(
 		state.ID = board + "/" + strings.Join(query, ",")
 
 		var meta feed.DvachWatchMeta
+		meta.Board = board
 		meta.Query = query
 
 		state.Meta, err = json.Marshal(&meta)
