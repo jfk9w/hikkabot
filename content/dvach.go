@@ -109,7 +109,7 @@ func calculateDvachThreadPace(thread *dvach.Thread) float64 {
 
 func formatDvachPreview(thread *dvach.Thread) string {
 	var parts = dvachPreviewFormat.Format(dvachItemText(thread.Item))
-	if parts == nil {
+	if len(parts) == 0 {
 		parts = []string{""}
 	}
 

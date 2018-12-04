@@ -94,7 +94,12 @@ var DvachWatchRegexp = regexp.MustCompile(`^/watch/([a-z]+)/(.*)$`)
 func ParseDvachWatch(value string) (dvach.Board, []string, bool) {
 	var groups = DvachWatchRegexp.FindStringSubmatch(value)
 	if len(groups) == 3 {
-		return dvach.Board(groups[1]), strings.Split(groups[2], ","), true
+		var query []string = nil
+		if len(groups[2]) > 0 {
+			query = strings.Split(groups[2], ",")
+		}
+
+		return dvach.Board(groups[1]), query, true
 	}
 
 	return "", nil, false
