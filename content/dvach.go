@@ -85,7 +85,7 @@ func dvachItemText(item dvach.Item) string {
 
 func FormatDvachPost(post *dvach.Post, tag string) []string {
 	var parts = dvachPostFormat.Format(dvachItemText(post.Item))
-	if parts == nil {
+	if len(parts) == 0 {
 		parts = []string{""}
 	}
 
