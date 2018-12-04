@@ -83,7 +83,7 @@ func (load *DvachLoad) Next(events chan<- Event) {
 	if load.Mode != MediaDvachMode {
 		var parts = content.FormatDvachPost(post, load.Title)
 		for _, part := range parts {
-			events <- &TextItem{part}
+			events <- &TextItem{Text: part}
 		}
 	}
 
@@ -99,20 +99,20 @@ func (load *DvachLoad) Next(events chan<- Event) {
 			switch dfile.Type {
 			case dvach.Gif, dvach.Webm, dvach.Mp4:
 				if file.Size > telegram.MaxVideoSize {
-					events <- &TextItem{link}
+					events <- &TextItem{Text: link}
 				} else {
 					events <- &VideoItem{file, link}
 				}
 
 			default:
 				if file.Size > telegram.MaxPhotoSize {
-					events <- &TextItem{link}
+					events <- &TextItem{Text: link}
 				} else {
 					events <- &ImageItem{file, link}
 				}
 			}
 		} else {
-			events <- &TextItem{link}
+			events <- &TextItem{Text: link}
 		}
 	}
 
@@ -138,7 +138,7 @@ func (load *DvachWatchLoad) Next(events chan<- Event) {
 	var result, offset = load.Get(load.Index)
 	load.Index += 1
 
-	events <- &TextItem{result}
+	events <- &TextItem{Text: result, DisableWebPagePreview: true}
 	events <- &End{offset}
 	close(events)
 }
@@ -182,7 +182,7 @@ func (load *RedLoad) Next(events chan<- Event) {
 				file.Delete()
 			}
 
-			events <- &TextItem{caption}
+			events <- &TextItem{Text: caption}
 		}
 	} else {
 		log.Warnf("Unsupported domain: %s, url: %s", data.Domain, data.URL)

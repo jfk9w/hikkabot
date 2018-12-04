@@ -21,7 +21,8 @@ var SendOpts = &telegram.SendOpts{
 }
 
 type TextItem struct {
-	Text string
+	Text                  string
+	DisableWebPagePreview bool
 }
 
 func (_ *TextItem) Interrupted() {
@@ -30,7 +31,8 @@ func (_ *TextItem) Interrupted() {
 
 func (item *TextItem) Send(api *telegram.T, chat telegram.ChatID) error {
 	var opts = &telegram.MessageOpts{
-		SendOpts: SendOpts,
+		SendOpts:              SendOpts,
+		DisableWebPagePreview: item.DisableWebPagePreview,
 	}
 
 	var _, err = api.SendMessage(chat, item.Text, opts)
@@ -63,7 +65,7 @@ func (item *ImageItem) Send(api *telegram.T, chat telegram.ChatID) error {
 }
 
 func (item *ImageItem) Retry(api *telegram.T, chat telegram.ChatID) error {
-	return (&TextItem{item.Caption}).Send(api, chat)
+	return (&TextItem{Text: item.Caption}).Send(api, chat)
 }
 
 type VideoItem struct {
@@ -89,7 +91,7 @@ func (item *VideoItem) Send(api *telegram.T, chat telegram.ChatID) error {
 }
 
 func (item *VideoItem) Retry(api *telegram.T, chat telegram.ChatID) error {
-	return (&TextItem{item.Caption}).Send(api, chat)
+	return (&TextItem{Text: item.Caption}).Send(api, chat)
 }
 
 type End struct {
