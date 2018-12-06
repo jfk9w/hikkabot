@@ -91,18 +91,13 @@ func ParseRed(value string) (string, string, bool) {
 
 var DvachWatchRegexp = regexp.MustCompile(`^/watch/([a-z]+)/(.*)$`)
 
-func ParseDvachWatch(value string) (dvach.Board, []string, bool) {
+func ParseDvachWatch(value string) (dvach.Board, string, bool) {
 	var groups = DvachWatchRegexp.FindStringSubmatch(value)
 	if len(groups) == 3 {
-		var query []string = nil
-		if len(groups[2]) > 0 {
-			query = strings.Split(groups[2], ",")
-		}
-
-		return dvach.Board(groups[1]), query, true
+		return dvach.Board(groups[1]), groups[2], true
 	}
 
-	return "", nil, false
+	return "", "", false
 }
 
 func (frontend *Frontend) ParseState(
@@ -142,7 +137,7 @@ func (frontend *Frontend) ParseState(
 		state.Meta, err = json.Marshal(&meta)
 	} else if board, query, ok := ParseDvachWatch(command.Arg(0, "")); ok {
 		state.Type = feed.DvachWatchType
-		state.ID = board + "/" + strings.Join(query, ",")
+		state.ID = board + "/" + query
 
 		var meta feed.DvachWatchMeta
 		meta.Board = board
@@ -290,24 +285,27 @@ func (frontend *Frontend) Catalog(command telegram.Command) (err error) {
 	}
 
 	var (
-		query  = command.Arg(1, "")
-		tokens []string
-
+		query       = command.Arg(1, "")
 		limitString = command.Arg(2, "30")
 		limit       int
 	)
-
-	if query != "" {
-		tokens = strings.Split(query, " ")
-	}
 
 	limit, err = strconv.Atoi(limitString)
 	if err != nil {
 		return
 	}
 
-	var parts = content.FormatDvachCatalog(
-		content.SearchDvachCatalog(catalog.Threads, content.DvachUnsorted, tokens, limit))
+	var result []*dvach.Thread
+	result, err = content.SearchDvachCatalog(catalog.Threads, content.DvachUnsorted, query, limit)
+	if err != nil {
+		return
+	}
+
+	var parts = content.FormatDvachCatalog(result)
+	if err != nil {
+		return
+	}
+
 	for _, part := range parts {
 		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTMLNoPreview)
 		if err != nil {
@@ -332,24 +330,27 @@ func (frontend *Frontend) Search(command telegram.Command) (err error) {
 	}
 
 	var (
-		query  = command.Arg(1, "")
-		tokens []string
-
+		query       = command.Arg(1, "")
 		limitString = command.Arg(2, "30")
 		limit       int
 	)
-
-	if query != "" {
-		tokens = strings.Split(query, " ")
-	}
 
 	limit, err = strconv.Atoi(limitString)
 	if err != nil {
 		return
 	}
 
-	var parts = content.FormatDvachCatalog(
-		content.SearchDvachCatalog(catalog.Threads, content.DvachSortByPace, tokens, limit))
+	var result []*dvach.Thread
+	result, err = content.SearchDvachCatalog(catalog.Threads, content.DvachUnsorted, query, limit)
+	if err != nil {
+		return
+	}
+
+	var parts = content.FormatDvachCatalog(result)
+	if err != nil {
+		return
+	}
+
 	for _, part := range parts {
 		_, err = frontend.ctx.SendMessage(command.Chat, part, MessageOptsHTMLNoPreview)
 		if err != nil {

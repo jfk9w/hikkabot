@@ -150,7 +150,11 @@ func (service *DvachWatchService) Load(state *State) (Load, error) {
 		}
 	}
 
-	threads = content.SearchDvachCatalog(threads, content.DvachSortByNum, meta.Query, -1)
+	threads, err = content.SearchDvachCatalog(threads, content.DvachSortByNum, meta.Query, -1)
+	if err != nil {
+		return nil, err
+	}
+
 	results = content.FormatDvachCatalog(threads)
 	if len(threads) > 0 {
 		offsets = make([]int, len(results))

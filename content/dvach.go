@@ -162,24 +162,19 @@ func (threads DvachThreadsByNum) Swap(i, j int) {
 	threads[i], threads[j] = threads[j], threads[i]
 }
 
-func SearchDvachCatalog(threads []*dvach.Thread, sortType DvachSortType, query []string, limit int) []*dvach.Thread {
-	if query != nil {
-		for i := range query {
-			query[i] = strings.ToLower(query[i])
+func SearchDvachCatalog(threads []*dvach.Thread, sortType DvachSortType, query string, limit int) ([]*dvach.Thread, error) {
+	if query != "" {
+		var re, err = regexp.Compile(query)
+		if err != nil {
+			return nil, err
 		}
 
 		var filtered = make([]*dvach.Thread, 0)
-
-	threads:
 		for _, thread := range threads {
 			var comment = strings.ToLower(thread.Comment)
-			for i := range query {
-				if !strings.Contains(comment, query[i]) {
-					continue threads
-				}
+			if re.MatchString(comment) {
+				filtered = append(filtered, thread)
 			}
-
-			filtered = append(filtered, thread)
 		}
 
 		threads = filtered
@@ -202,7 +197,7 @@ func SearchDvachCatalog(threads []*dvach.Thread, sortType DvachSortType, query [
 		threads = threads[:mathx.MinInt(limit, len(threads)-1)]
 	}
 
-	return threads
+	return threads, nil
 }
 
 func FormatDvachCatalog(threads []*dvach.Thread) []string {

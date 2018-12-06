@@ -22,7 +22,7 @@ type DvachMeta struct {
 
 type DvachWatchMeta struct {
 	Board dvach.Board `json:"board"`
-	Query []string    `json:"query"`
+	Query string      `json:"query"`
 }
 
 type RedMeta struct {
