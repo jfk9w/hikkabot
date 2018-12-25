@@ -4,12 +4,12 @@ import (
 	"html"
 	"sync"
 
-	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/gox/syncx"
+	"github.com/jfk9w-go/hikkabot/common/dvach-api"
+	"github.com/jfk9w-go/hikkabot/common/gox/syncx"
+	"github.com/jfk9w-go/hikkabot/common/httpx"
+	"github.com/jfk9w-go/hikkabot/common/reddit-api"
+	"github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 	"github.com/jfk9w-go/hikkabot/content"
-	"github.com/jfk9w-go/httpx"
-	"github.com/jfk9w-go/red"
-	"github.com/jfk9w-go/telegram"
 )
 
 type Load interface {

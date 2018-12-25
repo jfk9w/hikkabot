@@ -3,14 +3,14 @@ package engine
 import (
 	"time"
 
-	"github.com/jfk9w-go/aconvert"
-	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/gox/schedx"
+	"github.com/jfk9w-go/hikkabot/common/aconvert-api"
+	"github.com/jfk9w-go/hikkabot/common/dvach-api"
+	"github.com/jfk9w-go/hikkabot/common/gox/schedx"
+	"github.com/jfk9w-go/hikkabot/common/logx"
+	"github.com/jfk9w-go/hikkabot/common/reddit-api"
+	"github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 	"github.com/jfk9w-go/hikkabot/content"
 	"github.com/jfk9w-go/hikkabot/feed"
-	"github.com/jfk9w-go/logx"
-	"github.com/jfk9w-go/red"
-	"github.com/jfk9w-go/telegram"
 )
 
 type (

@@ -1,8 +1,8 @@
 package feed
 
 import (
-	"github.com/jfk9w-go/httpx"
-	"github.com/jfk9w-go/telegram"
+	"github.com/jfk9w-go/hikkabot/common/httpx"
+	"github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 )
 
 type Event interface {

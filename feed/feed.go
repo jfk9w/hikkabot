@@ -1,10 +1,10 @@
 package feed
 
 import (
-	"github.com/jfk9w-go/aconvert"
-	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/logx"
-	"github.com/jfk9w-go/red"
+	"github.com/jfk9w-go/hikkabot/common/aconvert-api"
+	"github.com/jfk9w-go/hikkabot/common/dvach-api"
+	"github.com/jfk9w-go/hikkabot/common/logx"
+	"github.com/jfk9w-go/hikkabot/common/reddit-api"
 )
 
 type (

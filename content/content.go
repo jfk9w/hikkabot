@@ -1,6 +1,6 @@
 package content
 
-import "github.com/jfk9w-go/telegram"
+import "github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 
 var paddedMaxMessageSize = telegram.MaxMessageSize * 4 / 5
 

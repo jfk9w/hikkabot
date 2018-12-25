@@ -9,13 +9,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/gox/fsx"
+	"github.com/jfk9w-go/hikkabot/common/dvach-api"
+	"github.com/jfk9w-go/hikkabot/common/gox/fsx"
+	"github.com/jfk9w-go/hikkabot/common/httpx"
+	"github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 	"github.com/jfk9w-go/hikkabot/content"
 	"github.com/jfk9w-go/hikkabot/engine"
 	"github.com/jfk9w-go/hikkabot/feed"
-	"github.com/jfk9w-go/httpx"
-	"github.com/jfk9w-go/telegram"
 	"github.com/pkg/errors"
 )
 

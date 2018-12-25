@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/jfk9w-go/gox"
+	"github.com/jfk9w-go/hikkabot/common/gox"
 
+	"github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 	"github.com/jfk9w-go/hikkabot/feed"
-	"github.com/jfk9w-go/telegram"
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )

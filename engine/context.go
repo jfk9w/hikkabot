@@ -1,6 +1,6 @@
 package engine
 
-import "github.com/jfk9w-go/telegram"
+import "github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 
 type Context struct {
 	Telegram

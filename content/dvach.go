@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/gox/mathx"
-	"github.com/jfk9w-go/gox/utf8x"
-	. "github.com/jfk9w-go/telegram/html"
+	"github.com/jfk9w-go/hikkabot/common/dvach-api"
+	"github.com/jfk9w-go/hikkabot/common/gox/mathx"
+	"github.com/jfk9w-go/hikkabot/common/gox/utf8x"
+	. "github.com/jfk9w-go/hikkabot/common/telegram-bot-api/html"
 )
 
 var (

@@ -8,16 +8,16 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/jfk9w-go/gox"
+	"github.com/jfk9w-go/hikkabot/common/gox"
 
-	Aconvert "github.com/jfk9w-go/aconvert"
-	Dvach "github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/gox/fsx"
+	Aconvert "github.com/jfk9w-go/hikkabot/common/aconvert-api"
+	Dvach "github.com/jfk9w-go/hikkabot/common/dvach-api"
+	"github.com/jfk9w-go/hikkabot/common/gox/fsx"
+	"github.com/jfk9w-go/hikkabot/common/logx"
+	Red "github.com/jfk9w-go/hikkabot/common/reddit-api"
+	Telegram "github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 	Engine "github.com/jfk9w-go/hikkabot/engine"
 	"github.com/jfk9w-go/hikkabot/frontend"
-	"github.com/jfk9w-go/logx"
-	Red "github.com/jfk9w-go/red"
-	Telegram "github.com/jfk9w-go/telegram"
 )
 
 func main() {

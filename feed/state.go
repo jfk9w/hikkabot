@@ -3,9 +3,9 @@ package feed
 import (
 	"encoding/json"
 
-	"github.com/jfk9w-go/dvach"
+	"github.com/jfk9w-go/hikkabot/common/dvach-api"
 
-	"github.com/jfk9w-go/telegram"
+	"github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 )
 
 type DvachMode = string

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/jfk9w-go/gox/mathx"
+	"github.com/jfk9w-go/hikkabot/common/gox/mathx"
 
 	"github.com/jfk9w-go/hikkabot/content"
 
@@ -15,9 +15,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jfk9w-go/dvach"
-	"github.com/jfk9w-go/red"
-	"github.com/jfk9w-go/telegram"
+	"github.com/jfk9w-go/hikkabot/common/dvach-api"
+	"github.com/jfk9w-go/hikkabot/common/reddit-api"
+	"github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
 	. "github.com/pkg/errors"
 )
 
