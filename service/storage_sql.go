@@ -4,42 +4,42 @@ import (
 	"database/sql"
 
 	"github.com/jfk9w-go/lego"
-	"github.com/jfk9w-go/telegram-bot-api"
+	telegram "github.com/jfk9w-go/telegram-bot-api"
 )
 
-type SqlStorage sql.DB
+type SQLStorage sql.DB
 
-func NewSqlStorage(driverName string, dataSourceName string) *SqlStorage {
+func NewSQLStorage(driverName string, dataSourceName string) *SQLStorage {
 	db, err := sql.Open(driverName, dataSourceName)
 	lego.Check(err)
-	return (*SqlStorage)(db).init()
+	return (*SQLStorage)(db).init()
 }
 
-func (storage *SqlStorage) db() *sql.DB {
+func (storage *SQLStorage) db() *sql.DB {
 	return (*sql.DB)(storage)
 }
 
-func (storage *SqlStorage) query(query string, args ...interface{}) (*sql.Rows, error) {
+func (storage *SQLStorage) query(query string, args ...interface{}) (*sql.Rows, error) {
 	return storage.db().Query(query, args...)
 }
 
-func (storage *SqlStorage) mustQuery(query string, args ...interface{}) *sql.Rows {
+func (storage *SQLStorage) mustQuery(query string, args ...interface{}) *sql.Rows {
 	rows, err := storage.query(query, args...)
 	lego.Check(err)
 	return rows
 }
 
-func (storage *SqlStorage) exec(query string, args ...interface{}) (sql.Result, error) {
+func (storage *SQLStorage) exec(query string, args ...interface{}) (sql.Result, error) {
 	return storage.db().Exec(query, args...)
 }
 
-func (storage *SqlStorage) mustExec(query string, args ...interface{}) sql.Result {
+func (storage *SQLStorage) mustExec(query string, args ...interface{}) sql.Result {
 	result, err := storage.exec(query, args...)
 	lego.Check(err)
 	return result
 }
 
-func (storage *SqlStorage) update(query string, args ...interface{}) (rows int64, err error) {
+func (storage *SQLStorage) update(query string, args ...interface{}) (rows int64, err error) {
 	result, err := storage.exec(query, args...)
 	if err != nil {
 		return
@@ -49,14 +49,14 @@ func (storage *SqlStorage) update(query string, args ...interface{}) (rows int64
 	return
 }
 
-func (storage *SqlStorage) mustUpdate(query string, args ...interface{}) int64 {
+func (storage *SQLStorage) mustUpdate(query string, args ...interface{}) int64 {
 	rows, err := storage.update(query, args...)
 	lego.Check(err)
 	return rows
 }
 
 //language=SQL
-func (storage *SqlStorage) selectSingle(query string, args ...interface{}) *Subscription {
+func (storage *SQLStorage) selectSingle(query string, args ...interface{}) *Subscription {
 	rows := storage.mustQuery(`SELECT id, secondary_id, chat_id, type, name, options, offset FROM subscription `+query+` LIMIT 1`, args...)
 	if !rows.Next() {
 		_ = rows.Close()
@@ -71,7 +71,7 @@ func (storage *SqlStorage) selectSingle(query string, args ...interface{}) *Subs
 }
 
 //language=SQL
-func (storage *SqlStorage) init() *SqlStorage {
+func (storage *SQLStorage) init() *SQLStorage {
 	storage.mustExec(`CREATE TABLE IF NOT EXISTS subscription (
   id TEXT NOT NULL,
   secondary_id TEXT NOT NULL,
@@ -91,7 +91,7 @@ func (storage *SqlStorage) init() *SqlStorage {
 }
 
 //language=SQL
-func (storage *SqlStorage) Active() []telegram.ID {
+func (storage *SQLStorage) Active() []telegram.ID {
 	rows := storage.mustQuery(`SELECT DISTINCT chat_id 
 FROM subscription
 WHERE error IS NULL
@@ -109,25 +109,25 @@ ORDER BY chat_id ASC`)
 }
 
 //language=SQL
-func (storage *SqlStorage) Insert(s *Subscription) bool {
+func (storage *SQLStorage) Insert(s *Subscription) bool {
 	return storage.mustUpdate(`INSERT OR IGNORE INTO subscription (id, secondary_id, chat_id, name, type, options) 
 VALUES (?, ?, ?, ?, ?, ?)`, s.ID, s.SecondaryID, s.ChatID, s.Name, s.Type, s.Options) == 1
 }
 
 //language=SQL
-func (storage *SqlStorage) Query(chatId telegram.ID) *Subscription {
-	return storage.selectSingle(`WHERE chat_id = ? ORDER BY updated IS NULL DESC, updated ASC`, chatId)
+func (storage *SQLStorage) Query(chatID telegram.ID) *Subscription {
+	return storage.selectSingle(`WHERE chat_id = ? ORDER BY updated IS NULL DESC, updated ASC`, chatID)
 }
 
 //language=SQL
-func (storage *SqlStorage) Update(id string, offset Offset) bool {
+func (storage *SQLStorage) Update(id string, offset Offset) bool {
 	return storage.mustUpdate(`UPDATE subscription
 SET offset = ?, updated = datetime('now') 
 WHERE id = ? AND error IS NULL`, offset, id) == 1
 }
 
 //language=SQL
-func (storage *SqlStorage) Suspend(id string, err error) *Subscription {
+func (storage *SQLStorage) Suspend(id string, err error) *Subscription {
 	s := storage.selectSingle(`WHERE id = ? AND error IS NULL`, id, err)
 	if s == nil {
 		return nil

@@ -76,10 +76,15 @@ func (scheduler *Scheduler) Cancel(chatID telegram.ID) {
 }
 
 func (scheduler *Scheduler) run(chatID telegram.ID) {
+	log.Printf("Running scheduled task for %s\n", chatID.StringValue())
+
 	subscription := scheduler.storage.Query(chatID)
 	if subscription == nil {
+		log.Printf("No active subscriptions found for %s\n", chatID.StringValue())
 		return
 	}
+
+	log.Println("Loaded", subscription)
 
 	service := scheduler.services[subscription.Type]
 	feed := NewFeed(subscription.Name)
@@ -98,11 +103,13 @@ func (scheduler *Scheduler) run(chatID telegram.ID) {
 		if err != nil {
 			feed.Interrupt()
 			service.Suspend(subscription.ID, err)
+			log.Println("Suspending", subscription, "due to", err)
 			return
 		}
 
 		if newOffset != oldOffset {
 			if oldOffset != -1 {
+				log.Println("Updating", subscription, "offset from", oldOffset, "to", newOffset)
 				if ok := scheduler.storage.Update(subscription.ID, oldOffset); !ok {
 					feed.Interrupt()
 					return
@@ -117,4 +124,6 @@ func (scheduler *Scheduler) run(chatID telegram.ID) {
 	time.AfterFunc(scheduler.interval, func() {
 		scheduler.run(chatID)
 	})
+
+	log.Println("Task for", chatID, "rescheduled")
 }

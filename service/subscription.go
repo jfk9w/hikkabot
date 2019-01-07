@@ -1,7 +1,9 @@
 package service
 
 import (
-	"github.com/jfk9w-go/telegram-bot-api"
+	"fmt"
+
+	telegram "github.com/jfk9w-go/telegram-bot-api"
 )
 
 type Subscription struct {
@@ -12,4 +14,9 @@ type Subscription struct {
 	Name        string
 	Options     RawOptions
 	Offset      Offset
+}
+
+func (s *Subscription) String() string {
+	return fmt.Sprintf("s (%s %s %s %s) for %s",
+		s.SecondaryID, s.Type, s.Name, string(s.Options), s.ChatID.StringValue())
 }

@@ -26,7 +26,7 @@ func main() {
 
 	var (
 		bot                 = telegram.NewBot(nil, config.Telegram.Token)
-		storage             = NewSqlStorage("sqlite3", config.DataSource)
+		storage             = NewSQLStorage("sqlite3", config.DataSource)
 		scheduler           = NewScheduler(storage, bot, config.SchedulerInterval.Value())
 		baseSubscribe       = BaseSubscribe(storage, scheduler, bot)
 		fileSystem          = FileSystem(config.TempDir)
