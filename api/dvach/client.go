@@ -30,8 +30,8 @@ func defaultBodyProcessor(value interface{}) flu.ReadBytesFunc {
 		err := json.Unmarshal(body, value)
 		if err != nil {
 			apierr := new(Error)
-			_err := json.Unmarshal(body, apierr)
-			if _err == nil {
+			err := json.Unmarshal(body, apierr)
+			if err == nil {
 				return apierr
 			}
 		}
@@ -116,27 +116,27 @@ func (c *Client) DownloadFile(file *File, resource flu.WriteResource) error {
 }
 
 func (c *Client) GetBoards() ([]*Board, error) {
-	boardmap := make(map[string][]*Board)
+	m := make(map[string][]*Board)
 	err := c.http.NewRequest().
 		Get().
 		Endpoint(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_boards").
 		Execute().
-		ReadBytesFunc(defaultBodyProcessor(&boardmap)).
+		ReadBytesFunc(defaultBodyProcessor(&m)).
 		Error
 
 	if err != nil {
 		return nil, err
 	}
 
-	boardarr := make([]*Board, 0)
-	for _, boards := range boardmap {
+	arr := make([]*Board, 0)
+	for _, boards := range m {
 		for _, board := range boards {
-			boardarr = append(boardarr, board)
+			arr = append(arr, board)
 		}
 	}
 
-	return boardarr, nil
+	return arr, nil
 }
 
 var ErrBoardNotFound = errors.New("board not found")

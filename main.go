@@ -28,11 +28,10 @@ func main() {
 	initLog(config)
 
 	var (
-		bot = telegram.NewBot(nil, config.Telegram.Token)
-		//storage = storage.SQL("sqlite3", config.DataSource)
-		storage             = storage.Dummy()
-		aggregator          = service.NewAggregator(storage, bot, config.SchedulerInterval.Value())
-		fs                  = service.FileSystem(config.TempDir)
+		bot                 = telegram.NewBot(nil, config.Telegram.Token)
+		storage             = initStorage(config)
+		aggregator          = service.NewAggregator(storage, bot, config.Service.UpdateInterval.Value())
+		fs                  = service.FileSystem(config.Service.TmpDir)
 		dvachClient         = dvach.NewClient(nil, config.Dvach.Usercode)
 		dvachCatalogService = dvachService.Catalog(aggregator, dvachClient)
 		aconvertClient      = aconvert.NewClient(nil, &config.Aconvert)
@@ -63,6 +62,20 @@ func main() {
 
 	exit.Wait()
 	log.Printf("Hikkabot exited")
+}
+
+type Storage interface {
+	service.Storage
+	dvachService.PostMessageRefStorage
+}
+
+func initStorage(config *Config) Storage {
+	c := config.Service.Storage
+	if c.Type != "sqlite3" {
+		return storage.Dummy()
+	}
+
+	return storage.SQL("sqlite3", c.DataSource)
 }
 
 func initLog(config *Config) {
@@ -114,9 +127,14 @@ type Config struct {
 		Flags  *[]string  `json:"flags"`
 	} `json:"log"`
 
-	TempDir           string        `json:"temp_dir"`
-	DataSource        string        `json:"datasource"`
-	SchedulerInterval json.Duration `json:"scheduler_interval"`
+	Service struct {
+		UpdateInterval json.Duration `json:"update_interval"`
+		TmpDir         string        `json:"tmp"`
+		Storage        struct {
+			Type       string `json:"type"`
+			DataSource string `json:"datasource"`
+		} `json:"storage"`
+	} `json:"service"`
 
 	Telegram struct {
 		Token string `json:"token"`

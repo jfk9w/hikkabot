@@ -217,7 +217,7 @@ func (agg *Aggregator) notifyAdministrators(f *Feed, message string) {
 	text := message + fmt.Sprintf(`
 Chat: %s
 Service: %s
-Feed: %s
+Feed: #%s
 `, chatTitle, f.ServiceID, f.Name)
 
 	for _, adminID := range adminIDs {
