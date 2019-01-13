@@ -11,7 +11,10 @@ import (
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/hikkabot/api/dvach"
 	"github.com/jfk9w-go/hikkabot/api/reddit"
-	. "github.com/jfk9w-go/hikkabot/service"
+	"github.com/jfk9w-go/hikkabot/service"
+	dvachService "github.com/jfk9w-go/hikkabot/service/dvach"
+	redditService "github.com/jfk9w-go/hikkabot/service/reddit"
+	"github.com/jfk9w-go/hikkabot/service/storage"
 	"github.com/jfk9w-go/lego"
 	"github.com/jfk9w-go/lego/json"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -25,21 +28,21 @@ func main() {
 	initLog(config)
 
 	var (
-		bot                 = telegram.NewBot(nil, config.Telegram.Token)
-		storage             = NewSQLStorage("sqlite3", config.DataSource)
-		scheduler           = NewScheduler(storage, bot, config.SchedulerInterval.Value())
-		baseSubscribe       = BaseSubscribe(storage, scheduler, bot)
-		fileSystem          = FileSystem(config.TempDir)
+		bot = telegram.NewBot(nil, config.Telegram.Token)
+		//storage = storage.SQL("sqlite3", config.DataSource)
+		storage             = storage.Dummy()
+		aggregator          = service.NewAggregator(storage, bot, config.SchedulerInterval.Value())
+		fs                  = service.FileSystem(config.TempDir)
 		dvachClient         = dvach.NewClient(nil, config.Dvach.Usercode)
-		dvachCatalogService = DvachCatalog(baseSubscribe, dvachClient)
+		dvachCatalogService = dvachService.Catalog(aggregator, dvachClient)
 		aconvertClient      = aconvert.NewClient(nil, &config.Aconvert)
+		dvachThreadService  = dvachService.Thread(aggregator, fs, storage, dvachClient, aconvertClient)
 		redditClient        = reddit.NewClient(nil, &config.Reddit)
-		redditService       = Reddit(baseSubscribe, fileSystem, redditClient)
+		redditService       = redditService.Reddit(aggregator, fs, redditClient)
 	)
 
-	scheduler.Register(dvachCatalogService, redditService).Init()
-
-	log.Printf("Bonobo started")
+	log.Printf("Hikkabot started")
+	aggregator.Init()
 
 	var exit sync.WaitGroup
 	exit.Add(1)
@@ -54,14 +57,12 @@ func main() {
 		AddFunc("/status", func(c *telegram.Command) {
 			c.TextReply("I'm alive.")
 		}).
-		Add("/subscribe", new(SubscribeCommandListener).
-			Add(dvachCatalogService, redditService)))
+		Add("/sub", new(service.SubscribeCommandListener).
+			SetBot(bot).
+			Add(dvachThreadService, dvachCatalogService, redditService)))
 
 	exit.Wait()
-
-	_ = aconvertClient
-
-	log.Printf("Bonobo exited")
+	log.Printf("Hikkabot exited")
 }
 
 func initLog(config *Config) {

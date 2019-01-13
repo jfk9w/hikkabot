@@ -1,4 +1,4 @@
-package common
+package html
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ type currentTag struct {
 	depth int
 }
 
-type HtmlBuilder struct {
+type Builder struct {
 	b      *strings.Builder
 	tag    *currentTag
 	size   int
@@ -23,8 +23,8 @@ type HtmlBuilder struct {
 	chunks []string
 }
 
-func NewHtmlBuilder(csize, limit int) *HtmlBuilder {
-	return &HtmlBuilder{
+func NewBuilder(csize, limit int) *Builder {
+	return &Builder{
 		b:      new(strings.Builder),
 		csize:  csize,
 		limit:  limit,
@@ -32,11 +32,15 @@ func NewHtmlBuilder(csize, limit int) *HtmlBuilder {
 	}
 }
 
-func (b *HtmlBuilder) inactive() bool {
+func (b *Builder) inactive() bool {
+	if b.limit <= 0 {
+		return false
+	}
+
 	return len(b.chunks) >= b.limit
 }
 
-func (b *HtmlBuilder) flush() {
+func (b *Builder) flush() {
 	if b.inactive() {
 		return
 	}
@@ -46,7 +50,7 @@ func (b *HtmlBuilder) flush() {
 	b.size = 0
 }
 
-func (b *HtmlBuilder) startTag(tag string, attrs []html.Attribute) *HtmlBuilder {
+func (b *Builder) startTag(tag string, attrs []html.Attribute) *Builder {
 	if b.inactive() {
 		return b
 	}
@@ -70,7 +74,7 @@ func (b *HtmlBuilder) startTag(tag string, attrs []html.Attribute) *HtmlBuilder 
 	return b
 }
 
-func (b *HtmlBuilder) endTag(tag string) *HtmlBuilder {
+func (b *Builder) endTag(tag string) *Builder {
 	if b.inactive() || b.tag == nil {
 		return b
 	}
@@ -91,7 +95,7 @@ func (b *HtmlBuilder) endTag(tag string) *HtmlBuilder {
 	return b
 }
 
-func (b *HtmlBuilder) Text(text string) *HtmlBuilder {
+func (b *Builder) Text(text string) *Builder {
 	if b.inactive() {
 		return b
 	}
@@ -125,7 +129,7 @@ func (b *HtmlBuilder) Text(text string) *HtmlBuilder {
 	return b.Text(str.Slice(start, str.RuneCount()))
 }
 
-func (b *HtmlBuilder) Link(href, text string) *HtmlBuilder {
+func (b *Builder) Link(href, text string) *Builder {
 	if b.inactive() {
 		return b
 	}
@@ -155,31 +159,31 @@ func (b *HtmlBuilder) Link(href, text string) *HtmlBuilder {
 	return b
 }
 
-func (b *HtmlBuilder) Br() *HtmlBuilder {
+func (b *Builder) Br() *Builder {
 	return b.Text("\n")
 }
 
-func (b *HtmlBuilder) B() *HtmlBuilder {
+func (b *Builder) B() *Builder {
 	return b.startTag("b", nil)
 }
 
-func (b *HtmlBuilder) B_() *HtmlBuilder {
+func (b *Builder) EndB() *Builder {
 	return b.endTag("b")
 }
 
-func (b *HtmlBuilder) I() *HtmlBuilder {
+func (b *Builder) I() *Builder {
 	return b.startTag("i", nil)
 }
 
-func (b *HtmlBuilder) I_() *HtmlBuilder {
+func (b *Builder) EndI() *Builder {
 	return b.endTag("i")
 }
 
-func (b *HtmlBuilder) Span() *HtmlBuilder {
+func (b *Builder) Span() *Builder {
 	return b.startTag("span", nil)
 }
 
-func (b *HtmlBuilder) Span_() *HtmlBuilder {
+func (b *Builder) EndSpan() *Builder {
 	return b.endTag("span")
 }
 
@@ -192,7 +196,12 @@ var tags = map[string]string{
 	"span":   "i",
 }
 
-func (b *HtmlBuilder) Parse(rawinput string) *HtmlBuilder {
+type Parser interface {
+	OnTextToken(data string) bool
+	OnStartTagToken()
+}
+
+func (b *Builder) Parse(rawinput string) *Builder {
 	reader := strings.NewReader(rawinput)
 	tokenizer := html.NewTokenizer(reader)
 
@@ -202,14 +211,15 @@ func (b *HtmlBuilder) Parse(rawinput string) *HtmlBuilder {
 			break
 		}
 
-		token := tokenizer.Next()
-		if token == html.ErrorToken {
+		tokenType := tokenizer.Next()
+		if tokenType == html.ErrorToken {
 			break
 		}
 
-		data := tokenizer.Token().Data
-		attrs := tokenizer.Token().Attr
-		switch token {
+		token := tokenizer.Token()
+		data := token.Data
+		attrs := token.Attr
+		switch tokenType {
 		case html.TextToken:
 			if currHref != nil {
 				if *currHref != "" {
@@ -253,7 +263,7 @@ func (b *HtmlBuilder) Parse(rawinput string) *HtmlBuilder {
 	return b
 }
 
-func (b *HtmlBuilder) Done(header, footer string) []string {
+func (b *Builder) Build() []string {
 	if b.tag != nil {
 		b.endTag(b.tag.tag)
 	}
@@ -262,16 +272,8 @@ func (b *HtmlBuilder) Done(header, footer string) []string {
 		b.flush()
 	}
 
-	if header != "" || footer != "" {
-		if len(b.chunks) == 0 {
-			b.chunks = append(b.chunks, "")
-		}
-
-		if header != "" {
-			b.chunks[0] = header + "\n" + b.chunks[0]
-		} else {
-			b.chunks[len(b.chunks)-1] += "\n" + footer
-		}
+	if len(b.chunks) == 0 {
+		b.chunks = append(b.chunks, "")
 	}
 
 	return b.chunks

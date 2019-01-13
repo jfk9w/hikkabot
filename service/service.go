@@ -1,30 +1,16 @@
 package service
 
-import (
-	"regexp"
-
-	. "github.com/jfk9w-go/telegram-bot-api"
-
-	. "github.com/jfk9w-go/hikkabot/common"
-)
-
-type ServiceType string
+import telegram "github.com/jfk9w-go/telegram-bot-api"
 
 const (
-	DvachCatalogType ServiceType = "2ch/catalog"
-	RedditType       ServiceType = "reddit"
-
 	MaxPhotoSize = 10 * (2 << 20)
 	MaxVideoSize = 50 * (2 << 20)
 )
 
-type SearchService interface {
-	Search(input string, query *regexp.Regexp, limit int) ([]Envelope, error)
-}
+type OptionsFunc func(interface{}) error
 
-type SubscribeService interface {
-	ServiceType() ServiceType
-	Subscribe(input string, chatId ID, options string) error
-	Update(offset Offset, rawOptions RawOptions, feed *Feed)
-	Suspend(id string, err error)
+type Service interface {
+	ID() string
+	Subscribe(input string, chat *telegram.Chat, args string) error
+	Update(prevOffset int64, optionsFunc OptionsFunc, updatePipe *UpdatePipe)
 }
