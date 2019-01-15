@@ -4,8 +4,8 @@ github.com/jfk9w-go/flu v0.9.8-0.20190107092250-5af638104734 h1:DXf84pp6yBVEJdLq
 github.com/jfk9w-go/flu v0.9.8-0.20190107092250-5af638104734/go.mod h1:WD4sHpw1iYqFbNtI1IM7Y5h2Q+dkz/ClcM3NjsnezpE=
 github.com/jfk9w-go/lego v0.9.6 h1:8Xzk9KqsNM4X/Olyv/oEHKyqFDkhcb4stakXlUC8Rs0=
 github.com/jfk9w-go/lego v0.9.6/go.mod h1:43+RUBpYD1/CQ03G5Cnd0EwDCnQr5m+FuK+gFpoUDuI=
-github.com/jfk9w-go/telegram-bot-api v0.9.2-0.20190113092132-854195d1efe2 h1:FzkMbtDTtvprryvQDngmjEyyBxPXC4h9QoJgHbzOPvo=
-github.com/jfk9w-go/telegram-bot-api v0.9.2-0.20190113092132-854195d1efe2/go.mod h1:xEFfSBnLwuE6YtdcmBDJc9CUjlUM7AlOFhDt1YAgy8Y=
+github.com/jfk9w-go/telegram-bot-api v0.9.2-0.20190115220447-b0764fccf787 h1:94IHby+spufk6ib+J0J+HRgCvyTaQN91Ie5cJAGlxC4=
+github.com/jfk9w-go/telegram-bot-api v0.9.2-0.20190115220447-b0764fccf787/go.mod h1:xEFfSBnLwuE6YtdcmBDJc9CUjlUM7AlOFhDt1YAgy8Y=
 github.com/mattn/go-sqlite3 v1.10.0 h1:jbhqpg7tQe4SupckyijYiy0mJJ/pRyHvXf7JdWK860o=
 github.com/mattn/go-sqlite3 v1.10.0/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsOqkbpncsNc=
 github.com/segmentio/ksuid v1.0.2 h1:9yBfKyw4ECGTdALaF09Snw3sLJmYIX6AbPJrAy6MrDc=

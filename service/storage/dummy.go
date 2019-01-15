@@ -17,35 +17,42 @@ func Dummy() *DummyStorage {
 	}
 }
 
-func (storage *DummyStorage) ActiveSubscribers() []telegram.ID {
+func (s *DummyStorage) ActiveSubscribers() []telegram.ID {
 	return []telegram.ID{}
 }
 
-func (storage *DummyStorage) InsertFeed(f *service.Feed) bool {
-	storage.feed = f
+func (s *DummyStorage) InsertFeed(f *service.Feed) bool {
+	s.feed = f
 	return true
 }
 
-func (storage *DummyStorage) NextFeed(chatID telegram.ID) *service.Feed {
-	return storage.feed
+func (s *DummyStorage) NextFeed(chatID telegram.ID) *service.Feed {
+	return s.feed
 }
 
-func (storage *DummyStorage) UpdateFeedOffset(id string, offset int64) bool {
-	storage.feed.Offset = offset
+func (s *DummyStorage) UpdateFeedOffset(id string, offset int64) bool {
+	s.feed.Offset = offset
 	return true
 }
 
-func (storage *DummyStorage) SuspendFeed(id string, err error) *service.Feed {
-	s := storage.feed
-	storage.feed = nil
-	return s
+func (s *DummyStorage) GetFeed(id string) *service.Feed {
+	return s.feed
 }
 
-func (storage *DummyStorage) InsertPostRef(pk *dvach.PostKey, ref *dvach.MessageRef) {
-	storage.dvachPostHrefs[pk.String()] = ref
+func (s *DummyStorage) SuspendFeed(id string, err error) bool {
+	if s.feed == nil {
+		return false
+	}
+
+	s.feed = nil
+	return true
 }
 
-func (storage *DummyStorage) GetPostRef(pk *dvach.PostKey) (*dvach.MessageRef, bool) {
-	ref, ok := storage.dvachPostHrefs[pk.String()]
+func (s *DummyStorage) InsertPostRef(pk *dvach.PostKey, ref *dvach.MessageRef) {
+	s.dvachPostHrefs[pk.String()] = ref
+}
+
+func (s *DummyStorage) GetPostRef(pk *dvach.PostKey) (*dvach.MessageRef, bool) {
+	ref, ok := s.dvachPostHrefs[pk.String()]
 	return ref, ok
 }

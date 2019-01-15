@@ -40,8 +40,11 @@ func main() {
 		redditService       = redditService.Reddit(aggregator, fs, redditClient)
 	)
 
+	aggregator.
+		Add(dvachCatalogService, dvachThreadService, redditService).
+		Init()
+
 	log.Printf("Hikkabot started")
-	aggregator.Init()
 
 	var exit sync.WaitGroup
 	exit.Add(1)
@@ -52,13 +55,12 @@ func main() {
 		<-ch
 	}()
 
-	go bot.Listen(telegram.NewCommandUpdateListener().
+	go bot.Listen(telegram.NewCommandUpdateListener(bot).
 		AddFunc("/status", func(c *telegram.Command) {
 			c.TextReply("I'm alive.")
 		}).
-		Add("/sub", new(service.SubscribeCommandListener).
-			SetBot(bot).
-			Add(dvachThreadService, dvachCatalogService, redditService)))
+		AddFunc("/sub", aggregator.SubscribeCommandListener).
+		AddFunc("/unsub", aggregator.UnsubscribeCommandListener))
 
 	exit.Wait()
 	log.Printf("Hikkabot exited")

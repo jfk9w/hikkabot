@@ -3,13 +3,11 @@ package storage
 import (
 	"database/sql"
 
-	"github.com/jfk9w-go/hikkabot/service/dvach"
-
-	"github.com/segmentio/ksuid"
-
 	"github.com/jfk9w-go/hikkabot/service"
+	"github.com/jfk9w-go/hikkabot/service/dvach"
 	"github.com/jfk9w-go/lego"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/segmentio/ksuid"
 )
 
 type SQLStorage sql.DB
@@ -20,32 +18,32 @@ func SQL(driverName string, dataSourceName string) *SQLStorage {
 	return (*SQLStorage)(db).init()
 }
 
-func (storage *SQLStorage) db() *sql.DB {
-	return (*sql.DB)(storage)
+func (s *SQLStorage) db() *sql.DB {
+	return (*sql.DB)(s)
 }
 
-func (storage *SQLStorage) query(query string, args ...interface{}) (*sql.Rows, error) {
-	return storage.db().Query(query, args...)
+func (s *SQLStorage) query(query string, args ...interface{}) (*sql.Rows, error) {
+	return s.db().Query(query, args...)
 }
 
-func (storage *SQLStorage) mustQuery(query string, args ...interface{}) *sql.Rows {
-	rows, err := storage.query(query, args...)
+func (s *SQLStorage) mustQuery(query string, args ...interface{}) *sql.Rows {
+	rows, err := s.query(query, args...)
 	lego.Check(err)
 	return rows
 }
 
-func (storage *SQLStorage) exec(query string, args ...interface{}) (sql.Result, error) {
-	return storage.db().Exec(query, args...)
+func (s *SQLStorage) exec(query string, args ...interface{}) (sql.Result, error) {
+	return s.db().Exec(query, args...)
 }
 
-func (storage *SQLStorage) mustExec(query string, args ...interface{}) sql.Result {
-	result, err := storage.exec(query, args...)
+func (s *SQLStorage) mustExec(query string, args ...interface{}) sql.Result {
+	result, err := s.exec(query, args...)
 	lego.Check(err)
 	return result
 }
 
-func (storage *SQLStorage) update(query string, args ...interface{}) (rows int64, err error) {
-	result, err := storage.exec(query, args...)
+func (s *SQLStorage) update(query string, args ...interface{}) (rows int64, err error) {
+	result, err := s.exec(query, args...)
 	if err != nil {
 		return
 	}
@@ -54,30 +52,28 @@ func (storage *SQLStorage) update(query string, args ...interface{}) (rows int64
 	return
 }
 
-func (storage *SQLStorage) mustUpdate(query string, args ...interface{}) int64 {
-	rows, err := storage.update(query, args...)
+func (s *SQLStorage) mustUpdate(query string, args ...interface{}) int64 {
+	rows, err := s.update(query, args...)
 	lego.Check(err)
 	return rows
 }
 
-//language=SQL
-func (storage *SQLStorage) selectFeed(query string, args ...interface{}) *service.Feed {
-	rows := storage.mustQuery(`SELECT id, secondary_id, chat_id, service_id, name, options, offset FROM feed `+query+` LIMIT 1`, args...)
+func (s *SQLStorage) selectFeed(query string, args ...interface{}) *service.Feed {
+	rows := s.mustQuery(`SELECT id, secondary_id, chat_id, service_id, name, options, offset FROM feed `+query+` LIMIT 1`, args...)
 	if !rows.Next() {
 		_ = rows.Close()
 		return nil
 	}
 
-	s := new(service.Feed)
-	lego.Check(rows.Scan(&s.ID, &s.SecondaryID, &s.ChatID, &s.ServiceID, &s.Name, &s.OptionsBytes, &s.Offset))
+	f := new(service.Feed)
+	lego.Check(rows.Scan(&f.ID, &f.SecondaryID, &f.ChatID, &f.ServiceID, &f.Name, &f.OptionsBytes, &f.Offset))
 	_ = rows.Close()
 
-	return s
+	return f
 }
 
-//language=SQL
-func (storage *SQLStorage) init() *SQLStorage {
-	storage.mustExec(`CREATE TABLE IF NOT EXISTS feed (
+func (s *SQLStorage) init() *SQLStorage {
+	s.mustExec(`CREATE TABLE IF NOT EXISTS feed (
   id TEXT NOT NULL,
   secondary_id TEXT NOT NULL,
   chat_id INTEGER NOT NULL,
@@ -89,7 +85,7 @@ func (storage *SQLStorage) init() *SQLStorage {
   error TEXT
 )`)
 
-	storage.mustExec(`CREATE TABLE IF NOT EXISTS dvach_post_ref (
+	s.mustExec(`CREATE TABLE IF NOT EXISTS dvach_post_ref (
   chat_id INTEGER NOT NULL,
   board_id TEXT NOT NULL,
   thread_id INTEGER NOT NULL,
@@ -98,17 +94,16 @@ func (storage *SQLStorage) init() *SQLStorage {
   message_id INTEGER NOT NULL
 )`)
 
-	storage.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__id ON feed(id)`)
-	storage.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__secondary_id ON feed(secondary_id, chat_id, service_id)`)
-	storage.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__dvach_post_ref__id ON dvach_post_ref(chat_id, board_id, thread_id, num)`)
-	storage.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__dvach_post_ref__message_id ON dvach_post_ref(chat_id, message_id)`)
+	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__id ON feed(id)`)
+	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__secondary_id ON feed(secondary_id, chat_id, service_id)`)
+	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__dvach_post_ref__id ON dvach_post_ref(chat_id, board_id, thread_id, num)`)
+	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__dvach_post_ref__message_id ON dvach_post_ref(chat_id, message_id)`)
 
-	return storage
+	return s
 }
 
-//language=SQL
-func (storage *SQLStorage) ActiveSubscribers() []telegram.ID {
-	rows := storage.mustQuery(`SELECT DISTINCT chat_id 
+func (s *SQLStorage) ActiveSubscribers() []telegram.ID {
+	rows := s.mustQuery(`SELECT DISTINCT chat_id 
 FROM feed
 WHERE error IS NULL
 ORDER BY chat_id ASC`)
@@ -124,50 +119,39 @@ ORDER BY chat_id ASC`)
 	return chatIds
 }
 
-//language=SQL
-func (storage *SQLStorage) InsertFeed(s *service.Feed) bool {
-	s.ID = ksuid.New().String()
-	return storage.mustUpdate(`INSERT OR IGNORE INTO feed (id, secondary_id, chat_id, name, service_id, options) 
-VALUES (?, ?, ?, ?, ?, ?)`, s.ID, s.SecondaryID, s.ChatID, s.Name, s.ServiceID, s.OptionsBytes) == 1
+func (s *SQLStorage) InsertFeed(f *service.Feed) bool {
+	f.ID = ksuid.New().String()
+	return s.mustUpdate(`INSERT OR IGNORE INTO feed (id, secondary_id, chat_id, name, service_id, options) 
+VALUES (?, ?, ?, ?, ?, ?)`, f.ID, f.SecondaryID, f.ChatID, f.Name, f.ServiceID, f.OptionsBytes) == 1
 }
 
-//language=SQL
-func (storage *SQLStorage) NextFeed(chatID telegram.ID) *service.Feed {
-	return storage.selectFeed(`WHERE chat_id = ? ORDER BY updated IS NULL DESC, updated ASC`, chatID)
+func (s *SQLStorage) NextFeed(chatID telegram.ID) *service.Feed {
+	return s.selectFeed(`WHERE chat_id = ? ORDER BY updated IS NULL DESC, updated ASC`, chatID)
 }
 
-//language=SQL
-func (storage *SQLStorage) UpdateFeedOffset(id string, offset int64) bool {
-	return storage.mustUpdate(`UPDATE feed
+func (s *SQLStorage) UpdateFeedOffset(id string, offset int64) bool {
+	return s.mustUpdate(`UPDATE feed
 SET offset = ?, updated = datetime('now') 
 WHERE id = ? AND error IS NULL`, offset, id) == 1
 }
 
-//language=SQL
-func (storage *SQLStorage) SuspendFeed(id string, err error) *service.Feed {
-	s := storage.selectFeed(`WHERE id = ? AND error IS NULL`, id, err)
-	if s == nil {
-		return nil
-	}
+func (s *SQLStorage) GetFeed(id string) *service.Feed {
+	return s.selectFeed(`WHERE id = ? AND error IS NULL`, id)
+}
 
-	if storage.mustUpdate(`UPDATE feed
+func (s *SQLStorage) SuspendFeed(id string, err error) bool {
+	return s.mustUpdate(`UPDATE feed
 SET error = ?
-WHERE id = ? AND error IS NULL`, err, id) == 0 {
-		return nil
-	}
-
-	return s
+WHERE id = ? AND error IS NULL`, err.Error(), id) > 0
 }
 
-//language=SQL
-func (storage *SQLStorage) InsertPostRef(pk *dvach.PostKey, ref *dvach.MessageRef) {
-	storage.mustExec(`INSERT OR IGNORE INTO dvach_post_ref (chat_id, board_id, thread_id, num, username, message_id)
-VALUES (?, ?, ?, ?, ?)`, pk.ChatID, pk.BoardID, pk.ThreadID, pk.Num, ref.Username, ref.MessageID)
+func (s *SQLStorage) InsertPostRef(pk *dvach.PostKey, ref *dvach.MessageRef) {
+	s.mustExec(`INSERT OR IGNORE INTO dvach_post_ref (chat_id, board_id, thread_id, num, username, message_id)
+VALUES (?, ?, ?, ?, ?, ?)`, pk.ChatID, pk.BoardID, pk.ThreadID, pk.Num, ref.Username, ref.MessageID)
 }
 
-//language=SQL
-func (storage *SQLStorage) GetPostRef(pk *dvach.PostKey) (*dvach.MessageRef, bool) {
-	rows := storage.mustQuery(`SELECT username, message_id
+func (s *SQLStorage) GetPostRef(pk *dvach.PostKey) (*dvach.MessageRef, bool) {
+	rows := s.mustQuery(`SELECT username, message_id
 FROM dvach_post_ref 
 WHERE chat_id = ? AND board_id = ? AND thread_id = ? AND num = ?`,
 		pk.ChatID, pk.BoardID, pk.ThreadID, pk.Num)

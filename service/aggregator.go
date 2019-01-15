@@ -5,19 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 )
 
-type Storage interface {
-	ActiveSubscribers() []telegram.ID
-	InsertFeed(*Feed) bool
-	NextFeed(telegram.ID) *Feed
-	UpdateFeedOffset(string, int64) bool
-	SuspendFeed(string, error) *Feed
-}
+var (
+	ErrInvalidFormat = errors.New("invalid format")
+	ErrForbidden     = errors.New("forbidden")
+)
 
 type Aggregator struct {
 	bot      *telegram.Bot
@@ -115,7 +113,7 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 			_, err := update.Send(agg.bot, chatID)
 			if err != nil {
 				updatePipe.stop()
-				agg.suspend(feed.ID, err)
+				_ = agg.suspend(nil, feed.ID, err)
 				log.Println(feed, "suspended:", err)
 				goto reschedule
 			}
@@ -142,11 +140,53 @@ reschedule:
 	time.AfterFunc(agg.interval, func() { agg.run(chatID) })
 }
 
-func (agg *Aggregator) suspend(id string, err error) {
-	s := agg.storage.SuspendFeed(id, err)
-	if s != nil {
-		go agg.notifyAdministrators(s, fmt.Sprintf("Feed suspended. Reason: %s", err))
+func (agg *Aggregator) suspend(userID *telegram.ID, id string, err error) error {
+	feed := agg.storage.GetFeed(id)
+	if feed == nil {
+		return nil
 	}
+
+	var chat *EnrichedChat
+	if userID != nil {
+		var err error
+		chat, err = agg.enrichChat(feed.ChatID, nil)
+		if err != nil {
+			return err
+		}
+
+		if !chat.hasAdminAccess(*userID) {
+			return ErrForbidden
+		}
+	}
+
+	if ok := agg.storage.SuspendFeed(id, err); !ok {
+		return errors.New("not found")
+	}
+
+	if userID == nil {
+		chat, err = agg.enrichChat(feed.ChatID, nil)
+		if err != nil {
+			return nil // whatever
+		}
+	}
+
+	go chat.forEachAdminID(func(adminID telegram.ID) {
+		_, err := agg.bot.Send(
+			adminID,
+			fmt.Sprintf(`Subscription suspended.
+Chat: %s
+Service: %s
+Title: #%s
+Reason: %s`, chat.title, feed.ServiceID, feed.Name, err),
+			telegram.NewSendOpts().
+				Message().
+				ReplyMarkup(telegram.CommandButton("Resume", "/resume", feed.ID)))
+		if err != nil {
+			log.Printf("Failed to send message to %d: %s", adminID, err)
+		}
+	})
+
+	return nil
 }
 
 func (agg *Aggregator) readOptions(rawOptions []byte, options interface{}) error {
@@ -157,13 +197,13 @@ func (agg *Aggregator) writeOptions(options interface{}) ([]byte, error) {
 	return json.Marshal(options)
 }
 
-func (agg *Aggregator) Subscribe(chat *telegram.Chat, serviceID string, secondaryID string, name string, options interface{}) error {
+func (agg *Aggregator) Subscribe(chat *EnrichedChat, serviceID string, secondaryID string, name string, options interface{}) error {
 	rawOptions, err := agg.writeOptions(options)
 	if err != nil {
 		return err
 	}
 
-	f := &Feed{
+	feed := &Feed{
 		ChatID:       chat.ID,
 		ServiceID:    serviceID,
 		SecondaryID:  secondaryID,
@@ -171,40 +211,112 @@ func (agg *Aggregator) Subscribe(chat *telegram.Chat, serviceID string, secondar
 		OptionsBytes: rawOptions,
 	}
 
-	if ok := agg.storage.InsertFeed(f); !ok {
+	if ok := agg.storage.InsertFeed(feed); !ok {
 		return errors.New("exists")
 	}
 
-	go agg.notifyAdministrators(f, "Subscription OK.")
-	agg.schedule(chat.ID)
+	go chat.forEachAdminID(func(adminID telegram.ID) {
+		_, err := agg.bot.Send(
+			adminID,
+			fmt.Sprintf(`Subscription OK.
+Chat: %s
+Service: %s
+Title: #%s`, chat.title, serviceID, name),
+			telegram.NewSendOpts().
+				Message().
+				ReplyMarkup(telegram.CommandButton("Unsubscribe", "/unsub", feed.ID)))
+		if err != nil {
+			log.Printf("Failed to send message to %s: %s", adminID, err)
+		}
+	})
 
+	agg.schedule(chat.ID)
 	return nil
 }
 
-func (agg *Aggregator) notifyAdministrators(f *Feed, message string) {
-	chat, err := agg.bot.GetChat(f.ChatID)
-	if err != nil {
-		log.Printf("Failed to get chat %d: %s", f.ChatID, err)
+func (agg *Aggregator) SubscribeCommandListener(c *telegram.Command) {
+	if c.Payload == "" {
+		c.ErrorReply(ErrInvalidFormat)
 		return
 	}
 
+	tokens := strings.Split(c.Payload, " ")
+
 	var (
-		chatTitle string
-		adminIDs  []telegram.ID
+		chatID telegram.ChatID
+		chat   *telegram.Chat
 	)
 
-	if chat.Type == telegram.PrivateChat {
-		chatTitle = "private"
-		adminIDs = []telegram.ID{chat.ID}
+	if len(tokens) > 1 && tokens[1] != "" && tokens[1] != "." {
+		chatID = telegram.Username(tokens[1])
 	} else {
-		chatTitle = chat.Title
-		admins, err := agg.bot.GetChatAdministrators(f.ChatID)
-		if err != nil {
-			log.Printf("Failed to get administrator list for chat %d: %s", f.ChatID, err)
+		chat = c.Chat
+	}
+
+	enriched, err := agg.enrichChat(chatID, chat)
+	if err != nil {
+		c.ErrorReply(err)
+		return
+	}
+
+	if !enriched.hasAdminAccess(c.User.ID) {
+		c.ErrorReply(ErrForbidden)
+		return
+	}
+
+	var options string
+	if len(tokens) > 2 {
+		options = tokens[2]
+	}
+
+	for _, svc := range agg.services {
+		err = svc.Subscribe(tokens[0], enriched, options)
+		switch err {
+		case nil:
+			return
+
+		case ErrInvalidFormat:
+			continue
+
+		default:
+			c.ErrorReply(err)
 			return
 		}
+	}
 
-		adminIDs = make([]telegram.ID, 0)
+	c.ErrorReply(ErrInvalidFormat)
+}
+
+func (agg *Aggregator) UnsubscribeCommandListener(c *telegram.Command) {
+	if err := agg.suspend(&c.User.ID, c.Payload, errors.New("suspended by user")); err != nil {
+		c.ErrorReply(err)
+	} else {
+		c.TextReply("OK")
+	}
+}
+
+func (agg *Aggregator) enrichChat(chatID telegram.ChatID, chat *telegram.Chat) (*EnrichedChat, error) {
+	if chat == nil {
+		var err error
+		chat, err = agg.bot.GetChat(chatID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		chatID = chat.ID
+	}
+
+	enriched := &EnrichedChat{Chat: chat}
+	if chat.Type == telegram.PrivateChat {
+		enriched.title = "private"
+		enriched.adminIDs = []telegram.ID{chat.ID}
+	} else {
+		admins, err := agg.bot.GetChatAdministrators(chatID)
+		if err != nil {
+			return nil, err
+		}
+
+		adminIDs := make([]telegram.ID, 0)
 		for _, admin := range admins {
 			if admin.User.IsBot {
 				continue
@@ -212,20 +324,32 @@ func (agg *Aggregator) notifyAdministrators(f *Feed, message string) {
 
 			adminIDs = append(adminIDs, admin.User.ID)
 		}
+
+		enriched.title = chat.Title
+		enriched.adminIDs = adminIDs
 	}
 
-	text := message + fmt.Sprintf(`
-Chat: %s
-Service: %s
-Feed: #%s
-`, chatTitle, f.ServiceID, f.Name)
+	return enriched, nil
+}
 
-	for _, adminID := range adminIDs {
-		_, err := agg.bot.Send(adminID, text, telegram.NewSendOpts().
-			Message().
-			DisableWebPagePreview(true))
-		if err != nil {
-			log.Printf("Failed to send message to %d: %s", adminID, err)
+type EnrichedChat struct {
+	*telegram.Chat
+	adminIDs []telegram.ID
+	title    string
+}
+
+func (c *EnrichedChat) hasAdminAccess(userID telegram.ID) bool {
+	for _, adminID := range c.adminIDs {
+		if adminID == userID {
+			return true
 		}
+	}
+
+	return false
+}
+
+func (c *EnrichedChat) forEachAdminID(f func(telegram.ID)) {
+	for _, adminID := range c.adminIDs {
+		f(adminID)
 	}
 }

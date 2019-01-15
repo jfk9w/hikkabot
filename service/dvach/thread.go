@@ -60,9 +60,7 @@ type ThreadService struct {
 func Thread(
 	agg *service.Aggregator, fs service.FileSystemService, storage PostMessageRefStorage,
 	dvach *dvach.Client, aconvert *aconvert.Client) *ThreadService {
-	svc := &ThreadService{agg, fs, storage, dvach, aconvert}
-	agg.Add(svc)
-	return svc
+	return &ThreadService{agg, fs, storage, dvach, aconvert}
 }
 
 func (svc *ThreadService) ID() string {
@@ -71,7 +69,7 @@ func (svc *ThreadService) ID() string {
 
 var threadRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)/res/([0-9]+)\.html?$`)
 
-func (svc *ThreadService) Subscribe(input string, chat *telegram.Chat, args string) error {
+func (svc *ThreadService) Subscribe(input string, chat *service.EnrichedChat, args string) error {
 	groups := threadRegexp.FindStringSubmatch(input)
 	if len(groups) < 6 {
 		return service.ErrInvalidFormat

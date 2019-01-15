@@ -24,9 +24,7 @@ type Service struct {
 }
 
 func Reddit(agg *service.Aggregator, fs service.FileSystemService, reddit *reddit.Client) *Service {
-	svc := &Service{agg, fs, reddit}
-	agg.Add(svc)
-	return svc
+	return &Service{agg, fs, reddit}
 }
 
 func (svc *Service) ID() string {
@@ -45,7 +43,7 @@ func parseRedditInput(input string) (string, string, error) {
 	return groups[4], groups[6], nil
 }
 
-func (svc *Service) Subscribe(input string, chat *telegram.Chat, args string) error {
+func (svc *Service) Subscribe(input string, chat *service.EnrichedChat, args string) error {
 	subreddit, sort, err := parseRedditInput(input)
 	if err != nil {
 		return err

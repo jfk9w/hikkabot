@@ -23,9 +23,7 @@ type CatalogService struct {
 }
 
 func Catalog(agg *service.Aggregator, c *dvach.Client) *CatalogService {
-	svc := &CatalogService{agg, c}
-	agg.Add(svc)
-	return svc
+	return &CatalogService{agg, c}
 }
 
 func (svc *CatalogService) ID() string {
@@ -55,7 +53,7 @@ func (svc *CatalogService) search(boardID string, query *regexp.Regexp) ([]*dvac
 
 var catalogRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
 
-func (svc *CatalogService) Subscribe(input string, chat *telegram.Chat, options string) error {
+func (svc *CatalogService) Subscribe(input string, chat *service.EnrichedChat, options string) error {
 	groups := catalogRegexp.FindStringSubmatch(input)
 	if len(groups) < 6 {
 		return service.ErrInvalidFormat
