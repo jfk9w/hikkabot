@@ -126,7 +126,7 @@ VALUES (?, ?, ?, ?, ?, ?)`, f.ID, f.SecondaryID, f.ChatID, f.Name, f.ServiceID, 
 }
 
 func (s *SQLStorage) NextFeed(chatID telegram.ID) *service.Feed {
-	return s.selectFeed(`WHERE chat_id = ? ORDER BY updated IS NULL DESC, updated ASC`, chatID)
+	return s.selectFeed(`WHERE chat_id = ? AND error IS NULL ORDER BY updated IS NULL DESC, updated ASC`, chatID)
 }
 
 func (s *SQLStorage) UpdateFeedOffset(id string, offset int64) bool {
