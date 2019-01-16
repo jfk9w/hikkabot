@@ -136,13 +136,19 @@ WHERE id = ? AND error IS NULL`, offset, id) == 1
 }
 
 func (s *SQLStorage) GetFeed(id string) *service.Feed {
-	return s.selectFeed(`WHERE id = ? AND error IS NULL`, id)
+	return s.selectFeed(`WHERE id = ?`, id)
 }
 
 func (s *SQLStorage) SuspendFeed(id string, err error) bool {
 	return s.mustUpdate(`UPDATE feed
 SET error = ?
 WHERE id = ? AND error IS NULL`, err.Error(), id) > 0
+}
+
+func (s *SQLStorage) ResumeFeed(id string) bool {
+	return s.mustUpdate(`UPDATE feed
+SET error = NULL
+WHERE id = ? AND error IS NOT NULL`, id) > 0
 }
 
 func (s *SQLStorage) InsertPostRef(pk *dvach.PostKey, ref *dvach.MessageRef) {

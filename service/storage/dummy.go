@@ -39,6 +39,10 @@ func (s *DummyStorage) GetFeed(id string) *service.Feed {
 	return s.feed
 }
 
+func (s *DummyStorage) ResumeFeed(id string) bool {
+	return false
+}
+
 func (s *DummyStorage) SuspendFeed(id string, err error) bool {
 	if s.feed == nil {
 		return false

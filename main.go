@@ -60,7 +60,8 @@ func main() {
 			c.TextReply("I'm alive.")
 		}).
 		AddFunc("/sub", aggregator.SubscribeCommandListener).
-		AddFunc("/unsub", aggregator.UnsubscribeCommandListener))
+		AddFunc("/suspend", aggregator.SuspendCommandListener).
+		AddFunc("/resume", aggregator.ResumeCommandListener))
 
 	exit.Wait()
 	log.Printf("Hikkabot exited")

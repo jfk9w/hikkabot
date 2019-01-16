@@ -15,6 +15,7 @@ import (
 var (
 	ErrInvalidFormat = errors.New("invalid format")
 	ErrForbidden     = errors.New("forbidden")
+	ErrNotFound      = errors.New("not found")
 )
 
 type Aggregator struct {
@@ -113,7 +114,7 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 			_, err := update.Send(agg.bot, chatID)
 			if err != nil {
 				updatePipe.stop()
-				_ = agg.suspend(nil, feed.ID, err)
+				_ = agg.set(nil, feed.ID, err)
 				log.Println(feed, "suspended:", err)
 				goto reschedule
 			}
@@ -140,10 +141,10 @@ reschedule:
 	time.AfterFunc(agg.interval, func() { agg.run(chatID) })
 }
 
-func (agg *Aggregator) suspend(userID *telegram.ID, id string, err error) error {
+func (agg *Aggregator) set(userID *telegram.ID, id string, err error) error {
 	feed := agg.storage.GetFeed(id)
 	if feed == nil {
-		return nil
+		return ErrNotFound
 	}
 
 	var chat *EnrichedChat
@@ -159,32 +160,55 @@ func (agg *Aggregator) suspend(userID *telegram.ID, id string, err error) error 
 		}
 	}
 
-	if ok := agg.storage.SuspendFeed(id, err); !ok {
-		return errors.New("not found")
+	var ok bool
+	if err == nil {
+		ok = agg.storage.ResumeFeed(id)
+	} else {
+		ok = agg.storage.SuspendFeed(id, err)
+	}
+
+	if !ok {
+		return ErrNotFound
 	}
 
 	if userID == nil {
+		var err error
 		chat, err = agg.enrichChat(feed.ChatID, nil)
 		if err != nil {
-			return nil // whatever
+			return err // whatever
 		}
 	}
 
-	go chat.forEachAdminID(func(adminID telegram.ID) {
-		_, err := agg.bot.Send(
-			adminID,
-			fmt.Sprintf(`Subscription suspended.
+	var (
+		text   string
+		markup telegram.ReplyMarkup
+	)
+
+	if err == nil {
+		text = fmt.Sprintf(`Subscription resumed.
+Chat: %s
+Service: %s
+Title: #%s`, chat.title, feed.ServiceID, feed.Name)
+		markup = telegram.CommandButton("Suspend", "/suspend", feed.ID)
+	} else {
+		text = fmt.Sprintf(`Subscription suspended.
 Chat: %s
 Service: %s
 Title: #%s
-Reason: %s`, chat.title, feed.ServiceID, feed.Name, err),
-			telegram.NewSendOpts().
-				Message().
-				ReplyMarkup(telegram.CommandButton("Resume", "/resume", feed.ID)))
+Reason: %s`, chat.title, feed.ServiceID, feed.Name, err)
+		markup = telegram.CommandButton("Resume", "/resume", feed.ID)
+	}
+
+	go chat.forEachAdminID(func(adminID telegram.ID) {
+		_, err := agg.bot.Send(adminID, text, telegram.NewSendOpts().Message().ReplyMarkup(markup))
 		if err != nil {
 			log.Printf("Failed to send message to %d: %s", adminID, err)
 		}
 	})
+
+	if err == nil {
+		agg.schedule(feed.ChatID)
+	}
 
 	return nil
 }
@@ -224,7 +248,7 @@ Service: %s
 Title: #%s`, chat.title, serviceID, name),
 			telegram.NewSendOpts().
 				Message().
-				ReplyMarkup(telegram.CommandButton("Unsubscribe", "/unsub", feed.ID)))
+				ReplyMarkup(telegram.CommandButton("Suspend", "/suspend", feed.ID)))
 		if err != nil {
 			log.Printf("Failed to send message to %s: %s", adminID, err)
 		}
@@ -287,8 +311,16 @@ func (agg *Aggregator) SubscribeCommandListener(c *telegram.Command) {
 	c.ErrorReply(ErrInvalidFormat)
 }
 
-func (agg *Aggregator) UnsubscribeCommandListener(c *telegram.Command) {
-	if err := agg.suspend(&c.User.ID, c.Payload, errors.New("suspended by user")); err != nil {
+func (agg *Aggregator) SuspendCommandListener(c *telegram.Command) {
+	if err := agg.set(&c.User.ID, c.Payload, errors.New("suspended by user")); err != nil {
+		c.ErrorReply(err)
+	} else {
+		c.TextReply("OK")
+	}
+}
+
+func (agg *Aggregator) ResumeCommandListener(c *telegram.Command) {
+	if err := agg.set(&c.User.ID, c.Payload, nil); err != nil {
 		c.ErrorReply(err)
 	} else {
 		c.TextReply("OK")

@@ -21,5 +21,6 @@ type Storage interface {
 	NextFeed(telegram.ID) *Feed
 	UpdateFeedOffset(string, int64) bool
 	GetFeed(string) *Feed
+	ResumeFeed(string) bool
 	SuspendFeed(string, error) bool
 }
