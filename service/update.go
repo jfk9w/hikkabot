@@ -47,6 +47,7 @@ func (t UpdateType) params(u *GenericUpdate) (interface{}, telegram.SendOpts) {
 	case TextUpdate:
 		return u.Text, telegram.NewSendOpts().
 			DisableNotification(true).
+			Message().
 			ParseMode(telegram.HTML).
 			Message().
 			DisableWebPagePreview(true)
@@ -54,24 +55,22 @@ func (t UpdateType) params(u *GenericUpdate) (interface{}, telegram.SendOpts) {
 	case PhotoUpdate:
 		return u.Entity, telegram.NewSendOpts().
 			DisableNotification(true).
+			Media().Photo().
 			ParseMode(telegram.HTML).
-			Media().
-			Caption(u.Text).
-			Photo()
+			Caption(u.Text)
 
 	case VideoUpdate:
 		return u.Entity, telegram.NewSendOpts().
 			DisableNotification(true).
+			Media().Video().
 			ParseMode(telegram.HTML).
-			Media().
-			Caption(u.Text).
-			Video()
+			Caption(u.Text)
 
 	case TextPreviewUpdate:
 		return u.Text, telegram.NewSendOpts().
 			DisableNotification(true).
-			ParseMode(telegram.HTML).
-			Message()
+			Message().
+			ParseMode(telegram.HTML)
 
 	default:
 		panic("invalid update type")
@@ -120,29 +119,29 @@ func NewUpdatePipe() *UpdatePipe {
 	}
 }
 
-func (feed *UpdatePipe) Error(err error) {
-	feed.errCh <- err
+func (p *UpdatePipe) Error(err error) {
+	p.errCh <- err
 }
 
-func (feed *UpdatePipe) stop() {
-	feed.stopCh <- struct{}{}
+func (p *UpdatePipe) stop() {
+	p.stopCh <- struct{}{}
 }
 
-func (feed *UpdatePipe) Submit(updateBatch UpdateBatch, offset int64) bool {
+func (p *UpdatePipe) Submit(updateBatch UpdateBatch, offset int64) bool {
 	select {
-	case feed.updateCh <- offsetUpdateBatch{offset, updateBatch}:
+	case p.updateCh <- offsetUpdateBatch{offset, updateBatch}:
 		return true
 
-	case <-feed.stopCh:
+	case <-p.stopCh:
 		return false
 	}
 }
 
-func (feed *UpdatePipe) Close() {
-	close(feed.updateCh)
-	close(feed.errCh)
+func (p *UpdatePipe) Close() {
+	close(p.updateCh)
+	close(p.errCh)
 }
 
-func (feed *UpdatePipe) closeOut() {
-	close(feed.stopCh)
+func (p *UpdatePipe) closeOut() {
+	close(p.stopCh)
 }

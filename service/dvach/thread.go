@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
@@ -116,35 +117,110 @@ func (svc *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFu
 		return
 	}
 
-	for _, post := range posts {
+	for i, post := range posts {
 		resources := make([]chan *flu.FileSystemResource, len(post.Files))
 		for i, file := range post.Files {
 			resources[i] = make(chan *flu.FileSystemResource)
 			go svc.downloadFile(file, resources[i])
 		}
 
-		if !updatePipe.Submit(svc.updateBatchFunc(options, post, resources), int64(post.Num)) {
+		if !updatePipe.Submit(svc.updateBatchFunc(options, post, resources, i == 0), int64(post.Num)) {
 			return
 		}
 	}
 }
 
-func (svc *ThreadService) updateBatchFunc(options *threadOptions, post *dvach.Post, resources []chan *flu.FileSystemResource) service.UpdateBatchFunc {
+var maxCaptionSize = telegram.MaxCaptionSize * 5 / 7
+
+func (svc *ThreadService) updateBatchFunc(options *threadOptions, post *dvach.Post, resources []chan *flu.FileSystemResource, firstInBatch bool) service.UpdateBatchFunc {
 	parts := html.NewBuilder(maxHtmlChunkSize, -1).
-		Text("#" + options.Title).Br().
 		Parse(post.Comment).
 		Build()
 
 	return func(updateCh chan<- service.Update) {
-		if options.UseNativeLinks && svc.storage != nil {
-			svc.textUpdatesWithLinks(post, parts, updateCh)
-		} else {
-			for _, part := range parts {
-				updateCh <- &service.GenericUpdate{Text: part}
+		collapse := len(parts) == 1 && utf8string.NewString(parts[0]).RuneCount() <= maxCaptionSize && len(post.Files) > 0
+		for i, part := range parts {
+			i := i
+			part := part
+			uf := func(bot *telegram.Bot, chatID telegram.ID) (*telegram.Message, error) {
+				matches := replyRegexp.FindAllStringSubmatch(part, -1)
+				for _, match := range matches {
+					variable := match[0]
+					boardID := match[1]
+					threadID, _ := strconv.Atoi(match[2])
+					num, _ := strconv.Atoi(match[3])
+					replace := ""
+					if svc.storage != nil && options.UseNativeLinks {
+						pm, ok := svc.storage.GetPostRef(&PostKey{chatID, boardID, threadID, num})
+						if ok {
+							replace = fmt.Sprintf(`<a href="%s">#%s%d</a>`, pm.Href(), strings.ToUpper(boardID), num)
+						}
+					}
+
+					if replace == "" {
+						replace = fmt.Sprintf(`#%s%d`, strings.ToUpper(boardID), num)
+					}
+
+					part = strings.Replace(part, variable, replace, -1)
+				}
+
+				update := new(service.GenericUpdate)
+				if i == 0 {
+					var maxSize int
+					if collapse {
+						maxSize = maxCaptionSize
+					} else {
+						maxSize = maxHtmlChunkSize
+					}
+
+					partsBuilder := html.NewBuilder(maxSize, 1).
+						Text(`#` + options.Title).Br().
+						Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.BoardID), post.Num))
+					if post.IsOriginal() {
+						partsBuilder.Text(" #OP")
+					}
+
+					partsBuilder.Br()
+					if collapse && len(post.Files) > 0 {
+						file := post.Files[0]
+						partsBuilder.Link(dvach.Host+file.Path, "[LINK]").Br()
+						update.Entity = <-resources[i]
+						update.Type = updateForFileType(post.Files[0].Type)
+					}
+
+					if part != "" {
+						partsBuilder.Text("---").Br()
+					}
+
+					update.Text = partsBuilder.
+						Parse(part).
+						Build()[0]
+				} else {
+					update.Text = part
+				}
+
+				m, err := update.Send(bot, chatID)
+				if err != nil {
+					return nil, err
+				}
+
+				if i == 0 && m.Chat.Username != nil {
+					svc.storage.InsertPostRef(
+						&PostKey{chatID, post.BoardID, post.Parent, post.Num},
+						&MessageRef{(*m.Chat.Username).String(), m.ID})
+				}
+
+				return m, nil
 			}
+
+			updateCh <- service.UpdateFunc(uf)
 		}
 
 		for i, file := range post.Files {
+			if collapse && i == 0 {
+				continue
+			}
+
 			update := &service.GenericUpdate{
 				Text: html.NewBuilder(telegram.MaxCaptionSize, 1).
 					Link(dvach.Host+file.Path, "[LINK]").
@@ -154,13 +230,7 @@ func (svc *ThreadService) updateBatchFunc(options *threadOptions, post *dvach.Po
 			resource := <-resources[i]
 			if resource != nil {
 				update.Entity = *resource
-				switch file.Type {
-				case dvach.WEBM, dvach.GIF, dvach.MP4:
-					update.Type = service.VideoUpdate
-
-				default:
-					update.Type = service.PhotoUpdate
-				}
+				update.Type = updateForFileType(file.Type)
 			}
 
 			updateCh <- update
@@ -168,42 +238,17 @@ func (svc *ThreadService) updateBatchFunc(options *threadOptions, post *dvach.Po
 	}
 }
 
-var replyRegexp = regexp.MustCompile(`href=".*?/([a-zA-Z0-9]+)/res/([0-9]+)\.html#([0-9]+)"`)
+func updateForFileType(fileType dvach.FileType) service.UpdateType {
+	switch fileType {
+	case dvach.WEBM, dvach.GIF, dvach.MP4:
+		return service.VideoUpdate
 
-func (svc *ThreadService) textUpdatesWithLinks(post *dvach.Post, parts []string, updateCh chan<- service.Update) {
-	for i, part := range parts {
-		i := i
-		part := part
-		uf := func(bot *telegram.Bot, chatID telegram.ID) (*telegram.Message, error) {
-			matches := replyRegexp.FindAllStringSubmatch(part, -1)
-			for _, match := range matches {
-				variable := match[0]
-				boardID := match[1]
-				threadID, _ := strconv.Atoi(match[2])
-				num, _ := strconv.Atoi(match[3])
-				pm, ok := svc.storage.GetPostRef(&PostKey{chatID, boardID, threadID, num})
-				if ok {
-					part = strings.Replace(part, variable, fmt.Sprintf(`href="%s"`, pm.Href()), -1)
-				}
-			}
-
-			m, err := (&service.GenericUpdate{Text: part}).Send(bot, chatID)
-			if err != nil {
-				return nil, err
-			}
-
-			if i == 0 && m.Chat.Username != nil {
-				svc.storage.InsertPostRef(
-					&PostKey{chatID, post.BoardID, post.Parent, post.Num},
-					&MessageRef{(*m.Chat.Username).String(), m.ID})
-			}
-
-			return m, nil
-		}
-
-		updateCh <- service.UpdateFunc(uf)
+	default:
+		return service.PhotoUpdate
 	}
 }
+
+var replyRegexp = regexp.MustCompile(`<a\s+href=".*?/([a-zA-Z0-9]+)/res/([0-9]+)\.html#([0-9]+)".*?>.*?</a>`)
 
 func (svc *ThreadService) downloadFile(file *dvach.File, ch chan<- *flu.FileSystemResource) {
 	defer close(ch)
@@ -218,10 +263,17 @@ func (svc *ThreadService) downloadFile(file *dvach.File, ch chan<- *flu.FileSyst
 	}
 
 	if file.Type == dvach.WEBM {
+		start := time.Now()
 		aresp, err := svc.aconvert.Convert(resource, aconvert.NewOpts().
 			TargetFormat("mp4").
 			VideoOptionSize(0).
 			Code(81000))
+
+		duration := time.Now().Sub(start)
+		if stat, err := os.Stat(resource.Path()); err == nil {
+			// just in case
+			log.Println("Conversion took", duration.Seconds(), "secs, file size", stat.Size()>>10, "KB")
+		}
 
 		_ = os.RemoveAll(resource.Path())
 

@@ -56,9 +56,7 @@ func main() {
 	}()
 
 	go bot.Listen(telegram.NewCommandUpdateListener(bot).
-		AddFunc("/status", func(c *telegram.Command) {
-			c.TextReply("I'm alive.")
-		}).
+		AddFunc("/status", func(c *telegram.Command) { c.TextReply("I'm alive.") }).
 		AddFunc("/sub", aggregator.SubscribeCommandListener).
 		AddFunc("/suspend", aggregator.SuspendCommandListener).
 		AddFunc("/resume", aggregator.ResumeCommandListener))

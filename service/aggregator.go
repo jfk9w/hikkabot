@@ -79,6 +79,7 @@ func (agg *Aggregator) schedule(chatID telegram.ID) {
 	agg.mu.Unlock()
 
 	go agg.run(chatID)
+	log.Println("Scheduled", chatID)
 }
 
 func (agg *Aggregator) cancel(chatID telegram.ID) {
@@ -175,7 +176,7 @@ func (agg *Aggregator) set(userID *telegram.ID, id string, err error) error {
 		var err error
 		chat, err = agg.enrichChat(feed.ChatID, nil)
 		if err != nil {
-			return err // whatever
+			return err
 		}
 	}
 
