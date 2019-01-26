@@ -49,7 +49,6 @@ func (t UpdateType) params(u *GenericUpdate) (interface{}, telegram.SendOpts) {
 			DisableNotification(true).
 			Message().
 			ParseMode(telegram.HTML).
-			Message().
 			DisableWebPagePreview(true)
 
 	case PhotoUpdate:
