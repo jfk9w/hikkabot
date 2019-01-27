@@ -2,61 +2,79 @@
 
 A Telegram subscription service for [2ch.hk](https://2ch.hk).
 
-## Warning
-
-This is the deprecated version. The better and newer version is located at https://github.com/jfk9w-go/hikkabot.
 
 ## Features
 
-* Subscribe to any thread.
-* Manage group and channel subscriptions. Caller must be either a `creator` or an `administrator` who `can_post_messages`. The bot will try to alert all chat administrators about subscription changes.
-* Images and other post attachments are sent as links (marked as `[A]`) to leverage Telegram link previews.
-* Reply navigation using hashtags.
-
-### Available commands
-
-| Command | Description |
-|---------|-------------|
-| /subscribe [thread\_link] | Subscribe this chat to a thread. If a `thread_link` is not provided, it will be requested. |
-| /subscribe thread\_link channel\_name | Subscribe a channel to a thread. A `channel_name` must start with a `@`. |
-| /unsubscribe | Unsubscribe this chat from all threads. |
-| /unsubscribe channel\_name | Unsubscribe a channel from all threads. A `channel_name` must start with a `@`. |
-| /status | Check if the bot is alive. |
-
-For `/subscribe` and `/unsubscribe` commands shortcuts are available: `/sub` and `/unsub` respectively.
-
-### Navigation and hashtags
-
-Navigation is built entirely upon hashtags. Every detected post number will be replaced by a similar hashtag. You can click on any post hashtag and use standard Telegram search features.
-
-At the beginning of each thread a message containing a hashtag `#thread`, a thread summary and the URL will be sent to the subscribed chat.
-
-All service messages begin with a hashtag `#info`.
+* Manage thread subscriptions for private chats, groups and public channels.
+* Basic navigation.
+* Automatic webm conversion using [aconvert](https://www.aconvert.com) for better Telegram experience.
 
 
-## Installation and execution
+## Commands
 
-Install using Go package manager:
+| Command | Shortcuts | Parameters | Description | Usage |
+|---|---|---|---|---|
+| `/subscribe` | `/sub` | THREAD_KEY [CHANNEL_NAME] | Subscribe to a thread. | `/sub https://2ch.hk/abu/res/42375.html`<br>`/sub https://2ch.hk/abu/res/42375.html#49947`<br>`/sub #ABU42375`<br>`/sub #ABU49947`<br>`/sub #ABU42375 @channel` |
+| `/unsubscribe` | `/unsub` | THREAD_KEY [CHANNEL_NAME] | Unsubscribe from a thread. | `/unsub https://2ch.hk/abu/res/42375.html`<br>`/unsub https://2ch.hk/abu/res/42375.html#49947`<br>`/unsub #ABU42375`<br>`/unsub #ABU49947`<br>`/unsub #ABU42375 @channel` |
+| `/clear` | | [CHANNEL_NAME] | Clear active subscriptions. | `/clear`<br>`/clear @channel` |
+| `/dump` | | [CHANNEL_NAME] | Print out active subscriptions. | `/dump`<br>`/dump @channel` |
+| `/search` | | BOARD [SEARCH_QUERY] | Print out the board's fastest threads. If SEARCH_QUERY is specified, then only the threads containing the specified words will be printed out. The number of printed threads is limit by 30. | `/search abu`<br>`/search abu поиск` |
 
-```bash
-$ go get -u github.com/jfk9w/hikkabot
-$ go install github.com/jfk9w/hikkabot
-$ hikkabot -config=YOUR_CONFIG_FILE
+`THREAD_KEY` can be specified as one of the following:
+
+* A thread or post URL.
+* A thread or post hashtag (see [Layout](#layout)). Also works without the leading `#`.
+
+Please note that if a post URL or hashtag is specified the subscription will start with the post **right after** the specified.
+
+
+## Layout
+
+### IDs
+
+Thread and post IDs are formatted as hashtags with the following schema: `#<BOARD><NUM>`.
+Any post references are transformed into corresponding hashtags.
+This allows for a basic navigation and easier thread management.
+
+### Posts
+
+Posts are printed as follows:
+
+The first group of messages are messages with the post text content. 
+The first message will have a header containing a thread subject hashtag and the post hashtag.
+If this is a start of a thread, then an additional `#THREAD` hashtag will be printed.
+
+Example:
+```
+#THREAD
+#БУГУРТ_ДВАЧЕРОВ_ИРЛ_ТРЕД_И
+#B176310796
+---
+#B176307024
++50 к переносимому весу
 ```
 
-You can use [this skeleton](https://github.com/jfk9w/hikkabot/blob/master/config.json) to build the configuration upon.
+After the text content messages containing attached files are sent.
+ 
+All photos and videos (except for webm) are sent as is as a respective media with a caption containing the original file URL.
+Webms are initially converted to mp4. If an error during sending occures, then the bot will try to send only the file URL.
 
-### <span>bot.sh</span>
+### Threads
 
-This is a [utility script](https://github.com/jfk9w/hikkabot/blob/master/bot.sh) provided for bot control.
+A message may contain up to 10 threads. 
+The sorting is done by speed. 
 
-```bash
-# Starts an instance of Hikkabot.
-# If LOG_FILE is specified, the instance will
-# be run in background printing its output to
-# LOG_FILE.
-$ ./bot.sh start YOUR_CONFIG_FILE [LOG_FILE]
-
-# Stops the background instance of Hikkabot.
-$ ./bot.sh stop
+Text contents are cut to 275 symbols in length.
+The header contains the creation date and the thread hashtag.
+The post count and the speed are printed out additionally.
+No attached files are sent.
+ 
+Example:
+```
+21/05/18 Пнд 13:09:57
+#B176308783
+5 / 2.26/hr
+---
+Привет
+---
 ```

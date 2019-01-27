@@ -1,30 +1,47 @@
 package main
 
 import (
-	"encoding/json"
-	"flag"
-	"io/ioutil"
+	"github.com/jfk9w-go/hikkabot/common/aconvert-api"
+	"github.com/jfk9w-go/hikkabot/common/dvach-api"
+	"github.com/jfk9w-go/hikkabot/common/gox"
+	"github.com/jfk9w-go/hikkabot/common/gox/fsx"
+	"github.com/jfk9w-go/hikkabot/common/gox/jsonx"
+	"github.com/jfk9w-go/hikkabot/common/logx"
+	"github.com/jfk9w-go/hikkabot/common/reddit-api"
+	"github.com/jfk9w-go/hikkabot/common/telegram-bot-api"
+	"github.com/jfk9w-go/hikkabot/frontend"
 )
 
 type Config struct {
-	Token    string `json:"token"`
-	DB       string `json:"db"`
-	LogLevel string `json:"log_level"`
+	Database          string          `json:"database"`
+	SchedulerInterval jsonx.Duration  `json:"scheduler_interval"`
+	Frontend          frontend.Config `json:"frontend"`
+	Dvach             dvach.Config    `json:"dvach"`
+	Telegram          telegram.Config `json:"telegram"`
+	Aconvert          aconvert.Config `json:"aconvert"`
+	Red               RedConfig       `json:"red"`
 }
 
-func GetConfig() (*Config, error) {
-	filename := flag.String("config", "", "Configuration file")
-	flag.Parse()
+type RedConfig struct {
+	red.Config
+	MetricsFile   string          `json:"metrics_file"`
+	MetricsChatID telegram.ChatID `json:"metrics_chat_id"`
+}
 
-	data, err := ioutil.ReadFile(*filename)
+func ReadConfig(path string) *Config {
+	var err error
+	path, err = fsx.Path(path)
+	gox.Check(err)
+
+	logx.Get("init").Debugf("Reading config from %s", path)
+
+	var config = new(Config)
+	gox.Check(jsonx.ReadFile(path, config))
+
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
-	cfg := new(Config)
-	if err = json.Unmarshal(data, cfg); err != nil {
-		return nil, err
-	}
-
-	return cfg, nil
+	config.Telegram.RouterConfig = telegram.DefaultIntervals
+	return config
 }
