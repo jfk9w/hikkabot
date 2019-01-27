@@ -4,3 +4,4 @@ hikkabot
 .vscode/
 debug
 config.json
+hikkabot.db
