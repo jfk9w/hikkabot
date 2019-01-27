@@ -5,10 +5,10 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/jfk9w-go/hikkabot/api/reddit"
-	"github.com/jfk9w-go/hikkabot/html"
-	"github.com/jfk9w-go/hikkabot/service"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/api/reddit"
+	"github.com/jfk9w/hikkabot/html"
+	"github.com/jfk9w/hikkabot/service"
 )
 
 type options struct {

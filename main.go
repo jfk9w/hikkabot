@@ -9,15 +9,15 @@ import (
 	"syscall"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
-	"github.com/jfk9w-go/hikkabot/api/dvach"
-	"github.com/jfk9w-go/hikkabot/api/reddit"
-	"github.com/jfk9w-go/hikkabot/service"
-	dvachService "github.com/jfk9w-go/hikkabot/service/dvach"
-	redditService "github.com/jfk9w-go/hikkabot/service/reddit"
-	"github.com/jfk9w-go/hikkabot/service/storage"
 	"github.com/jfk9w-go/lego"
 	"github.com/jfk9w-go/lego/json"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/api/dvach"
+	"github.com/jfk9w/hikkabot/api/reddit"
+	"github.com/jfk9w/hikkabot/service"
+	dvachService "github.com/jfk9w/hikkabot/service/dvach"
+	redditService "github.com/jfk9w/hikkabot/service/reddit"
+	"github.com/jfk9w/hikkabot/service/storage"
 	sqlite3 "github.com/mattn/go-sqlite3"
 )
 

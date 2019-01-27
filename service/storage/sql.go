@@ -3,10 +3,10 @@ package storage
 import (
 	"database/sql"
 
-	"github.com/jfk9w-go/hikkabot/service"
-	"github.com/jfk9w-go/hikkabot/service/dvach"
 	"github.com/jfk9w-go/lego"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/service"
+	"github.com/jfk9w/hikkabot/service/dvach"
 	"github.com/segmentio/ksuid"
 )
 

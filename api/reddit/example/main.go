@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/jfk9w-go/hikkabot/api/reddit"
 	"github.com/jfk9w-go/lego"
+	"github.com/jfk9w/hikkabot/api/reddit"
 )
 
 func main() {

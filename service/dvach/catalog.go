@@ -6,10 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jfk9w-go/hikkabot/api/dvach"
-	"github.com/jfk9w-go/hikkabot/html"
-	"github.com/jfk9w-go/hikkabot/service"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/api/dvach"
+	"github.com/jfk9w/hikkabot/html"
+	"github.com/jfk9w/hikkabot/service"
 )
 
 type catalogOptions struct {
