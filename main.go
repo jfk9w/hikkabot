@@ -33,7 +33,7 @@ func main() {
 		aggregator          = service.NewAggregator(storage, bot, config.Service.UpdateInterval.Value())
 		fs                  = service.FileSystem(config.Service.TmpDir)
 		dvachClient         = dvach.NewClient(nil, config.Dvach.Usercode)
-		dvachCatalogService = dvachService.Catalog(aggregator, dvachClient)
+		dvachCatalogService = dvachService.Catalog(aggregator, fs, dvachClient)
 		aconvertClient      = aconvert.NewClient(nil, &config.Aconvert)
 		dvachThreadService  = dvachService.Thread(aggregator, fs, storage, dvachClient, aconvertClient)
 		redditClient        = reddit.NewClient(nil, &config.Reddit)

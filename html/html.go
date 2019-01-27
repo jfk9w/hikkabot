@@ -6,7 +6,10 @@ import (
 	"golang.org/x/net/html"
 )
 
-var EscapeString = html.EscapeString
+var (
+	EscapeString   = html.EscapeString
+	UnescapeString = html.UnescapeString
+)
 
 func B(text string) string {
 	return "<b>" + text + "</b>"

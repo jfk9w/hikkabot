@@ -117,14 +117,14 @@ func (svc *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFu
 		return
 	}
 
-	for i, post := range posts {
+	for _, post := range posts {
 		resources := make([]chan *flu.FileSystemResource, len(post.Files))
 		for i, file := range post.Files {
 			resources[i] = make(chan *flu.FileSystemResource)
 			go svc.downloadFile(file, resources[i])
 		}
 
-		if !updatePipe.Submit(svc.updateBatchFunc(options, post, resources, i == 0), int64(post.Num)) {
+		if !updatePipe.Submit(svc.updateBatchFunc(options, post, resources), int64(post.Num)) {
 			return
 		}
 	}
@@ -132,13 +132,13 @@ func (svc *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFu
 
 var maxCaptionSize = telegram.MaxCaptionSize * 5 / 7
 
-func (svc *ThreadService) updateBatchFunc(options *threadOptions, post *dvach.Post, resources []chan *flu.FileSystemResource, firstInBatch bool) service.UpdateBatchFunc {
+func (svc *ThreadService) updateBatchFunc(options *threadOptions, post *dvach.Post, resources []chan *flu.FileSystemResource) service.UpdateBatchFunc {
 	parts := html.NewBuilder(maxHtmlChunkSize, -1).
 		Parse(post.Comment).
 		Build()
 
 	return func(updateCh chan<- service.Update) {
-		collapse := len(parts) == 1 && utf8string.NewString(parts[0]).RuneCount() <= maxCaptionSize && len(post.Files) > 0
+		collapse := len(parts) == 1 && utf8string.NewString(parts[0]).RuneCount() <= maxCaptionSize && len(post.Files) == 1
 		for i, part := range parts {
 			i := i
 			part := part
@@ -216,11 +216,11 @@ func (svc *ThreadService) updateBatchFunc(options *threadOptions, post *dvach.Po
 			updateCh <- service.UpdateFunc(uf)
 		}
 
-		for i, file := range post.Files {
-			if collapse && i == 0 {
-				continue
-			}
+		if collapse {
+			return
+		}
 
+		for i, file := range post.Files {
 			update := &service.GenericUpdate{
 				Text: html.NewBuilder(telegram.MaxCaptionSize, 1).
 					Link(dvach.Host+file.Path, "[LINK]").
@@ -320,7 +320,8 @@ var tagRegexp = regexp.MustCompile(`<.*?>`)
 var junkRegexp = regexp.MustCompile(`(?i)[^\wа-яё]`)
 
 func threadTitle(post *dvach.Post) string {
-	title := tagRegexp.ReplaceAllString(post.Subject, "")
+	title := html.UnescapeString(post.Subject)
+	title = tagRegexp.ReplaceAllString(title, "")
 	fields := strings.Fields(title)
 
 	for i, field := range fields {

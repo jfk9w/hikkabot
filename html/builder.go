@@ -290,7 +290,12 @@ func attr(attrs []html.Attribute, key string) (string, bool) {
 }
 
 func prettyBreak(str *utf8string.String, free int) (end, start int) {
-	for i := free; i >= 0; i-- {
+	limit := free
+	if limit > str.RuneCount() {
+		limit = str.RuneCount()
+	}
+
+	for i := limit - 1; i >= 0; i-- {
 		switch str.At(i) {
 		case '\n', ' ', '\t', '\v':
 			return i, i + 1

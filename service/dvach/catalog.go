@@ -19,11 +19,12 @@ type catalogOptions struct {
 
 type CatalogService struct {
 	agg   *service.Aggregator
+	fs    service.FileSystemService
 	dvach *dvach.Client
 }
 
-func Catalog(agg *service.Aggregator, c *dvach.Client) *CatalogService {
-	return &CatalogService{agg, c}
+func Catalog(agg *service.Aggregator, fs service.FileSystemService, c *dvach.Client) *CatalogService {
+	return &CatalogService{agg, fs, c}
 }
 
 func (svc *CatalogService) ID() string {
@@ -73,7 +74,7 @@ func (svc *CatalogService) Subscribe(input string, chat *service.EnrichedChat, o
 	return svc.agg.Subscribe(chat,
 		svc.ID(),
 		fmt.Sprintf("%s/%s", boardID, query),
-		board.Name,
+		fmt.Sprintf("%s /%s/", board.Name, query.String()),
 		&catalogOptions{
 			BoardID: board.ID,
 			Query:   query.String(),
@@ -106,12 +107,33 @@ func (svc *CatalogService) Update(prevOffset int64, optionsFunc service.OptionsF
 		}
 
 		update := &service.GenericUpdate{
-			Text: html.NewBuilder(maxHtmlChunkSize, 1).
+			Text: html.NewBuilder(maxCaptionSize, 1).
 				B().Text(post.DateString).EndB().Br().
 				Link(post.URL(), "[LINK]").Br().
 				Text("---").Br().
 				Parse(post.Comment).
 				Build()[0],
+		}
+
+		for _, file := range post.Files {
+			if file.Type == dvach.WEBM {
+				continue
+			}
+
+			resource := svc.fs.NewTempResource()
+			err := svc.dvach.DownloadFile(file, resource)
+			if err == nil {
+				if file.Type == dvach.GIF || file.Type == dvach.MP4 {
+					update.Type = service.VideoUpdate
+				} else {
+					update.Type = service.PhotoUpdate
+				}
+
+				update.Entity = resource
+				break
+			} else {
+				resource = ""
+			}
 		}
 
 		if !updatePipe.Submit(update, offset) {
