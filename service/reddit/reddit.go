@@ -33,7 +33,7 @@ func (svc *Service) ID() string {
 }
 
 // hot|new|top must match reddit.*Sort
-var redditRegexp = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([A-Za-z_]+)(/(hot|new|top))?$`)
+var redditRegexp = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
 
 func parseRedditInput(input string) (string, string, error) {
 	groups := redditRegexp.FindStringSubmatch(input)

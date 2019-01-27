@@ -28,7 +28,7 @@ func main() {
 	var (
 		bot                 = telegram.NewBot(nil, config.Telegram.Token)
 		storage             = initStorage(config)
-		aggregator          = service.NewAggregator(storage, bot, config.Service.UpdateInterval.Value())
+		aggregator          = service.NewAggregator(storage, bot, config.Service.UpdateInterval.Value(), config.Service.Aliases)
 		fs                  = service.FileSystem(config.Service.TmpDir)
 		dvachClient         = dvach.NewClient(nil, config.Dvach.Usercode)
 		dvachCatalogService = dvachService.Catalog(aggregator, fs, dvachClient)
@@ -137,6 +137,7 @@ type Config struct {
 			Type       string `json:"type"`
 			DataSource string `json:"datasource"`
 		} `json:"storage"`
+		Aliases map[telegram.Username]telegram.ID `json:"aliases"`
 	} `json:"service"`
 
 	Telegram struct {

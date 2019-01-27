@@ -24,16 +24,18 @@ type Aggregator struct {
 	services map[string]Service
 	subs     map[telegram.ID]struct{}
 	interval time.Duration
+	aliases  map[telegram.Username]telegram.ID
 	mu       sync.RWMutex
 }
 
-func NewAggregator(storage Storage, bot *telegram.Bot, interval time.Duration) *Aggregator {
+func NewAggregator(storage Storage, bot *telegram.Bot, interval time.Duration, aliases map[telegram.Username]telegram.ID) *Aggregator {
 	return &Aggregator{
 		bot:      bot,
 		storage:  storage,
 		services: make(map[string]Service),
 		subs:     make(map[telegram.ID]struct{}),
 		interval: interval,
+		aliases:  aliases,
 	}
 }
 
@@ -330,6 +332,12 @@ func (agg *Aggregator) ResumeCommandListener(c *telegram.Command) {
 
 func (agg *Aggregator) enrichChat(chatID telegram.ChatID, chat *telegram.Chat) (*EnrichedChat, error) {
 	if chat == nil {
+		if username, ok := chatID.(telegram.Username); ok {
+			if unaliased, ok := agg.aliases[username]; ok {
+				chatID = unaliased
+			}
+		}
+
 		var err error
 		chat, err = agg.bot.GetChat(chatID)
 		if err != nil {
