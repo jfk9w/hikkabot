@@ -3,6 +3,7 @@ package reddit
 import (
 	"errors"
 	"regexp"
+	"sort"
 	"strconv"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -94,6 +95,8 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 		return
 	}
 
+	sort.Sort(thingsSort(things))
+
 	for _, thing := range things {
 		offset := int64(thing.Data.RawCreatedUTC)
 		if offset <= prevOffset {
@@ -127,4 +130,18 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 			return
 		}
 	}
+}
+
+type thingsSort []*reddit.Thing
+
+func (t thingsSort) Len() int {
+	return len(t)
+}
+
+func (t thingsSort) Less(i, j int) bool {
+	return t[i].Data.RawCreatedUTC < t[j].Data.RawCreatedUTC
+}
+
+func (t thingsSort) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
 }

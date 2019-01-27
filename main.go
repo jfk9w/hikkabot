@@ -18,10 +18,8 @@ import (
 	dvachService "github.com/jfk9w/hikkabot/service/dvach"
 	redditService "github.com/jfk9w/hikkabot/service/reddit"
 	"github.com/jfk9w/hikkabot/service/storage"
-	sqlite3 "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 )
-
-var _ = sqlite3.Version
 
 func main() {
 	var config = readConfig()
@@ -76,11 +74,11 @@ type Storage interface {
 
 func initStorage(config *Config) Storage {
 	c := config.Service.Storage
-	if c.Type != "sqlite3" {
+	if c.Type != "postgres" {
 		return storage.Dummy()
 	}
 
-	return storage.SQL("sqlite3", c.DataSource)
+	return storage.SQL("postgres", c.DataSource)
 }
 
 func initLog(config *Config) {
