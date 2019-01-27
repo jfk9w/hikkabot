@@ -96,7 +96,7 @@ func (svc *CatalogService) Update(prevOffset int64, optionsFunc service.OptionsF
 	query := regexp.MustCompile(options.Query)
 	posts, err := svc.search(options.BoardID, query)
 	if err != nil {
-		updatePipe.Error(err)
+		//updatePipe.Error(err)
 		return
 	}
 
