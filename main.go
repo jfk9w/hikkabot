@@ -40,6 +40,10 @@ func main() {
 		redditService       = redditService.Reddit(aggregator, fs, redditClient)
 	)
 
+	me, err := bot.GetMe()
+	lego.Check(err)
+	log.Printf("Running as %s", me.Username)
+
 	aggregator.
 		Add(dvachCatalogService, dvachThreadService, redditService).
 		Init()
