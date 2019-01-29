@@ -99,7 +99,7 @@ func (svc *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFu
 	options := new(threadOptions)
 	err := optionsFunc(options)
 	if err != nil {
-		updatePipe.Error(err)
+		updatePipe.Error = err
 		return
 	}
 
@@ -109,7 +109,7 @@ func (svc *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFu
 
 	posts, err := svc.dvach.GetThread(options.BoardID, options.Num, int(prevOffset))
 	if err != nil {
-		updatePipe.Error(err)
+		updatePipe.Error = err
 		return
 	}
 

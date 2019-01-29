@@ -89,7 +89,7 @@ func (svc *CatalogService) Update(prevOffset int64, optionsFunc service.OptionsF
 	options := new(catalogOptions)
 	err := optionsFunc(options)
 	if err != nil {
-		updatePipe.Error(err)
+		updatePipe.Error = err
 		return
 	}
 

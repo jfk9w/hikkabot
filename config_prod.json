@@ -1,0 +1,40 @@
+{
+  "service": {
+    "update_interval": "20 seconds",
+    "tmp": "/tmp/hikkabot",
+    "storage": {
+      "type": "postgres",
+      "datasource": "postgres://hikkabot:MuKemikelR0mans@vps/hikkabot"
+    },
+    "aliases": {
+      "porn": -1001262410438,
+      "kek": -1001113739121
+    }
+  },
+  "telegram": {
+    "token": "465873797:AAHMh2lDmxwRUeYJNGb0EX5bvePavtULtmI"
+  },
+  "dvach": {
+    "usercode": "a6e8c274d0ae0c124ffd3ff4bf9dfbd6"
+  },
+  "aconvert": {
+    "test_file": "bin/test.webm",
+    "test_format": "mp4"
+  },
+  "reddit": {
+    "client_id": "v6pXPcBp71rtvg",
+    "client_secret": "L3Qrhw6zVfnSATWfM0FWN7sv6ZY",
+    "username": "jc8gd",
+    "password": "frS1994",
+    "user_agent": "hikkabot/1.0 by /u/jc8gd"
+  },
+  "log": {
+    "flags": [
+      "Ldate",
+      "Ltime",
+      "Lmicroseconds",
+      "LUTC"
+    ],
+    "writer": "$HOME/logs/hikkabot/hikkabot.log"
+  }
+}

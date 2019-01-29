@@ -142,7 +142,7 @@ func (s *SQLStorage) GetFeed(id string) *service.Feed {
 
 func (s *SQLStorage) SuspendFeed(id string, err error) bool {
 	return s.mustUpdate(`UPDATE feed
-SET error = $1
+SET error = $1, updated = now()
 WHERE id = $2 AND error IS NULL`, err.Error(), id) > 0
 }
 

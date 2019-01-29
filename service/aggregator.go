@@ -137,8 +137,13 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 		}
 	}
 
-	log.Println(feed, oldOffset, "->", newOffset)
-	_ = agg.storage.UpdateFeedOffset(feed.ID, newOffset)
+	if updatePipe.Error != nil {
+		log.Println(feed, oldOffset, "->", updatePipe.Error)
+		_ = agg.set(nil, feed.ID, updatePipe.Error)
+	} else {
+		log.Println(feed, oldOffset, "->", newOffset)
+		_ = agg.storage.UpdateFeedOffset(feed.ID, newOffset)
+	}
 
 reschedule:
 	time.AfterFunc(agg.interval, func() { agg.run(chatID) })

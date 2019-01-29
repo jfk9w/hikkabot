@@ -107,19 +107,14 @@ func (u *GenericUpdate) Get(updateCh chan<- Update) {
 type UpdatePipe struct {
 	updateCh chan offsetUpdateBatch
 	stopCh   chan struct{}
-	errCh    chan error
+	Error    error
 }
 
 func NewUpdatePipe() *UpdatePipe {
 	return &UpdatePipe{
 		updateCh: make(chan offsetUpdateBatch, 10),
 		stopCh:   make(chan struct{}),
-		errCh:    make(chan error),
 	}
-}
-
-func (p *UpdatePipe) Error(err error) {
-	p.errCh <- err
 }
 
 func (p *UpdatePipe) stop() {
@@ -138,7 +133,6 @@ func (p *UpdatePipe) Submit(updateBatch UpdateBatch, offset int64) bool {
 
 func (p *UpdatePipe) Close() {
 	close(p.updateCh)
-	close(p.errCh)
 }
 
 func (p *UpdatePipe) closeOut() {

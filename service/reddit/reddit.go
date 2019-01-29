@@ -85,13 +85,13 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 	options := new(options)
 	err := optionsFunc(options)
 	if err != nil {
-		updatePipe.Error(err)
+		updatePipe.Error = err
 		return
 	}
 
 	things, err := svc.reddit.GetListing(options.Subreddit, options.Sort, 100)
 	if err != nil {
-		updatePipe.Error(err)
+		updatePipe.Error = err
 		return
 	}
 
