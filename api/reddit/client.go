@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jfk9w-go/flu"
@@ -79,6 +80,7 @@ var allowedRedditDomains = map[string]struct{}{
 	"i.redd.it":   {},
 	"i.imgur.com": {},
 	"imgur.com":   {},
+	"gfycat.com":  {},
 }
 
 var ErrInvalidDomain = errors.New("invalid domain")
@@ -92,7 +94,8 @@ func (c *Client) Download(thing *Thing, resource flu.WriteResource) error {
 	}
 
 	url := thing.Data.URL
-	if thing.Data.Domain == "imgur.com" {
+	switch thing.Data.Domain {
+	case "imgur.com":
 		err := c.http.NewRequest().
 			Get().
 			Endpoint(url).
@@ -116,7 +119,12 @@ func (c *Client) Download(thing *Thing, resource flu.WriteResource) error {
 		if err != nil {
 			return err
 		}
-	} else {
+
+	case "gfycat.com":
+		url = strings.Replace(thing.Data.URL, "https://", "https://giant.", 1)
+		thing.Data.Extension = "mp4"
+
+	default:
 		groups := genericCanonicalLinkRegexp.FindStringSubmatch(url)
 		if len(groups) == 2 {
 			thing.Data.Extension = groups[1]
