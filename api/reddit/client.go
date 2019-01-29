@@ -121,7 +121,7 @@ func (c *Client) Download(thing *Thing, resource flu.WriteResource) error {
 		}
 
 	case "gfycat.com":
-		url = strings.Replace(thing.Data.URL, "https://", "https://giant.", 1)
+		url = strings.Replace(thing.Data.URL, "https://", "https://giant.", 1) + ".mp4"
 		thing.Data.Extension = "mp4"
 
 	default:
