@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jfk9w-go/flu"
@@ -87,6 +87,7 @@ var ErrInvalidDomain = errors.New("invalid domain")
 
 var genericCanonicalLinkRegexp = regexp.MustCompile(`^.*\.(.*)$`)
 var imgurCanonicalLinkRegexp = regexp.MustCompile(`.*?(<link rel="image_src"\s+href="|<meta property="og:video"\s+content=")(.*\.(.*?))".*`)
+var gfycatCanonicalLinkRegexp = regexp.MustCompile(`(?i)https://[a-z]+.gfycat.com/[a-z0-9]+?\.mp4`)
 
 func (c *Client) Download(thing *Thing, resource flu.WriteResource) error {
 	if _, ok := allowedRedditDomains[thing.Data.Domain]; !ok {
@@ -121,8 +122,26 @@ func (c *Client) Download(thing *Thing, resource flu.WriteResource) error {
 		}
 
 	case "gfycat.com":
-		url = strings.Replace(thing.Data.URL, "gfycat.com", "giant.gfycat.com", 1) + ".mp4"
-		thing.Data.Extension = "mp4"
+		err := c.http.NewRequest().
+			Get().
+			Endpoint(url).
+			Execute().
+			ReadBytesFunc(func(data []byte) error {
+				match := string(gfycatCanonicalLinkRegexp.Find(data))
+				if match != "" {
+					url = match
+					thing.Data.Extension = "mp4"
+					return nil
+				}
+
+				return errors.New("unable to find canonical url")
+			}).
+			Error
+
+		if err != nil {
+			log.Printf("Failed to detect gfycat.com URL: %s", thing.Data.URL)
+			return err
+		}
 
 	default:
 		groups := genericCanonicalLinkRegexp.FindStringSubmatch(url)
@@ -140,6 +159,28 @@ func (c *Client) Download(thing *Thing, resource flu.WriteResource) error {
 		Execute().
 		ReadResource(resource).
 		Error
+}
+
+func (c *Client) scan(url string, re *regexp.Regexp) (string, error) {
+	err := c.http.NewRequest().
+		Get().
+		Endpoint(url).
+		Execute().
+		ReadBodyFunc(func(body io.Reader) error {
+			scanner := bufio.NewScanner(body)
+			for scanner.Scan() {
+				line := scanner.Text()
+				url = imgurCanonicalLinkRegexp.FindString(line)
+				if url != "" {
+					return nil
+				}
+			}
+
+			return errors.New("unable to find canonical url")
+		}).
+		Error
+
+	return url, err
 }
 
 type worker struct {
