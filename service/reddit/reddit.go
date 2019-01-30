@@ -127,16 +127,22 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 					if stat.Size() >= fileSizeThreshold && stat.Size() <= service.MaxVideoSize {
 						update.Type = service.VideoUpdate
 						update.Entity = resource
+						break
 					}
 				}
+
+				_ = os.RemoveAll(resource.Path())
 
 			default:
 				if stat, err := os.Stat(resource.Path()); err == nil {
 					if stat.Size() >= fileSizeThreshold && stat.Size() <= service.MaxPhotoSize {
 						update.Type = service.PhotoUpdate
 						update.Entity = resource
+						break
 					}
 				}
+
+				_ = os.RemoveAll(resource.Path())
 			}
 		}
 
