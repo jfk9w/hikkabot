@@ -184,8 +184,11 @@ func (svc *ThreadService) updateBatchFunc(options *threadOptions, post *dvach.Po
 					if collapse && len(post.Files) > 0 {
 						file := post.Files[0]
 						partsBuilder.Link(dvach.Host+file.Path, "[LINK]").Br()
-						update.Entity = <-resources[i]
-						update.Type = updateForFileType(post.Files[0].Type)
+						resource := <-resources[i]
+						if resource != nil {
+							update.Entity = *resource
+							update.Type = updateForFileType(post.Files[0].Type)
+						}
 					}
 
 					if part != "" {
