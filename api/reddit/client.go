@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jfk9w-go/flu"
@@ -96,6 +97,12 @@ func (c *Client) Download(thing *Thing, resource flu.WriteResource) error {
 
 	url := thing.Data.URL
 	switch thing.Data.Domain {
+	case "i.imgur.com":
+		idx := strings.LastIndex(url, ".")
+		if idx > 0 {
+			thing.Data.Extension = url[idx+1:]
+		}
+
 	case "imgur.com":
 		err := c.http.NewRequest().
 			Get().
