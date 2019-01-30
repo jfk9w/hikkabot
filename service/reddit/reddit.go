@@ -2,6 +2,7 @@ package reddit
 
 import (
 	"errors"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -79,6 +80,8 @@ func (svc *Service) Subscribe(input string, chat *service.EnrichedChat, args str
 	})
 }
 
+const fileSizeThreshold = 10 << 10
+
 func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, updatePipe *service.UpdatePipe) {
 	defer updatePipe.Close()
 
@@ -120,9 +123,20 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 			update.Entity = resource
 			switch thing.Data.Extension {
 			case "gifv", "gif", "mp4":
-				update.Type = service.VideoUpdate
+				if stat, err := os.Stat(resource.Path()); err == nil {
+					if stat.Size() >= fileSizeThreshold && stat.Size() <= service.MaxVideoSize {
+						update.Type = service.VideoUpdate
+						update.Entity = resource
+					}
+				}
+
 			default:
-				update.Type = service.PhotoUpdate
+				if stat, err := os.Stat(resource.Path()); err == nil {
+					if stat.Size() >= fileSizeThreshold && stat.Size() <= service.MaxPhotoSize {
+						update.Type = service.PhotoUpdate
+						update.Entity = resource
+					}
+				}
 			}
 		}
 
