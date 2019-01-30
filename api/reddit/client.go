@@ -214,7 +214,7 @@ func newWorker(http *flu.Client, config *Config) *worker {
 
 func (w *worker) updateToken() error {
 	if w.lastTokenUpdate != zeroTime &&
-		time.Now().Sub(w.lastTokenUpdate).Minutes() > 50 {
+		time.Now().Sub(w.lastTokenUpdate).Minutes() <= 50 {
 		return nil
 	}
 
