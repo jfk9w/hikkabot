@@ -120,6 +120,8 @@ func (svc *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFu
 	for _, post := range posts {
 		resources := make([]chan *flu.FileSystemResource, len(post.Files))
 		for i, file := range post.Files {
+			file := file
+			i := i
 			resources[i] = make(chan *flu.FileSystemResource)
 			go svc.downloadFile(file, resources[i])
 		}
