@@ -11,7 +11,7 @@ type Feed struct {
 	ID           string
 	SecondaryID  string
 	ChatID       telegram.ID
-	ServiceID    string
+	ServiceID    ID
 	Name         string
 	OptionsBytes []byte
 	Offset       int64

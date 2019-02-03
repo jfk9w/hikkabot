@@ -29,7 +29,7 @@ func Reddit(agg *service.Aggregator, media *service.MediaService, reddit *reddit
 	return &Service{agg, media, reddit}
 }
 
-func (svc *Service) ID() string {
+func (svc *Service) ID() service.ID {
 	return "reddit"
 }
 

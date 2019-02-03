@@ -22,7 +22,7 @@ func (s *CatalogService) base() *Service {
 	return (*Service)(s)
 }
 
-func (s *CatalogService) ID() string {
+func (s *CatalogService) ID() service.ID {
 	return "2ch/catalog"
 }
 

@@ -11,10 +11,13 @@ const (
 	MaxVideoSize = 50 * (2 << 20)
 )
 
-type OptionsFunc func(interface{}) error
+type (
+	ID          string
+	OptionsFunc func(interface{}) error
+)
 
 type Service interface {
-	ID() string
+	ID() ID
 	Subscribe(input string, chat *EnrichedChat, args string) error
 	Update(prevOffset int64, optionsFunc OptionsFunc, updatePipe *UpdatePipe)
 }
@@ -45,6 +48,6 @@ func (ref MessageRef) Href() string {
 type GetMessageFunc func(MessageKey) (*MessageRef, bool)
 
 type MessageStorage interface {
-	StoreMessage(telegram.ID, MessageKey, MessageRef)
-	GetMessage(telegram.ID, MessageKey) (*MessageRef, bool)
+	StoreMessage(telegram.ID, ID, MessageKey, MessageRef)
+	GetMessage(telegram.ID, ID, MessageKey) (*MessageRef, bool)
 }

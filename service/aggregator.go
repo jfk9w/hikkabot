@@ -22,7 +22,7 @@ type Aggregator struct {
 	bot         *telegram.Bot
 	storage     Storage
 	messages    MessageStorage
-	services    map[string]Service
+	services    map[ID]Service
 	activeChats map[telegram.ID]struct{}
 	interval    time.Duration
 	aliases     map[telegram.Username]telegram.ID
@@ -33,7 +33,7 @@ func NewAggregator(bot *telegram.Bot, storage Storage, interval time.Duration, a
 	agg := &Aggregator{
 		bot:         bot,
 		storage:     storage,
-		services:    make(map[string]Service),
+		services:    make(map[ID]Service),
 		activeChats: make(map[telegram.ID]struct{}),
 		interval:    interval,
 		aliases:     aliases,
@@ -116,9 +116,10 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 		newOffset       = feed.Offset
 	)
 
+	gmf := agg.gmf(feed)
 	for update := range pipe.updateCh {
 		newOffset = update.Offset
-		m, err := update.Send(agg.bot, chatID, agg.messages)
+		m, err := update.Send(agg.bot, gmf)
 		if err != nil {
 			pipe.stop()
 
@@ -129,7 +130,7 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 
 		if agg.messages != nil && update.Key != nil &&
 			m.Chat.Type == telegram.Channel && m.Chat.Username != nil {
-			agg.messages.StoreMessage(chatID, update.Key, MessageRef{*m.Chat.Username, m.ID})
+			agg.messages.StoreMessage(chatID, feed.ServiceID, update.Key, MessageRef{*m.Chat.Username, m.ID})
 		}
 
 		if newOffset != oldOffset {
@@ -156,6 +157,18 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 
 reschedule:
 	time.AfterFunc(agg.interval, func() { agg.run(chatID) })
+}
+
+func (agg *Aggregator) gmf(feed *Feed) GetMessageFunc {
+	if agg.messages == nil {
+		return func(k MessageKey) (*MessageRef, bool) {
+			return nil, false
+		}
+	} else {
+		return func(k MessageKey) (*MessageRef, bool) {
+			return agg.messages.GetMessage(feed.ChatID, feed.ServiceID, k)
+		}
+	}
 }
 
 func (agg *Aggregator) set(userID *telegram.ID, id string, err error) error {
@@ -238,7 +251,7 @@ func (agg *Aggregator) writeOptions(options interface{}) ([]byte, error) {
 	return json.Marshal(options)
 }
 
-func (agg *Aggregator) Subscribe(chat *EnrichedChat, serviceID string, secondaryID string, name string, options interface{}) error {
+func (agg *Aggregator) Subscribe(chat *EnrichedChat, serviceID ID, secondaryID string, name string, options interface{}) error {
 	rawOptions, err := agg.writeOptions(options)
 	if err != nil {
 		return err

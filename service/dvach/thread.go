@@ -24,7 +24,7 @@ func (s *ThreadService) base() *Service {
 	return (*Service)(s)
 }
 
-func (s *ThreadService) ID() string {
+func (s *ThreadService) ID() service.ID {
 	return "2ch/thread"
 }
 
