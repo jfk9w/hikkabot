@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -62,6 +63,10 @@ func (agg *Aggregator) Init() *Aggregator {
 	activeChatIDs := agg.storage.ActiveSubscribers()
 	for _, chatID := range activeChatIDs {
 		agg.activeChats[chatID] = struct{}{}
+		time.AfterFunc(agg.interval/time.Duration(rand.Intn(11)+1), func() {
+			agg.run(chatID)
+		})
+
 		go agg.run(chatID)
 
 		log.Println("Restored active chat", chatID)
