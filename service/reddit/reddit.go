@@ -16,7 +16,7 @@ import (
 type options struct {
 	Subreddit string      `json:"subreddit"`
 	Sort      reddit.Sort `json:"sort"`
-	MinUps    int         `json:"ups_threshold,omitempty"`
+	MinUps    int         `json:"min_ups,omitempty"`
 }
 
 type Service struct {
