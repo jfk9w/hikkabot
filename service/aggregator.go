@@ -19,24 +19,31 @@ var (
 )
 
 type Aggregator struct {
-	bot      *telegram.Bot
-	storage  Storage
-	services map[string]Service
-	subs     map[telegram.ID]struct{}
-	interval time.Duration
-	aliases  map[telegram.Username]telegram.ID
-	mu       sync.RWMutex
+	bot         *telegram.Bot
+	storage     Storage
+	messages    MessageStorage
+	services    map[string]Service
+	activeChats map[telegram.ID]struct{}
+	interval    time.Duration
+	aliases     map[telegram.Username]telegram.ID
+	mu          sync.RWMutex
 }
 
-func NewAggregator(storage Storage, bot *telegram.Bot, interval time.Duration, aliases map[telegram.Username]telegram.ID) *Aggregator {
-	return &Aggregator{
-		bot:      bot,
-		storage:  storage,
-		services: make(map[string]Service),
-		subs:     make(map[telegram.ID]struct{}),
-		interval: interval,
-		aliases:  aliases,
+func NewAggregator(bot *telegram.Bot, storage Storage, interval time.Duration, aliases map[telegram.Username]telegram.ID) *Aggregator {
+	agg := &Aggregator{
+		bot:         bot,
+		storage:     storage,
+		services:    make(map[string]Service),
+		activeChats: make(map[telegram.ID]struct{}),
+		interval:    interval,
+		aliases:     aliases,
 	}
+
+	if messages, ok := storage.(MessageStorage); ok {
+		agg.messages = messages
+	}
+
+	return agg
 }
 
 func (agg *Aggregator) Add(services ...Service) *Aggregator {
@@ -54,7 +61,7 @@ func (agg *Aggregator) Add(services ...Service) *Aggregator {
 func (agg *Aggregator) Init() *Aggregator {
 	activeChatIDs := agg.storage.ActiveSubscribers()
 	for _, chatID := range activeChatIDs {
-		agg.subs[chatID] = struct{}{}
+		agg.activeChats[chatID] = struct{}{}
 		go agg.run(chatID)
 
 		log.Println("Restored active chat", chatID)
@@ -65,19 +72,19 @@ func (agg *Aggregator) Init() *Aggregator {
 
 func (agg *Aggregator) schedule(chatID telegram.ID) {
 	agg.mu.RLock()
-	if _, ok := agg.subs[chatID]; ok {
+	if _, ok := agg.activeChats[chatID]; ok {
 		agg.mu.RUnlock()
 		return
 	}
 
 	agg.mu.RUnlock()
 	agg.mu.Lock()
-	if _, ok := agg.subs[chatID]; ok {
+	if _, ok := agg.activeChats[chatID]; ok {
 		agg.mu.Unlock()
 		return
 	}
 
-	agg.subs[chatID] = struct{}{}
+	agg.activeChats[chatID] = struct{}{}
 	agg.mu.Unlock()
 
 	go agg.run(chatID)
@@ -86,7 +93,7 @@ func (agg *Aggregator) schedule(chatID telegram.ID) {
 
 func (agg *Aggregator) cancel(chatID telegram.ID) {
 	agg.mu.Lock()
-	delete(agg.subs, chatID)
+	delete(agg.activeChats, chatID)
 	agg.mu.Unlock()
 }
 
@@ -99,28 +106,30 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 	}
 
 	service := agg.services[feed.ServiceID]
-	updatePipe := NewUpdatePipe()
-	defer updatePipe.closeOut()
+	pipe := NewUpdatePipe()
+	defer pipe.closeOut()
 
-	go service.Update(feed.Offset, feed.OptionsFunc(), updatePipe)
+	go service.Update(feed.Offset, feed.OptionsFunc(), pipe)
 
 	var (
 		oldOffset int64 = -1
 		newOffset       = feed.Offset
 	)
 
-	for updateBatch := range updatePipe.updateCh {
-		newOffset = updateBatch.offset
-		updateCh := make(chan Update)
-		go updateBatch.Get(updateCh)
-		for update := range updateCh {
-			_, err := update.Send(agg.bot, chatID)
-			if err != nil {
-				updatePipe.stop()
-				_ = agg.set(nil, feed.ID, err)
-				log.Println(feed, "suspended:", err)
-				goto reschedule
-			}
+	for update := range pipe.updateCh {
+		newOffset = update.Offset
+		m, err := update.Send(agg.bot, chatID, agg.messages)
+		if err != nil {
+			pipe.stop()
+
+			_ = agg.set(nil, feed.ID, err)
+			log.Println(feed, "suspended:", err)
+			goto reschedule
+		}
+
+		if agg.messages != nil && update.Key != nil &&
+			m.Chat.Type == telegram.Channel && m.Chat.Username != nil {
+			agg.messages.StoreMessage(chatID, update.Key, MessageRef{*m.Chat.Username, m.ID})
 		}
 
 		if newOffset != oldOffset {
@@ -128,7 +137,7 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 				log.Println(feed, oldOffset, "->", newOffset)
 				if ok := agg.storage.UpdateFeedOffset(feed.ID, oldOffset); !ok {
 					log.Println(feed, "interrupted")
-					updatePipe.stop()
+					pipe.stop()
 					goto reschedule
 				}
 			}
@@ -137,9 +146,9 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 		}
 	}
 
-	if updatePipe.Error != nil {
-		log.Println(feed, oldOffset, "->", updatePipe.Error)
-		_ = agg.set(nil, feed.ID, updatePipe.Error)
+	if pipe.Err != nil {
+		log.Println(feed, oldOffset, "->", pipe.Err)
+		_ = agg.set(nil, feed.ID, pipe.Err)
 	} else {
 		log.Println(feed, oldOffset, "->", newOffset)
 		_ = agg.storage.UpdateFeedOffset(feed.ID, newOffset)

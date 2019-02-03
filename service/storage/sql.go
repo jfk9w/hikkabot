@@ -6,7 +6,6 @@ import (
 	"github.com/jfk9w-go/lego"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/service"
-	"github.com/jfk9w/hikkabot/service/dvach"
 	"github.com/segmentio/ksuid"
 )
 
@@ -85,19 +84,16 @@ func (s *SQLStorage) init() *SQLStorage {
   error TEXT
 )`)
 
-	s.mustExec(`CREATE TABLE IF NOT EXISTS dvach_post_ref (
+	s.mustExec(`CREATE TABLE IF NOT EXISTS message (
   chat_id BIGINT NOT NULL,
-  board_id TEXT NOT NULL,
-  thread_id INTEGER NOT NULL,
-  num INTEGER NOT NULL,
+  key TEXT NOT NULL,
   username TEXT NOT NULL,
   message_id BIGINT NOT NULL
 )`)
 
 	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__id ON feed(id)`)
 	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__secondary_id ON feed(secondary_id, chat_id, service_id)`)
-	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__dvach_post_ref__id ON dvach_post_ref(chat_id, board_id, thread_id, num)`)
-	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__dvach_post_ref__message_id ON dvach_post_ref(chat_id, message_id)`)
+	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__message__id ON message(chat_id, key)`)
 
 	return s
 }
@@ -152,24 +148,23 @@ SET error = NULL
 WHERE id = $1 AND error IS NOT NULL`, id) > 0
 }
 
-func (s *SQLStorage) InsertPostRef(pk *dvach.PostKey, ref *dvach.MessageRef) {
-	s.mustExec(`INSERT INTO dvach_post_ref (chat_id, board_id, thread_id, num, username, message_id)
-VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT DO NOTHING`, pk.ChatID, pk.BoardID, pk.ThreadID, pk.Num, ref.Username, ref.MessageID)
+func (s *SQLStorage) StoreMessage(chatID telegram.ID, key service.MessageKey, ref service.MessageRef) {
+	s.mustExec(`INSERT INTO message (chat_id, key, username, message_id)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT DO NOTHING`, chatID, key.String(), ref.Username, ref.MessageID)
 }
 
-func (s *SQLStorage) GetPostRef(pk *dvach.PostKey) (*dvach.MessageRef, bool) {
+func (s *SQLStorage) GetMessage(chatID telegram.ID, key service.MessageKey) (*service.MessageRef, bool) {
 	rows := s.mustQuery(`SELECT username, message_id
-FROM dvach_post_ref 
-WHERE chat_id = $1 AND board_id = $2 AND thread_id = $3 AND num = $4`,
-		pk.ChatID, pk.BoardID, pk.ThreadID, pk.Num)
+FROM message
+WHERE chat_id = $1 AND key = $2`, chatID, key.String())
 
 	if !rows.Next() {
 		_ = rows.Close()
 		return nil, false
 	}
 
-	ref := new(dvach.MessageRef)
+	ref := new(service.MessageRef)
 	lego.Check(rows.Scan(&ref.Username, &ref.MessageID))
 	_ = rows.Close()
 

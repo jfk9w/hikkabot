@@ -3,17 +3,16 @@ package storage
 import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/service"
-	"github.com/jfk9w/hikkabot/service/dvach"
 )
 
 type DummyStorage struct {
-	feed           *service.Feed
-	dvachPostHrefs map[string]*dvach.MessageRef
+	feed        *service.Feed
+	messageRefs map[string]service.MessageRef
 }
 
 func Dummy() *DummyStorage {
 	return &DummyStorage{
-		dvachPostHrefs: make(map[string]*dvach.MessageRef),
+		messageRefs: make(map[string]service.MessageRef),
 	}
 }
 
@@ -52,11 +51,11 @@ func (s *DummyStorage) SuspendFeed(id string, err error) bool {
 	return true
 }
 
-func (s *DummyStorage) InsertPostRef(pk *dvach.PostKey, ref *dvach.MessageRef) {
-	s.dvachPostHrefs[pk.String()] = ref
+func (s *DummyStorage) StoreMessage(chatID telegram.ID, key service.MessageKey, ref service.MessageRef) {
+	s.messageRefs[key.String()] = ref
 }
 
-func (s *DummyStorage) GetPostRef(pk *dvach.PostKey) (*dvach.MessageRef, bool) {
-	ref, ok := s.dvachPostHrefs[pk.String()]
-	return ref, ok
+func (s *DummyStorage) GetMessage(chatID telegram.ID, key service.MessageKey) (*service.MessageRef, bool) {
+	ref, ok := s.messageRefs[key.String()]
+	return &ref, ok
 }

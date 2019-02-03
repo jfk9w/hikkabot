@@ -1,118 +1,139 @@
 package service
 
 import (
+	"log"
 	"os"
 
-	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/html"
+	"golang.org/x/exp/utf8string"
 )
 
-type Update interface {
-	Send(*telegram.Bot, telegram.ID) (*telegram.Message, error)
+type UpdateText interface {
+	Get(gmf GetMessageFunc) []string
 }
 
-type UpdateFunc func(*telegram.Bot, telegram.ID) (*telegram.Message, error)
+type UpdateTextFunc func(gmf GetMessageFunc) []string
 
-func (f UpdateFunc) Send(bot *telegram.Bot, chatID telegram.ID) (*telegram.Message, error) {
-	return f(bot, chatID)
+func (f UpdateTextFunc) Get(gmf GetMessageFunc) []string {
+	return f(gmf)
 }
 
-type UpdateBatch interface {
-	Get(chan<- Update)
+type UpdateTextSlice []string
+
+func (s UpdateTextSlice) Get(gmf GetMessageFunc) []string {
+	return s
 }
 
-type UpdateBatchFunc func(chan<- Update)
+type OnUpdateCompleteFunc func(*telegram.Message)
 
-func (f UpdateBatchFunc) Get(updateCh chan<- Update) {
-	f(updateCh)
-	close(updateCh)
+type Update struct {
+	Offset    int64
+	Text      UpdateText
+	MediaSize int
+	Media     <-chan MediaResponse
+	Key       MessageKey
 }
 
-type offsetUpdateBatch struct {
-	offset int64
-	UpdateBatch
+const maxCaptionSize = telegram.MaxCaptionSize * 5 / 7
+
+func (u Update) Send(bot *telegram.Bot, chatID telegram.ID, messages MessageStorage) (*telegram.Message, error) {
+	text := u.Text.Get(func(key MessageKey) (*MessageRef, bool) {
+		if messages == nil {
+			return nil, false
+		}
+
+		return messages.GetMessage(chatID, key)
+	})
+
+	collapse :=
+		u.MediaSize == 1 &&
+			len(text) == 1 &&
+			utf8string.NewString(text[0]).RuneCount() <= maxCaptionSize
+
+	var firstm *telegram.Message
+	if !collapse {
+		for _, part := range text {
+			m, err := u.send(bot, chatID, part, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			if firstm == nil {
+				firstm = m
+			}
+		}
+	}
+
+	if u.MediaSize > 0 {
+		for resp := range u.Media {
+			var media *Media
+			if resp.Err != nil {
+				log.Printf("%s download failed: %s", resp.Media.Href, resp.Err)
+			} else {
+				media = &resp.Media
+			}
+
+			if collapse {
+				return u.send(bot, chatID, text[0], media)
+			}
+
+			m, err := u.send(bot, chatID, "", media)
+			if err != nil {
+				return nil, err
+			}
+
+			if firstm == nil {
+				firstm = m
+			}
+		}
+	}
+
+	return firstm, nil
 }
 
-type UpdateType uint8
-
-const (
-	TextUpdate UpdateType = iota
-	PhotoUpdate
-	VideoUpdate
-	TextPreviewUpdate
-)
-
-func (t UpdateType) params(u *GenericUpdate) (interface{}, telegram.SendOpts) {
-	switch t {
-	case TextUpdate:
-		return u.Text, telegram.NewSendOpts().
+func (u Update) send(bot *telegram.Bot, chatID telegram.ID, text string, media *Media) (*telegram.Message, error) {
+	if media != nil {
+		text = html.Link(media.Href, "[ATTACH]") + "\n" + text
+		opts := telegram.NewSendOpts().
 			DisableNotification(true).
-			Message().
-			ParseMode(telegram.HTML).
-			DisableWebPagePreview(true)
-
-	case PhotoUpdate:
-		return u.Entity, telegram.NewSendOpts().
-			DisableNotification(true).
-			Media().Photo().
-			ParseMode(telegram.HTML).
-			Caption(u.Text)
-
-	case VideoUpdate:
-		return u.Entity, telegram.NewSendOpts().
-			DisableNotification(true).
-			Media().Video().
-			ParseMode(telegram.HTML).
-			Caption(u.Text)
-
-	case TextPreviewUpdate:
-		return u.Text, telegram.NewSendOpts().
-			DisableNotification(true).
-			Message().
+			Media().
+			Caption(text).
 			ParseMode(telegram.HTML)
 
-	default:
-		panic("invalid update type")
-	}
-}
-
-type GenericUpdate struct {
-	Text   string
-	Entity interface{}
-	Type   UpdateType
-}
-
-func (u *GenericUpdate) Send(bot *telegram.Bot, chatID telegram.ID) (*telegram.Message, error) {
-	entity, sendOpts := u.Type.params(u)
-	m, err := bot.Send(chatID, entity, sendOpts)
-	if u.Type != TextUpdate {
-		if fsr, ok := entity.(flu.FileSystemResource); ok {
-			_ = os.RemoveAll(fsr.Path())
+		if media.Type == Photo {
+			opts.Photo()
+		} else {
+			opts.Video()
 		}
 
+		m, err := bot.Send(chatID, media.Resource, opts)
+		_ = os.RemoveAll(media.Resource.Path())
 		if err != nil {
-			entity, sendOpts = TextPreviewUpdate.params(u)
-			m, err = bot.Send(chatID, entity, sendOpts)
+			log.Printf("failed to send %s: %s", media.Href, err)
+		} else {
+			return m, nil
 		}
 	}
 
-	return m, err
-}
+	opts := telegram.NewSendOpts().
+		DisableNotification(true).
+		Message().
+		ParseMode(telegram.HTML).
+		DisableWebPagePreview(media == nil)
 
-func (u *GenericUpdate) Get(updateCh chan<- Update) {
-	updateCh <- u
-	close(updateCh)
+	return bot.Send(chatID, text, opts)
 }
 
 type UpdatePipe struct {
-	updateCh chan offsetUpdateBatch
+	updateCh chan Update
 	stopCh   chan struct{}
-	Error    error
+	Err      error
 }
 
 func NewUpdatePipe() *UpdatePipe {
 	return &UpdatePipe{
-		updateCh: make(chan offsetUpdateBatch, 10),
+		updateCh: make(chan Update, 10),
 		stopCh:   make(chan struct{}),
 	}
 }
@@ -121,9 +142,9 @@ func (p *UpdatePipe) stop() {
 	p.stopCh <- struct{}{}
 }
 
-func (p *UpdatePipe) Submit(updateBatch UpdateBatch, offset int64) bool {
+func (p *UpdatePipe) Submit(update Update) bool {
 	select {
-	case p.updateCh <- offsetUpdateBatch{offset, updateBatch}:
+	case p.updateCh <- update:
 		return true
 
 	case <-p.stopCh:

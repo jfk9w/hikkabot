@@ -1,6 +1,10 @@
 package service
 
-import telegram "github.com/jfk9w-go/telegram-bot-api"
+import (
+	"fmt"
+
+	telegram "github.com/jfk9w-go/telegram-bot-api"
+)
 
 const (
 	MaxPhotoSize = 10 * (2 << 20)
@@ -23,4 +27,24 @@ type Storage interface {
 	GetFeed(string) *Feed
 	ResumeFeed(string) bool
 	SuspendFeed(string, error) bool
+}
+
+type MessageKey interface {
+	String() string
+}
+
+type MessageRef struct {
+	Username  telegram.Username
+	MessageID telegram.ID
+}
+
+func (ref MessageRef) Href() string {
+	return fmt.Sprintf("https://t.me/%s/%d", ref.Username, ref.MessageID)
+}
+
+type GetMessageFunc func(MessageKey) (*MessageRef, bool)
+
+type MessageStorage interface {
+	StoreMessage(telegram.ID, MessageKey, MessageRef)
+	GetMessage(telegram.ID, MessageKey) (*MessageRef, bool)
 }

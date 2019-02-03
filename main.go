@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync"
 	"syscall"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
@@ -15,8 +14,8 @@ import (
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/service"
-	dvachService "github.com/jfk9w/hikkabot/service/dvach"
-	redditService "github.com/jfk9w/hikkabot/service/reddit"
+	dvach0 "github.com/jfk9w/hikkabot/service/dvach"
+	reddit0 "github.com/jfk9w/hikkabot/service/reddit"
 	"github.com/jfk9w/hikkabot/service/storage"
 	_ "github.com/lib/pq"
 )
@@ -26,16 +25,15 @@ func main() {
 	initLog(config)
 
 	var (
-		bot                 = telegram.NewBot(nil, config.Telegram.Token)
-		storage             = initStorage(config)
-		aggregator          = service.NewAggregator(storage, bot, config.Service.UpdateInterval.Value(), config.Service.Aliases)
-		fs                  = service.FileSystem(config.Service.TmpDir)
-		dvachClient         = dvach.NewClient(nil, config.Dvach.Usercode)
-		dvachCatalogService = dvachService.Catalog(aggregator, fs, dvachClient)
-		aconvertClient      = aconvert.NewClient(nil, &config.Aconvert)
-		dvachThreadService  = dvachService.Thread(aggregator, fs, storage, dvachClient, aconvertClient)
-		redditClient        = reddit.NewClient(nil, &config.Reddit)
-		redditService       = redditService.Reddit(aggregator, fs, redditClient)
+		bot            = telegram.NewBot(nil, config.Telegram.Token)
+		storage        = initStorage(config)
+		aggregator     = service.NewAggregator(bot, storage, config.Service.UpdateInterval.Value(), config.Service.Aliases)
+		aconvertClient = aconvert.NewClient(nil, &config.Aconvert)
+		mediaService   = service.NewMediaService(config.Service.TmpDir, aconvertClient)
+		dvachClient    = dvach.NewClient(nil, config.Dvach.Usercode)
+		dvachService   = dvach0.NewService(aggregator, mediaService, dvachClient)
+		redditClient   = reddit.NewClient(nil, &config.Reddit)
+		redditService  = reddit0.Reddit(aggregator, mediaService, redditClient)
 	)
 
 	me, err := bot.GetMe()
@@ -43,19 +41,13 @@ func main() {
 	log.Printf("Running as %s", me.Username)
 
 	aggregator.
-		Add(dvachCatalogService, dvachThreadService, redditService).
+		Add(dvachService.Catalog(), dvachService.Thread(), redditService).
 		Init()
 
 	log.Printf("Hikkabot started")
 
-	var exit sync.WaitGroup
-	exit.Add(1)
-	go func() {
-		defer exit.Done()
-		var ch = make(chan os.Signal)
-		signal.Notify(ch, syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
-		<-ch
-	}()
+	exit := make(chan os.Signal)
+	go signal.Notify(exit, syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
 
 	go bot.Listen(telegram.NewCommandUpdateListener(bot).
 		AddFunc("/status", func(c *telegram.Command) { c.TextReply("I'm alive.") }).
@@ -63,13 +55,13 @@ func main() {
 		AddFunc("/suspend", aggregator.SuspendCommandListener).
 		AddFunc("/resume", aggregator.ResumeCommandListener))
 
-	exit.Wait()
+	<-exit
 	log.Printf("Hikkabot exited")
 }
 
 type Storage interface {
 	service.Storage
-	dvachService.PostMessageRefStorage
+	service.MessageStorage
 }
 
 func initStorage(config *Config) Storage {

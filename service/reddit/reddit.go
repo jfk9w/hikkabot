@@ -1,32 +1,32 @@
 package reddit
 
 import (
-	"errors"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
 
+	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/html"
 	"github.com/jfk9w/hikkabot/service"
+	"github.com/pkg/errors"
 )
 
 type options struct {
-	Subreddit    string      `json:"subreddit"`
-	Sort         reddit.Sort `json:"sort"`
-	UpsThreshold int         `json:"ups_threshold,omitempty"`
+	Subreddit string      `json:"subreddit"`
+	Sort      reddit.Sort `json:"sort"`
+	MinUps    int         `json:"ups_threshold,omitempty"`
 }
 
 type Service struct {
 	agg    *service.Aggregator
-	fs     service.FileSystemService
+	media  *service.MediaService
 	reddit *reddit.Client
 }
 
-func Reddit(agg *service.Aggregator, fs service.FileSystemService, reddit *reddit.Client) *Service {
-	return &Service{agg, fs, reddit}
+func Reddit(agg *service.Aggregator, media *service.MediaService, reddit *reddit.Client) *Service {
+	return &Service{agg, media, reddit}
 }
 
 func (svc *Service) ID() string {
@@ -74,13 +74,13 @@ func (svc *Service) Subscribe(input string, chat *service.EnrichedChat, args str
 
 	subreddit = things[0].Data.Subreddit
 	return svc.agg.Subscribe(chat, svc.ID(), subreddit, subreddit, &options{
-		Subreddit:    subreddit,
-		Sort:         sort,
-		UpsThreshold: upsThreshold,
+		Subreddit: subreddit,
+		Sort:      sort,
+		MinUps:    upsThreshold,
 	})
 }
 
-const fileSizeThreshold = 10 << 10
+const minDownloadSize = 10 << 10
 
 func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, updatePipe *service.UpdatePipe) {
 	defer updatePipe.Close()
@@ -88,17 +88,17 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 	options := new(options)
 	err := optionsFunc(options)
 	if err != nil {
-		updatePipe.Error = err
+		updatePipe.Err = err
 		return
 	}
 
 	things, err := svc.reddit.GetListing(options.Subreddit, options.Sort, 100)
 	if err != nil {
-		updatePipe.Error = err
+		updatePipe.Err = err
 		return
 	}
 
-	sort.Sort(thingsSort(things))
+	sort.Sort(thingSort(things))
 
 	for _, thing := range things {
 		offset := int64(thing.Data.RawCreatedUTC)
@@ -106,62 +106,69 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 			continue
 		}
 
-		if thing.Data.Ups < options.UpsThreshold {
+		if thing.Data.Ups < options.MinUps {
 			continue
 		}
 
-		update := &service.GenericUpdate{
-			Text: html.NewBuilder(telegram.MaxCaptionSize, 1).
-				Text("#"+options.Subreddit).Br().
-				Link(thing.Data.URL, "[LINK]").Br().
-				Text(thing.Data.Title).
-				Build()[0],
+		var mediaOut chan service.MediaResponse
+		if thing.Data.URL != "" {
+			mediaOut = make(chan service.MediaResponse)
+			go svc.media.Download(mediaOut, service.MediaRequest{
+				Func:    svc.mediaFunc(thing),
+				Href:    thing.Data.URL,
+				MinSize: minDownloadSize,
+				Type:    mediaType(thing),
+			})
 		}
 
-		resource := svc.fs.NewTempResource()
-		if err := svc.reddit.Download(thing, resource); err == nil {
-			update.Entity = resource
-			switch thing.Data.Extension {
-			case "gifv", "gif", "mp4":
-				if stat, err := os.Stat(resource.Path()); err == nil {
-					if stat.Size() >= fileSizeThreshold && stat.Size() <= service.MaxVideoSize {
-						update.Type = service.VideoUpdate
-						update.Entity = resource
-						break
-					}
-				}
+		text := html.NewBuilder(telegram.MaxCaptionSize, 1).
+			Text("#" + options.Subreddit).Br().
+			Text(thing.Data.Title).
+			Build()
 
-				_ = os.RemoveAll(resource.Path())
-
-			default:
-				if stat, err := os.Stat(resource.Path()); err == nil {
-					if stat.Size() >= fileSizeThreshold && stat.Size() <= service.MaxPhotoSize {
-						update.Type = service.PhotoUpdate
-						update.Entity = resource
-						break
-					}
-				}
-
-				_ = os.RemoveAll(resource.Path())
-			}
+		mediaSize := 1
+		if thing.Data.URL == "" {
+			mediaSize = 0
 		}
 
-		if !updatePipe.Submit(update, offset) {
+		update := service.Update{
+			Offset:    offset,
+			Text:      service.UpdateTextSlice(text),
+			MediaSize: mediaSize,
+			Media:     mediaOut,
+		}
+
+		if !updatePipe.Submit(update) {
 			return
 		}
 	}
 }
 
-type thingsSort []*reddit.Thing
+func (svc *Service) mediaFunc(thing *reddit.Thing) service.MediaFunc {
+	return func(resource flu.FileSystemResource) error {
+		return svc.reddit.Download(thing, resource)
+	}
+}
 
-func (t thingsSort) Len() int {
+func mediaType(thing *reddit.Thing) service.MediaType {
+	switch thing.Data.Extension {
+	case "gifv", "gif", "mp4":
+		return service.Video
+	default:
+		return service.Photo
+	}
+}
+
+type thingSort []*reddit.Thing
+
+func (t thingSort) Len() int {
 	return len(t)
 }
 
-func (t thingsSort) Less(i, j int) bool {
+func (t thingSort) Less(i, j int) bool {
 	return t[i].Data.RawCreatedUTC < t[j].Data.RawCreatedUTC
 }
 
-func (t thingsSort) Swap(i, j int) {
+func (t thingSort) Swap(i, j int) {
 	t[i], t[j] = t[j], t[i]
 }

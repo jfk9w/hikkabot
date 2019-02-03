@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/html"
 	"github.com/jfk9w/hikkabot/service"
@@ -17,22 +16,18 @@ type catalogOptions struct {
 	Query   string `json:"query,omitempty"`
 }
 
-type CatalogService struct {
-	agg   *service.Aggregator
-	fs    service.FileSystemService
-	dvach *dvach.Client
+type CatalogService Service
+
+func (s *CatalogService) base() *Service {
+	return (*Service)(s)
 }
 
-func Catalog(agg *service.Aggregator, fs service.FileSystemService, c *dvach.Client) *CatalogService {
-	return &CatalogService{agg, fs, c}
-}
-
-func (svc *CatalogService) ID() string {
+func (s *CatalogService) ID() string {
 	return "2ch/catalog"
 }
 
-func (svc *CatalogService) search(boardID string, query *regexp.Regexp) ([]*dvach.Post, error) {
-	catalog, err := svc.dvach.GetCatalog(boardID)
+func (s *CatalogService) search(boardID string, query *regexp.Regexp) ([]*dvach.Post, error) {
+	catalog, err := s.dvach.GetCatalog(boardID)
 	if err != nil {
 		return nil, err
 	}
@@ -45,16 +40,13 @@ func (svc *CatalogService) search(boardID string, query *regexp.Regexp) ([]*dvac
 		}
 	}
 
-	posts := dvachCatalogPosts(result)
-	sort.Sort(posts)
-	result = []*dvach.Post(posts)
-
+	sort.Sort(catalogPosts(result))
 	return result, nil
 }
 
 var catalogRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
 
-func (svc *CatalogService) Subscribe(input string, chat *service.EnrichedChat, options string) error {
+func (s *CatalogService) Subscribe(input string, chat *service.EnrichedChat, options string) error {
 	groups := catalogRegexp.FindStringSubmatch(input)
 	if len(groups) < 6 {
 		return service.ErrInvalidFormat
@@ -66,13 +58,13 @@ func (svc *CatalogService) Subscribe(input string, chat *service.EnrichedChat, o
 		return err
 	}
 
-	board, err := svc.dvach.GetBoard(boardID)
+	board, err := s.dvach.GetBoard(boardID)
 	if err != nil {
 		return err
 	}
 
-	return svc.agg.Subscribe(chat,
-		svc.ID(),
+	return s.agg.Subscribe(chat,
+		s.ID(),
 		fmt.Sprintf("%s/%s", boardID, query),
 		fmt.Sprintf("%s /%s/", board.Name, query.String()),
 		&catalogOptions{
@@ -81,22 +73,19 @@ func (svc *CatalogService) Subscribe(input string, chat *service.EnrichedChat, o
 		})
 }
 
-var maxHtmlChunkSize = telegram.MaxMessageSize * 5 / 7
-
-func (svc *CatalogService) Update(prevOffset int64, optionsFunc service.OptionsFunc, updatePipe *service.UpdatePipe) {
-	defer updatePipe.Close()
-
+func (s *CatalogService) Update(prevOffset int64, optionsFunc service.OptionsFunc, pipe *service.UpdatePipe) {
+	defer pipe.Close()
 	options := new(catalogOptions)
 	err := optionsFunc(options)
 	if err != nil {
-		updatePipe.Error = err
+		pipe.Err = err
 		return
 	}
 
 	query := regexp.MustCompile(options.Query)
-	posts, err := svc.search(options.BoardID, query)
+	posts, err := s.search(options.BoardID, query)
 	if err != nil {
-		//updatePipe.Error(err)
+		//pipe.Err = err
 		return
 	}
 
@@ -106,52 +95,48 @@ func (svc *CatalogService) Update(prevOffset int64, optionsFunc service.OptionsF
 			continue
 		}
 
-		update := &service.GenericUpdate{
-			Text: html.NewBuilder(maxCaptionSize, 1).
+		var mediaOut <-chan service.MediaResponse
+		for _, file := range post.Files {
+			mediaOut = s.base().download(file)
+			break
+		}
+
+		update := service.Update{
+			Offset: offset,
+			Text: service.UpdateTextSlice(html.NewBuilder(maxCaptionSize, 1).
 				B().Text(post.DateString).EndB().Br().
 				Link(post.URL(), "[LINK]").Br().
 				Text("---").Br().
 				Parse(post.Comment).
-				Build()[0],
+				Build()),
+			MediaSize: minInt(len(post.Files), 1),
+			Media:     mediaOut,
 		}
 
-		for _, file := range post.Files {
-			if file.Type == dvach.WEBM {
-				continue
-			}
-
-			resource := svc.fs.NewTempResource()
-			err := svc.dvach.DownloadFile(file, resource)
-			if err == nil {
-				if file.Type == dvach.GIF || file.Type == dvach.MP4 {
-					update.Type = service.VideoUpdate
-				} else {
-					update.Type = service.PhotoUpdate
-				}
-
-				update.Entity = resource
-				break
-			} else {
-				resource = ""
-			}
-		}
-
-		if !updatePipe.Submit(update, offset) {
+		if !pipe.Submit(update) {
 			return
 		}
 	}
 }
 
-type dvachCatalogPosts []*dvach.Post
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
 
-func (p dvachCatalogPosts) Len() int {
+	return b
+}
+
+type catalogPosts []*dvach.Post
+
+func (p catalogPosts) Len() int {
 	return len(p)
 }
 
-func (p dvachCatalogPosts) Less(i, j int) bool {
+func (p catalogPosts) Less(i, j int) bool {
 	return p[i].Num < p[j].Num
 }
 
-func (p dvachCatalogPosts) Swap(i, j int) {
+func (p catalogPosts) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
