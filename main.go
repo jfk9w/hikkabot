@@ -78,7 +78,7 @@ func initLog(config *Config) {
 		path := config.Log.Writer.Value()
 		dir := filepath.Dir(path)
 		lego.Check(os.MkdirAll(dir, os.ModePerm))
-		file, err := os.Create(path)
+		file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		lego.Check(err)
 		log.SetOutput(file)
 	}
