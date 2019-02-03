@@ -256,16 +256,17 @@ func (agg *Aggregator) Subscribe(chat *EnrichedChat, serviceID string, secondary
 		return errors.New("exists")
 	}
 
-	go chat.forEachAdminID(func(adminID telegram.ID) {
-		_, err := agg.bot.Send(
-			adminID,
-			fmt.Sprintf(`Subscription OK.
+	text := fmt.Sprintf(`Subscription OK.
 Chat: %s
 Service: %s
-Title: #%s`, chat.title, serviceID, name),
-			telegram.NewSendOpts().
-				Message().
-				ReplyMarkup(telegram.CommandButton("Suspend", "/suspend", feed.ID)))
+Title: #%s`, chat.title, serviceID, name)
+
+	opts := telegram.NewSendOpts().
+		Message().
+		ReplyMarkup(telegram.CommandButton("Suspend", "/suspend", feed.ID))
+
+	go chat.forEachAdminID(func(adminID telegram.ID) {
+		_, err := agg.bot.Send(adminID, text, opts)
 		if err != nil {
 			log.Printf("Failed to send message to %s: %s", adminID, err)
 		}
