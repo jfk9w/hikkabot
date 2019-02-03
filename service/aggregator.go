@@ -67,8 +67,6 @@ func (agg *Aggregator) Init() *Aggregator {
 			agg.run(chatID)
 		})
 
-		go agg.run(chatID)
-
 		log.Println("Restored active chat", chatID)
 	}
 
