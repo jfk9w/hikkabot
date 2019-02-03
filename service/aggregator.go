@@ -119,7 +119,7 @@ func (agg *Aggregator) run(chatID telegram.ID) {
 	gmf := agg.gmf(feed)
 	for update := range pipe.updateCh {
 		newOffset = update.Offset
-		m, err := update.Send(agg.bot, gmf)
+		m, err := update.Send(agg.bot, chatID, gmf)
 		if err != nil {
 			pipe.stop()
 

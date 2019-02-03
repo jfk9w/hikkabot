@@ -148,16 +148,16 @@ SET error = NULL
 WHERE id = $1 AND error IS NOT NULL`, id) > 0
 }
 
-func (s *SQLStorage) StoreMessage(chatID telegram.ID, key service.MessageKey, ref service.MessageRef) {
-	s.mustExec(`INSERT INTO message (chat_id, key, username, message_id)
+func (s *SQLStorage) StoreMessage(chatID telegram.ID, serviceID service.ID, key service.MessageKey, ref service.MessageRef) {
+	s.mustExec(`INSERT INTO message (chat_id, service_id, key, username, message_id)
 VALUES ($1, $2, $3, $4)
-ON CONFLICT DO NOTHING`, chatID, key.String(), ref.Username, ref.MessageID)
+ON CONFLICT DO NOTHING`, chatID, serviceID, key.String(), ref.Username, ref.MessageID)
 }
 
-func (s *SQLStorage) GetMessage(chatID telegram.ID, key service.MessageKey) (*service.MessageRef, bool) {
+func (s *SQLStorage) GetMessage(chatID telegram.ID, serviceID service.ID, key service.MessageKey) (*service.MessageRef, bool) {
 	rows := s.mustQuery(`SELECT username, message_id
 FROM message
-WHERE chat_id = $1 AND key = $2`, chatID, key.String())
+WHERE chat_id = $1 AND service_id = $2 AND key = $3`, chatID, serviceID, key.String())
 
 	if !rows.Next() {
 		_ = rows.Close()

@@ -51,11 +51,11 @@ func (s *DummyStorage) SuspendFeed(id string, err error) bool {
 	return true
 }
 
-func (s *DummyStorage) StoreMessage(chatID telegram.ID, key service.MessageKey, ref service.MessageRef) {
+func (s *DummyStorage) StoreMessage(chatID telegram.ID, serviceID service.ID, key service.MessageKey, ref service.MessageRef) {
 	s.messageRefs[key.String()] = ref
 }
 
-func (s *DummyStorage) GetMessage(chatID telegram.ID, key service.MessageKey) (*service.MessageRef, bool) {
+func (s *DummyStorage) GetMessage(chatID telegram.ID, serviceID service.ID, key service.MessageKey) (*service.MessageRef, bool) {
 	ref, ok := s.messageRefs[key.String()]
 	return &ref, ok
 }
