@@ -86,6 +86,7 @@ func (s *SQLStorage) init() *SQLStorage {
 
 	s.mustExec(`CREATE TABLE IF NOT EXISTS message (
   chat_id BIGINT NOT NULL,
+  service_id TEXT NOT NULL,
   key TEXT NOT NULL,
   username TEXT NOT NULL,
   message_id BIGINT NOT NULL
@@ -93,7 +94,7 @@ func (s *SQLStorage) init() *SQLStorage {
 
 	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__id ON feed(id)`)
 	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__feed__secondary_id ON feed(secondary_id, chat_id, service_id)`)
-	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__message__id ON message(chat_id, key)`)
+	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__message__id ON message(chat_id, service_id, key)`)
 
 	return s
 }

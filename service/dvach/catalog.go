@@ -103,7 +103,7 @@ func (s *CatalogService) Update(prevOffset int64, optionsFunc service.OptionsFun
 
 		update := service.Update{
 			Offset: offset,
-			Text: service.UpdateTextSlice(html.NewBuilder(maxCaptionSize, 1).
+			Text: service.UpdateTextSlice(html.NewBuilder(service.MaxCaptionSize, 1).
 				B().Text(post.DateString).EndB().Br().
 				Link(post.URL(), "[LINK]").Br().
 				Text("---").Br().

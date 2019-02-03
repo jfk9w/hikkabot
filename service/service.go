@@ -7,8 +7,11 @@ import (
 )
 
 const (
-	MaxPhotoSize = 10 * (2 << 20)
-	MaxVideoSize = 50 * (2 << 20)
+	MaxMessageSize = telegram.MaxMessageSize * 5 / 7
+	MaxCaptionSize = telegram.MaxCaptionSize * 5 / 7
+	MaxPhotoSize   = 10 * (2 << 20)
+	MaxVideoSize   = 50 * (2 << 20)
+	MinMediaSize   = 10 << 10
 )
 
 type (

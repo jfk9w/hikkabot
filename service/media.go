@@ -42,12 +42,11 @@ func (t MediaType) MaxSize() int64 {
 	}
 }
 
-type MediaFunc func(flu.FileSystemResource) error
+type MediaFunc func(flu.FileSystemResource) (MediaType, error)
 
 type MediaRequest struct {
-	Func    func(flu.FileSystemResource) error
+	Func    MediaFunc
 	Href    string
-	Type    MediaType
 	MinSize int64
 }
 
@@ -79,14 +78,14 @@ func (svc *MediaService) Download(out chan<- MediaResponse, reqs ...MediaRequest
 
 func (svc *MediaService) Download1(req MediaRequest) (Media, error) {
 	r := svc.NewTempResource()
-	m := Media{r, req.Href, req.Type}
-	err := req.Func(r)
+	mediaType, err := req.Func(r)
+	m := Media{r, req.Href, mediaType}
 	if err != nil {
 		_ = os.RemoveAll(r.Path())
 		return m, errors.Wrap(err, "download failed")
 	}
 
-	if req.Type == WebM {
+	if mediaType == WebM {
 		resp, err := svc.aconvert.Convert(r, aconvert.NewOpts().
 			TargetFormat("mp4").
 			Code(81000).
@@ -109,7 +108,7 @@ func (svc *MediaService) Download1(req MediaRequest) (Media, error) {
 		return m, errors.Wrap(err, "stat failed")
 	} else {
 		size := stat.Size()
-		maxSize := req.Type.MaxSize()
+		maxSize := mediaType.MaxSize()
 		if size > maxSize {
 			_ = os.RemoveAll(r.Path())
 			return m, errors.Wrapf(err, "size (%d MB) exceeds limit (%d MB)",

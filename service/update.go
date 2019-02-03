@@ -35,14 +35,12 @@ type Update struct {
 	Key       MessageKey
 }
 
-const maxCaptionSize = telegram.MaxCaptionSize * 5 / 7
-
 func (u Update) Send(bot *telegram.Bot, chatID telegram.ID, gmf GetMessageFunc) (*telegram.Message, error) {
 	text := u.Text.Get(gmf)
 	collapse :=
 		u.MediaSize == 1 &&
 			len(text) == 1 &&
-			utf8string.NewString(text[0]).RuneCount() <= maxCaptionSize
+			utf8string.NewString(text[0]).RuneCount() <= MaxCaptionSize
 
 	var firstm *telegram.Message
 	if !collapse {

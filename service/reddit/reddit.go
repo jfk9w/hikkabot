@@ -80,8 +80,6 @@ func (svc *Service) Subscribe(input string, chat *service.EnrichedChat, args str
 	})
 }
 
-const minDownloadSize = 10 << 10
-
 func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, updatePipe *service.UpdatePipe) {
 	defer updatePipe.Close()
 
@@ -116,8 +114,7 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 			go svc.media.Download(mediaOut, service.MediaRequest{
 				Func:    svc.mediaFunc(thing),
 				Href:    thing.Data.URL,
-				MinSize: minDownloadSize,
-				Type:    mediaType(thing),
+				MinSize: service.MinMediaSize,
 			})
 		}
 
@@ -145,8 +142,9 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 }
 
 func (svc *Service) mediaFunc(thing *reddit.Thing) service.MediaFunc {
-	return func(resource flu.FileSystemResource) error {
-		return svc.reddit.Download(thing, resource)
+	return func(resource flu.FileSystemResource) (service.MediaType, error) {
+		err := svc.reddit.Download(thing, resource)
+		return mediaType(thing), err
 	}
 }
 

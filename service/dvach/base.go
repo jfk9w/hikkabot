@@ -4,14 +4,8 @@ import (
 	"fmt"
 
 	"github.com/jfk9w-go/flu"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/service"
-)
-
-const (
-	maxMessageSize = telegram.MaxMessageSize * 5 / 7
-	maxCaptionSize = telegram.MaxCaptionSize * 5 / 7
 )
 
 type Service struct {
@@ -47,14 +41,14 @@ func (s *Service) mediaRequest(file *dvach.File) service.MediaRequest {
 	return service.MediaRequest{
 		Func:    s.mediaFunc(file),
 		Href:    fmt.Sprintf(dvach.Host + file.Path),
-		Type:    mediaType(file),
-		MinSize: 10 << 10,
+		MinSize: service.MinMediaSize,
 	}
 }
 
 func (s *Service) mediaFunc(file *dvach.File) service.MediaFunc {
-	return func(resource flu.FileSystemResource) error {
-		return s.dvach.DownloadFile(file, resource)
+	return func(resource flu.FileSystemResource) (service.MediaType, error) {
+		err := s.dvach.DownloadFile(file, resource)
+		return mediaType(file), err
 	}
 }
 

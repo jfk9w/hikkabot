@@ -91,7 +91,7 @@ func (s *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFunc
 			mediaOut = s.base().download(post.Files...)
 		}
 
-		b := html.NewBuilder(maxMessageSize, -1).
+		b := html.NewBuilder(service.MaxMessageSize, -1).
 			Text(`#` + options.Title).Br().
 			Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.BoardID), post.Num))
 
