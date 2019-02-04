@@ -40,6 +40,15 @@ func main() {
 	lego.Check(err)
 	log.Printf("Running as %s", me.Username)
 
+	go func() {
+		for _, adminID := range config.Service.AdminIDs {
+			_, err = bot.Send(adminID, "⬆️️", telegram.NewSendOpts().Message())
+			if err != nil {
+				log.Printf("Failed to notify %s about startup: %s", adminID, err)
+			}
+		}
+	}()
+
 	aggregator.
 		Add(dvachService.Catalog(), dvachService.Thread(), redditService).
 		Init()
@@ -129,7 +138,8 @@ type Config struct {
 			Type       string `json:"type"`
 			DataSource string `json:"datasource"`
 		} `json:"storage"`
-		Aliases map[telegram.Username]telegram.ID `json:"aliases"`
+		Aliases  map[telegram.Username]telegram.ID `json:"aliases"`
+		AdminIDs []telegram.ID                     `json:"admin_ids"`
 	} `json:"service"`
 
 	Telegram struct {
