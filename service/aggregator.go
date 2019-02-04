@@ -219,13 +219,15 @@ func (agg *Aggregator) set(userID *telegram.ID, id string, err error) error {
 	)
 
 	if err == nil {
-		text = fmt.Sprintf(`Subscription resumed.
+		text = fmt.Sprintf(`🔥 
+Subscription resumed.
 Chat: %s
 Service: %s
 Title: #%s`, chat.title, feed.ServiceID, feed.Name)
 		markup = telegram.CommandButton("Suspend", "/suspend", feed.ID)
 	} else {
-		text = fmt.Sprintf(`Subscription suspended.
+		text = fmt.Sprintf(`⚠️ 
+Subscription suspended.
 Chat: %s
 Service: %s
 Title: #%s
@@ -273,7 +275,8 @@ func (agg *Aggregator) Subscribe(chat *EnrichedChat, serviceID ID, secondaryID s
 		return errors.New("exists")
 	}
 
-	text := fmt.Sprintf(`Subscription OK.
+	text := fmt.Sprintf(`🔥 
+Subscription OK.
 Chat: %s
 Service: %s
 Title: #%s`, chat.title, serviceID, name)

@@ -85,7 +85,7 @@ func (u Update) Send(bot *telegram.Bot, chatID telegram.ID, gmf GetMessageFunc) 
 
 func (u Update) send(bot *telegram.Bot, chatID telegram.ID, text string, media *Media) (*telegram.Message, error) {
 	if media != nil {
-		text = html.Link(media.Href, "[ATTACH]") + "\n" + text
+		text = html.Link(media.Href, "[media]") + "\n" + text
 		opts := telegram.NewSendOpts().
 			DisableNotification(true).
 			Media().
