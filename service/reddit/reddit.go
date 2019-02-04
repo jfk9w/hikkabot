@@ -108,14 +108,15 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 			continue
 		}
 
-		var mediaOut chan service.MediaResponse
+		var mediaOut <-chan service.MediaResponse
 		if thing.Data.URL != "" {
-			mediaOut = make(chan service.MediaResponse)
-			go svc.media.Download(mediaOut, service.MediaRequest{
+			mediaReq := service.MediaRequest{
 				Func:    svc.mediaFunc(thing),
 				Href:    thing.Data.URL,
 				MinSize: service.MinMediaSize,
-			})
+			}
+
+			mediaOut = svc.media.Download(mediaReq)
 		}
 
 		text := html.NewBuilder(telegram.MaxCaptionSize, 1).
@@ -124,7 +125,7 @@ func (svc *Service) Update(prevOffset int64, optionsFunc service.OptionsFunc, up
 			Build()
 
 		mediaSize := 1
-		if thing.Data.URL == "" {
+		if mediaOut == nil {
 			mediaSize = 0
 		}
 

@@ -151,7 +151,7 @@ WHERE id = $1 AND error IS NOT NULL`, id) > 0
 
 func (s *SQLStorage) StoreMessage(chatID telegram.ID, serviceID service.ID, key service.MessageKey, ref service.MessageRef) {
 	s.mustExec(`INSERT INTO message (chat_id, service_id, key, username, message_id)
-VALUES ($1, $2, $3, $4)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT DO NOTHING`, chatID, serviceID, key.String(), ref.Username, ref.MessageID)
 }
 

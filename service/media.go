@@ -61,7 +61,13 @@ type MediaResponse struct {
 	Err error
 }
 
-func (svc *MediaService) Download(out chan<- MediaResponse, reqs ...MediaRequest) {
+func (svc *MediaService) Download(reqs ...MediaRequest) <-chan MediaResponse {
+	out := make(chan MediaResponse)
+	go svc.download(out, reqs)
+	return out
+}
+
+func (svc *MediaService) download(out chan<- MediaResponse, reqs []MediaRequest) {
 	var prev, curr chan struct{}
 	for i, req := range reqs {
 		if i > 0 {
@@ -69,11 +75,26 @@ func (svc *MediaService) Download(out chan<- MediaResponse, reqs ...MediaRequest
 		}
 
 		curr = make(chan struct{})
-		go svc.download(out, req, prev, curr)
+		go svc.download1(out, req, prev, curr)
 	}
 
 	<-curr
 	close(out)
+}
+
+func (svc *MediaService) download1(out chan<- MediaResponse, req MediaRequest, prev, curr chan struct{}) {
+	media, err := svc.Download1(req)
+	resp := MediaResponse{media, err}
+
+	if prev != nil {
+		<-prev
+	}
+
+	out <- resp
+
+	if curr != nil {
+		curr <- struct{}{}
+	}
 }
 
 func (svc *MediaService) Download1(req MediaRequest) (Media, error) {
@@ -123,19 +144,4 @@ func (svc *MediaService) Download1(req MediaRequest) (Media, error) {
 	}
 
 	return m, nil
-}
-
-func (svc *MediaService) download(out chan<- MediaResponse, req MediaRequest, prev, curr chan struct{}) {
-	media, err := svc.Download1(req)
-	resp := MediaResponse{media, err}
-
-	if prev != nil {
-		<-prev
-	}
-
-	out <- resp
-
-	if curr != nil {
-		curr <- struct{}{}
-	}
 }

@@ -27,14 +27,12 @@ func (s *Service) Thread() *ThreadService {
 }
 
 func (s *Service) download(files ...*dvach.File) <-chan service.MediaResponse {
-	out := make(chan service.MediaResponse)
 	reqs := make([]service.MediaRequest, len(files))
 	for i, file := range files {
 		reqs[i] = s.mediaRequest(file)
 	}
 
-	go s.media.Download(out, reqs...)
-	return out
+	return s.media.Download(reqs...)
 }
 
 func (s *Service) mediaRequest(file *dvach.File) service.MediaRequest {
