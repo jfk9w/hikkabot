@@ -131,6 +131,10 @@ func (s *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFunc
 			},
 		}
 
+		if options.Mode != "" {
+			update.Collapse = true
+		}
+
 		if !pipe.Submit(update) {
 			return
 		}

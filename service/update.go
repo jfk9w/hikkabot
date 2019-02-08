@@ -33,11 +33,12 @@ type Update struct {
 	MediaSize int
 	Media     <-chan MediaResponse
 	Key       MessageKey
+	Collapse  bool
 }
 
 func (u Update) Send(bot *telegram.Bot, chatID telegram.ID, gmf GetMessageFunc) (*telegram.Message, error) {
 	text := u.Text.Get(gmf)
-	collapse :=
+	collapse := u.Collapse ||
 		u.MediaSize == 1 &&
 			len(text) == 1 &&
 			utf8string.NewString(text[0]).RuneCount() <= MaxCaptionSize
