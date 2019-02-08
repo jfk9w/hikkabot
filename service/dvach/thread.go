@@ -9,6 +9,7 @@ import (
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/html"
 	"github.com/jfk9w/hikkabot/service"
+	"github.com/pkg/errors"
 	"golang.org/x/exp/utf8string"
 )
 
@@ -16,6 +17,7 @@ type threadOptions struct {
 	BoardID string `json:"board_id"`
 	Num     int    `json:"num"`
 	Title   string `json:"title"`
+	Mode    string `json:"mode,omitempty"`
 }
 
 type ThreadService Service
@@ -39,6 +41,15 @@ func (s *ThreadService) Subscribe(input string, chat *service.EnrichedChat, args
 	boardID := groups[4]
 	threadID, _ := strconv.Atoi(groups[5])
 
+	var mode string
+	if args != "" {
+		if args != "media_only" {
+			return errors.Errorf("invalid mode %s", args)
+		}
+
+		mode = args
+	}
+
 	post, err := s.dvach.GetPost(boardID, threadID)
 	if err != nil {
 		return err
@@ -49,6 +60,7 @@ func (s *ThreadService) Subscribe(input string, chat *service.EnrichedChat, args
 		BoardID: boardID,
 		Num:     threadID,
 		Title:   title,
+		Mode:    mode,
 	})
 }
 
@@ -89,6 +101,8 @@ func (s *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFunc
 		var mediaOut <-chan service.MediaResponse
 		if len(post.Files) > 0 {
 			mediaOut = s.base().download(post.Files...)
+		} else if options.Mode != "" {
+			continue
 		}
 
 		b := html.NewBuilder(service.MaxMessageSize, -1).
@@ -99,14 +113,15 @@ func (s *ThreadService) Update(prevOffset int64, optionsFunc service.OptionsFunc
 			b.Text(" #OP")
 		}
 
-		text := b.Br().
-			Text("---").Br().
-			Parse(post.Comment).
-			Build()
+		if options.Mode == "" && post.Comment != "" {
+			b.Br().
+				Text("---").Br().
+				Parse(post.Comment)
+		}
 
 		update := service.Update{
 			Offset:    int64(post.Num),
-			Text:      s.updateTextFunc(text),
+			Text:      s.updateTextFunc(b.Build()),
 			MediaSize: len(post.Files),
 			Media:     mediaOut,
 			Key: &postMessageKey{
