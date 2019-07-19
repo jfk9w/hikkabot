@@ -10,18 +10,18 @@ import (
 )
 
 type Client struct {
-	http *flu.Client
+	httpClient *flu.Client
 }
 
-func NewClient(http *flu.Client, usercode string) *Client {
-	if http == nil {
-		http = flu.NewClient(nil)
+func NewClient(httpClient *flu.Client, usercode string) *Client {
+	if httpClient == nil {
+		httpClient = flu.NewClient(nil)
 	}
 
 	return &Client{
-		http: http.
-			Cookies(Host, cookies(usercode, "/")...).
-			Cookies(Host, cookies(usercode, "/makaba")...),
+		httpClient: httpClient.
+			SetCookies(Host, cookies(usercode, "/")...).
+			SetCookies(Host, cookies(usercode, "/makaba")...),
 	}
 }
 
@@ -40,12 +40,12 @@ func defaultBodyProcessor(value interface{}) flu.ReadBytesFunc {
 	}
 }
 
-func (c *Client) GetCatalog(boardID string) (*Catalog, error) {
+func (c *Client) GetCatalog(board string) (*Catalog, error) {
 	catalog := new(Catalog)
-	err := c.http.NewRequest().
-		Get().
-		Endpoint(Host + "/" + boardID + "/catalog_num.json").
-		Execute().
+	err := c.httpClient.NewRequest().
+		GET().
+		Resource(Host + "/" + board + "/catalog_num.json").
+		Send().
 		ReadBytesFunc(defaultBodyProcessor(catalog)).
 		Error
 
@@ -53,23 +53,23 @@ func (c *Client) GetCatalog(boardID string) (*Catalog, error) {
 		return nil, err
 	}
 
-	return catalog, catalog.init(boardID)
+	return catalog, catalog.init(board)
 }
 
-func (c *Client) GetThread(boardID string, num int, offset int) ([]*Post, error) {
+func (c *Client) GetThread(board string, num int, offset int) ([]Post, error) {
 	if offset <= 0 {
 		offset = num
 	}
 
-	thread := make([]*Post, 0)
-	err := c.http.NewRequest().
-		Get().
-		Endpoint(Host+"/makaba/mobile.fcgi").
+	thread := make([]Post, 0)
+	err := c.httpClient.NewRequest().
+		GET().
+		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_thread").
-		QueryParam("board", boardID).
+		QueryParam("board", board).
 		QueryParam("thread", strconv.Itoa(num)).
 		QueryParam("num", strconv.Itoa(offset)).
-		Execute().
+		Send().
 		ReadBytesFunc(defaultBodyProcessor(&thread)).
 		Error
 
@@ -77,20 +77,20 @@ func (c *Client) GetThread(boardID string, num int, offset int) ([]*Post, error)
 		return nil, err
 	}
 
-	return thread, posts(thread).init(boardID)
+	return thread, Posts(thread).init(board)
 }
 
 var ErrPostNotFound = errors.New("post not found")
 
-func (c *Client) GetPost(boardID string, num int) (*Post, error) {
-	posts := make([]*Post, 0)
-	err := c.http.NewRequest().
-		Get().
-		Endpoint(Host+"/makaba/mobile.fcgi").
+func (c *Client) GetPost(board string, num int) (*Post, error) {
+	posts := make([]Post, 0)
+	err := c.httpClient.NewRequest().
+		GET().
+		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_post").
-		QueryParam("board", boardID).
+		QueryParam("board", board).
 		QueryParam("post", strconv.Itoa(num)).
-		Execute().
+		Send().
 		ReadBytesFunc(defaultBodyProcessor(&posts)).
 		Error
 
@@ -99,57 +99,57 @@ func (c *Client) GetPost(boardID string, num int) (*Post, error) {
 	}
 
 	if len(posts) > 0 {
-		return posts[0], posts[0].init(boardID)
+		return &posts[0], (&posts[0]).init(board)
 	}
 
 	return nil, ErrPostNotFound
 }
 
 func (c *Client) DownloadFile(file *File, resource flu.WriteResource) error {
-	return c.http.NewRequest().
-		Get().
-		Endpoint(Host + file.Path).
-		Execute().
-		StatusCodes(http.StatusOK).
+	return c.httpClient.NewRequest().
+		GET().
+		Resource(Host + file.Path).
+		Send().
+		CheckStatusCode(http.StatusOK).
 		ReadResource(resource).
 		Error
 }
 
-func (c *Client) GetBoards() ([]*Board, error) {
-	m := make(map[string][]*Board)
-	err := c.http.NewRequest().
-		Get().
-		Endpoint(Host+"/makaba/mobile.fcgi").
+func (c *Client) GetBoards() ([]Board, error) {
+	bmap := make(map[string][]Board)
+	err := c.httpClient.NewRequest().
+		GET().
+		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_boards").
-		Execute().
-		ReadBytesFunc(defaultBodyProcessor(&m)).
+		Send().
+		ReadBytesFunc(defaultBodyProcessor(&bmap)).
 		Error
 
 	if err != nil {
 		return nil, err
 	}
 
-	arr := make([]*Board, 0)
-	for _, boards := range m {
-		for _, board := range boards {
-			arr = append(arr, board)
+	boards := make([]Board, 0)
+	for _, barr := range bmap {
+		for _, board := range barr {
+			boards = append(boards, board)
 		}
 	}
 
-	return arr, nil
+	return boards, nil
 }
 
 var ErrBoardNotFound = errors.New("board not found")
 
-func (c *Client) GetBoard(boardID string) (*Board, error) {
+func (c *Client) GetBoard(id string) (*Board, error) {
 	boards, err := c.GetBoards()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, board := range boards {
-		if board.ID == boardID {
-			return board, nil
+		if board.ID == id {
+			return &board, nil
 		}
 	}
 

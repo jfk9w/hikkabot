@@ -3,35 +3,38 @@ package main
 import (
 	"log"
 
-	"github.com/jfk9w-go/lego"
 	"github.com/jfk9w/hikkabot/api/dvach"
+	"github.com/jfk9w/hikkabot/util"
 )
 
 func main() {
-	configPath := "../../../config.json"
 	config := new(struct {
 		Dvach struct {
 			Usercode string `json:"usercode"`
 		} `json:"dvach"`
 	})
 
-	lego.Check(lego.ReadJSONFromFile(configPath, config))
-
+	util.ReadJSON("bin/config.json", config)
 	c := dvach.NewClient(nil, config.Dvach.Usercode)
-	catalog, err := c.GetCatalog("e")
-	lego.Check(err)
 
-	log.Println("Received", catalog.Threads[0].Subject)
+	catalog, err := c.GetCatalog("e")
+	util.Check(err)
+	log.Printf("Received %+v", catalog.Threads)
 
 	_, err = c.GetThread("tw", 1, 1)
 	if err == nil {
 		panic("err must not be nil")
 	}
 
-	log.Println("Received", err)
+	post, err := c.GetPost("e", catalog.Threads[0].Num)
+	util.Check(err)
+	log.Printf("Received %+v", post)
+
+	posts, err := c.GetThread("e", catalog.Threads[0].Num, 0)
+	util.Check(err)
+	log.Printf("Received %+v", posts)
 
 	board, err := c.GetBoard("b")
-	lego.Check(err)
-
-	log.Println("Received", board)
+	util.Check(err)
+	log.Printf("Received %+v", board)
 }

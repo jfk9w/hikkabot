@@ -3,21 +3,22 @@ package main
 import (
 	"log"
 
-	"github.com/jfk9w-go/lego"
+	"github.com/jfk9w/hikkabot/util"
+
 	"github.com/jfk9w/hikkabot/api/reddit"
 )
 
 func main() {
-	configPath := "../../../config.json"
 	config := new(struct {
 		Reddit *reddit.Config `json:"reddit"`
 	})
 
-	lego.Check(lego.ReadJSONFromFile(configPath, config))
-
+	util.ReadJSON("bin/config.json", config)
 	c := reddit.NewClient(nil, config.Reddit)
-	listing, err := c.GetListing("me_irl", reddit.TopSort, 100)
-	lego.Check(err)
+	defer c.Shutdown()
 
-	log.Println("Received", listing[0].Data.Title)
+	listing, err := c.GetListing("me_irl", reddit.Top, 100)
+	util.Check(err)
+
+	log.Printf("Received %+v", listing)
 }

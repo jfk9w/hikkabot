@@ -6,27 +6,28 @@ import (
 
 type Thing struct {
 	Data struct {
-		Title         string  `json:"title"`
-		Subreddit     string  `json:"subreddit"`
-		Name          string  `json:"name"`
-		Domain        string  `json:"domain"`
-		URL           string  `json:"url"`
-		RawCreatedUTC float32 `json:"created_utc"`
-		Ups           int     `json:"ups"`
+		Title      string  `json:"title"`
+		Subreddit  string  `json:"subreddit"`
+		Name       string  `json:"name"`
+		Domain     string  `json:"domain"`
+		URL        string  `json:"url"`
+		CreatedUTC float32 `json:"created_utc"`
+		Ups        int     `json:"ups"`
 
-		CreatedUTC time.Time
-		Extension  string
+		Created     time.Time `json:"-"`
+		ResolvedURL string    `json:"-"`
+		Extension   string    `json:"-"`
 	} `json:"data"`
 }
 
 func (thing *Thing) init() {
-	thing.Data.CreatedUTC = time.Unix(int64(thing.Data.RawCreatedUTC), 0)
+	thing.Data.Created = time.Unix(int64(thing.Data.CreatedUTC), 0)
 }
 
 type Sort = string
 
 const (
-	HotSort Sort = "hot"
-	NewSort Sort = "new"
-	TopSort Sort = "top"
+	Hot Sort = "hot"
+	New Sort = "new"
+	Top Sort = "top"
 )
