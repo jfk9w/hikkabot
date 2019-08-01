@@ -2,6 +2,7 @@ package reddit
 
 import (
 	"regexp"
+	"sort"
 	"strconv"
 
 	"github.com/jfk9w-go/flu"
@@ -83,6 +84,7 @@ func (s *Subscription) Update(ctx subscription.Context, offset subscription.Offs
 		return
 	}
 
+	sort.Sort(listing(things))
 	for i := range things {
 		thing := &things[i]
 		o := subscription.Offset(thing.Data.Created.Unix())
