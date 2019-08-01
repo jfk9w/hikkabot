@@ -16,7 +16,7 @@ import (
 	"golang.org/x/exp/utf8string"
 )
 
-func ThreadFactory() subscription.Interface {
+func ThreadService() subscription.Item {
 	return new(Thread)
 }
 
@@ -31,12 +31,20 @@ func (t *Thread) Service() string {
 	return "2ch thread"
 }
 
+func (t *Thread) ID() string {
+	return fmt.Sprintf("%s/%d", t.Board, t.Num)
+}
+
+func (t *Thread) Name() string {
+	return t.Title
+}
+
 var threadRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)/res/([0-9]+)\.html?$`)
 
-func (t *Thread) Parse(ctx subscription.Context, cmd string, opts string) (string, error) {
+func (t *Thread) Parse(ctx subscription.Context, cmd string, opts string) error {
 	groups := threadRegexp.FindStringSubmatch(cmd)
 	if len(groups) < 6 {
-		return subscription.EmptyHash, subscription.ErrParseFailed
+		return subscription.ErrParseFailed
 	}
 
 	board := groups[4]
@@ -48,7 +56,7 @@ func (t *Thread) Parse(ctx subscription.Context, cmd string, opts string) (strin
 
 	post, err := ctx.DvachClient.GetPost(board, num)
 	if err != nil {
-		return subscription.EmptyHash, errors.Wrap(err, "on post load")
+		return errors.Wrap(err, "on post load")
 	}
 
 	t.Board = board
@@ -56,7 +64,7 @@ func (t *Thread) Parse(ctx subscription.Context, cmd string, opts string) (strin
 	t.Title = threadTitle(post)
 	t.MediaOnly = mediaOnly
 
-	return fmt.Sprintf("%s/%d", board, num), nil
+	return nil
 }
 
 func (t *Thread) Update(ctx subscription.Context, offset subscription.Offset, uc *subscription.UpdateCollection) {
@@ -67,11 +75,15 @@ func (t *Thread) Update(ctx subscription.Context, offset subscription.Offset, uc
 
 	posts, err := ctx.DvachClient.GetThread(t.Board, t.Num, int(offset))
 	if err != nil {
-		uc.Err = errors.Wrap(err, "on posts load")
+		uc.Error = errors.Wrap(err, "on posts load")
 		return
 	}
 
 	for _, post := range posts {
+		if t.MediaOnly && len(post.Files) == 0 {
+			continue
+		}
+
 		me := make([]media.Media, len(post.Files))
 		for i := range post.Files {
 			me[i] = createMedia(ctx, &post.Files[i])
@@ -97,7 +109,7 @@ func (t *Thread) Update(ctx subscription.Context, offset subscription.Offset, uc
 		}
 
 		select {
-		case <-uc.Interrupt():
+		case <-uc.Cancel():
 			return
 		case uc.C <- update:
 			continue

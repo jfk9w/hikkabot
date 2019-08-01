@@ -13,9 +13,9 @@ type Update struct {
 }
 
 type UpdateCollection struct {
-	C   chan Update
-	ic  chan struct{}
-	Err error
+	C      chan Update
+	Error  error
+	cancel chan struct{}
 }
 
 func NewUpdateCollection(size int) *UpdateCollection {
@@ -23,14 +23,9 @@ func NewUpdateCollection(size int) *UpdateCollection {
 		panic("size must be non-negative")
 	}
 
-	return &UpdateCollection{make(chan Update, size), make(chan struct{}, 1), nil}
+	return &UpdateCollection{make(chan Update, size), nil, make(chan struct{}, 1)}
 }
 
-func (uc *UpdateCollection) interrupt() {
-	uc.ic <- struct{}{}
-	close(uc.ic)
-}
-
-func (uc *UpdateCollection) Interrupt() <-chan struct{} {
-	return uc.ic
+func (uc *UpdateCollection) Cancel() <-chan struct{} {
+	return uc.cancel
 }

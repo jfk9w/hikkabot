@@ -1,7 +1,6 @@
 package reddit
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 
@@ -16,7 +15,7 @@ import (
 
 const thingLimit = 100
 
-func Factory() subscription.Interface {
+func Service() subscription.Item {
 	return new(Subscription)
 }
 
@@ -30,12 +29,25 @@ func (s *Subscription) Service() string {
 	return "Reddit"
 }
 
+func (s *Subscription) ID() string {
+	return s.Subreddit
+}
+
+func (s *Subscription) Name() string {
+	name := "/r/" + s.Subreddit + "/" + s.Sort
+	if s.MinUps > 0 {
+		name = name + " min ups: " + strconv.Itoa(s.MinUps)
+	}
+
+	return name
+}
+
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
 
-func (s *Subscription) Parse(ctx subscription.Context, cmd string, opts string) (string, error) {
+func (s *Subscription) Parse(ctx subscription.Context, cmd string, opts string) error {
 	groups := re.FindStringSubmatch(cmd)
 	if len(groups) != 7 {
-		return subscription.EmptyHash, subscription.ErrParseFailed
+		return subscription.ErrParseFailed
 	}
 
 	subreddit, sort := groups[4], groups[6]
@@ -48,31 +60,31 @@ func (s *Subscription) Parse(ctx subscription.Context, cmd string, opts string) 
 		var err error
 		minUps, err = strconv.Atoi(opts)
 		if err != nil {
-			return subscription.EmptyHash, errors.Wrap(err, "on minups conversion")
+			return errors.Wrap(err, "on minups conversion")
 		}
 	}
 
 	things, err := ctx.RedditClient.GetListing(subreddit, sort, 1)
 	if err != nil {
-		return subscription.EmptyHash, errors.Wrap(err, "on listing")
+		return errors.Wrap(err, "on listing")
 	}
 
 	if len(things) < 1 {
-		return subscription.EmptyHash, errors.New("no entries in /r/" + subreddit)
+		return errors.New("no entries in /r/" + subreddit)
 	}
 
 	s.Subreddit = subreddit
 	s.Sort = sort
 	s.MinUps = minUps
 
-	return fmt.Sprintf("%s/%s/%d", subreddit, sort, minUps), nil
+	return nil
 }
 
 func (s *Subscription) Update(ctx subscription.Context, offset subscription.Offset, uc *subscription.UpdateCollection) {
 	defer close(uc.C)
 	things, err := ctx.RedditClient.GetListing(s.Subreddit, s.Sort, thingLimit)
 	if err != nil {
-		uc.Err = err
+		uc.Error = err
 		return
 	}
 
@@ -99,7 +111,7 @@ func (s *Subscription) Update(ctx subscription.Context, offset subscription.Offs
 		}
 
 		select {
-		case <-uc.Interrupt():
+		case <-uc.Cancel():
 			return
 		case uc.C <- update:
 			continue

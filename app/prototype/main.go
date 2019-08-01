@@ -40,33 +40,6 @@ func main() {
 		RedditClient: reddit.NewClient(nil, &config.Reddit),
 	}
 
-	sender := subscription.NewSender(bot, telegram.ID(50613409))
-
-	var s subscription.Interface
-	cmd := "https://2ch.hk/b/res/200262315.html"
-	opts := "meme"
-	for _, service := range services.All {
-		s0 := service()
-		_, err := s0.Parse(ctx, cmd, opts)
-		if err == nil {
-			s = s0
-			break
-		}
-	}
-
-	if s == nil {
-		panic(nil)
-	}
-
-	var offset subscription.Offset
-	for {
-		uc := subscription.NewUpdateCollection(10)
-		go s.Update(ctx, offset, uc)
-		for u := range uc.C {
-			util.Check(sender.Send(u))
-			offset = u.Offset
-		}
-
-		time.Sleep(time.Minute)
-	}
+	handler := subscription.NewHandler(bot, ctx, nil, 20*time.Second, services.All)
+	bot.Listen(handler.CommandListener())
 }

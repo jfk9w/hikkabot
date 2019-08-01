@@ -1,6 +1,7 @@
 package dvach
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -14,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func CatalogFactory() subscription.Interface {
+func CatalogService() subscription.Item {
 	return new(Catalog)
 }
 
@@ -27,12 +28,20 @@ func (c *Catalog) Service() string {
 	return "2ch catalog"
 }
 
+func (c *Catalog) ID() string {
+	return c.Board + "/" + c.Query.String()
+}
+
+func (c *Catalog) Name() string {
+	return fmt.Sprintf("/%s/%s/", c.Board, c.Query.String())
+}
+
 var catalogRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
 
-func (c *Catalog) Parse(ctx subscription.Context, cmd string, opts string) (string, error) {
+func (c *Catalog) Parse(ctx subscription.Context, cmd string, opts string) error {
 	groups := catalogRegexp.FindStringSubmatch(cmd)
 	if len(groups) < 6 {
-		return subscription.EmptyHash, subscription.ErrParseFailed
+		return subscription.ErrParseFailed
 	}
 
 	board := groups[4]
@@ -42,21 +51,21 @@ func (c *Catalog) Parse(ctx subscription.Context, cmd string, opts string) (stri
 		var err error
 		re, err = regexp.Compile(opts)
 		if err != nil {
-			return subscription.EmptyHash, errors.Wrap(err, "on regexp compilation")
+			return errors.Wrap(err, "on regexp compilation")
 		}
 	}
 
 	c.Board = board
 	c.Query = query{re}
 
-	return c.Board + "/" + c.Query.String(), nil
+	return nil
 }
 
 func (c *Catalog) Update(ctx subscription.Context, offset subscription.Offset, uc *subscription.UpdateCollection) {
 	defer close(uc.C)
 	catalog, err := ctx.DvachClient.GetCatalog(c.Board)
 	if err != nil {
-		uc.Err = errors.Wrap(err, "on catalog load")
+		uc.Error = errors.Wrap(err, "on catalog load")
 		return
 	}
 
@@ -90,7 +99,7 @@ func (c *Catalog) Update(ctx subscription.Context, offset subscription.Offset, u
 		}
 
 		select {
-		case <-uc.Interrupt():
+		case <-uc.Cancel():
 			return
 		case uc.C <- update:
 			continue

@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	Reddit       = reddit.Factory
-	DvachCatalog = dvach.CatalogFactory
-	DvachThread  = dvach.ThreadFactory
+	Reddit       = reddit.Service
+	DvachCatalog = dvach.CatalogService
+	DvachThread  = dvach.ThreadService
 
 	All = []subscription.Service{
 		Reddit,

@@ -39,3 +39,11 @@ func (q *query) UnmarshalJSON(data []byte) error {
 	q.Regexp = re
 	return nil
 }
+
+func (q *query) String() string {
+	if q.Regexp == nil {
+		return ""
+	}
+
+	return q.Regexp.String()
+}
