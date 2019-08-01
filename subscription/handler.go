@@ -11,21 +11,26 @@ import (
 type Handler struct {
 	bot      *telegram.Bot
 	services []Service
+	aliases  map[telegram.Username]telegram.ID
 	ctrl     *controller
 }
 
-func NewHandler(bot *telegram.Bot, ctx Context, storage Storage, interval time.Duration, services []Service) *Handler {
+func NewHandler(bot *telegram.Bot, ctx Context, storage Storage, interval time.Duration, services []Service,
+	aliases map[telegram.Username]telegram.ID) *Handler {
 	ctrl := newController(bot, ctx, storage, interval)
 	ctrl.init()
-	return &Handler{bot, services, ctrl}
+	return &Handler{bot, services, aliases, ctrl}
 }
 
 func (h *Handler) Sub(c *telegram.Command) error {
 	parts := strings.Split(c.Payload, " ")
 	cmd := parts[0]
-	var chatRef, opts string
+	var (
+		username telegram.Username
+		opts     string
+	)
 	if len(parts) > 1 {
-		chatRef = parts[1]
+		username = telegram.Username(parts[1])
 	}
 	if len(parts) > 2 {
 		opts = parts[2]
@@ -39,14 +44,20 @@ func (h *Handler) Sub(c *telegram.Command) error {
 			continue
 		case nil:
 			auth := &auth{userID: c.User.ID}
-			auth.fill(h.bot, c, telegram.Username(chatRef))
+			var chatID telegram.ChatID
+			chatID, ok := h.aliases[username]
+			if !ok {
+				chatID = username
+			}
+
+			auth.fill(h.bot, c, chatID)
 			err := auth.check(h.bot)
 			if err != nil {
 				return err
 			}
 
-			if h.ctrl.create(item, auth) {
-				c.Reply("OK")
+			if !h.ctrl.create(item, auth) {
+				return errors.New("exists")
 			}
 
 			return nil
@@ -61,7 +72,7 @@ func (h *Handler) Sub(c *telegram.Command) error {
 func (h *Handler) Suspend(c *telegram.Command) error {
 	item, ok := h.ctrl.get(c.Payload)
 	if !ok {
-		return errors.New("absent")
+		return errors.New("not found")
 	}
 
 	auth := &auth{chatID: item.ChatID, userID: c.User.ID}
@@ -70,7 +81,7 @@ func (h *Handler) Suspend(c *telegram.Command) error {
 		return err
 	}
 
-	if h.ctrl.suspend(item.PrimaryID, auth, errors.New("suspended by user")) {
+	if h.ctrl.suspend(item, auth, errors.New("suspended by user")) {
 		c.Reply("OK")
 	}
 
@@ -80,7 +91,7 @@ func (h *Handler) Suspend(c *telegram.Command) error {
 func (h *Handler) Resume(c *telegram.Command) error {
 	item, ok := h.ctrl.get(c.Payload)
 	if !ok {
-		return errors.New("absent")
+		return errors.New("not found")
 	}
 
 	auth := &auth{chatID: item.ChatID, userID: c.User.ID}
@@ -89,7 +100,7 @@ func (h *Handler) Resume(c *telegram.Command) error {
 		return err
 	}
 
-	if h.ctrl.resume(item.PrimaryID, auth) {
+	if h.ctrl.resume(item, auth) {
 		c.Reply("OK")
 	}
 
@@ -104,7 +115,7 @@ func (h *Handler) Status(c *telegram.Command) error {
 func (h *Handler) CommandListener() *telegram.CommandListener {
 	return telegram.NewCommandListener(h.bot).
 		HandleFunc("/sub", h.Sub).
-		HandleFunc("suspend", h.Suspend).
-		HandleFunc("resume", h.Resume).
+		HandleFunc("/suspend", h.Suspend).
+		HandleFunc("/resume", h.Resume).
 		HandleFunc("/status", h.Status)
 }

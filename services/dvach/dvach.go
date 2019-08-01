@@ -7,8 +7,8 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w/hikkabot/api/dvach"
-	"github.com/jfk9w/hikkabot/app/media"
-	"github.com/jfk9w/hikkabot/app/subscription"
+	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/subscription"
 )
 
 func createMedia(ctx subscription.Context, file *dvach.File) media.Media {

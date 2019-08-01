@@ -1,7 +1,7 @@
 package subscription
 
 import (
-	"github.com/jfk9w/hikkabot/app/media"
+	"github.com/jfk9w/hikkabot/media"
 )
 
 type Offset = int64

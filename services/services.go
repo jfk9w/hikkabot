@@ -1,9 +1,9 @@
 package services
 
 import (
-	"github.com/jfk9w/hikkabot/app/services/dvach"
-	"github.com/jfk9w/hikkabot/app/services/reddit"
-	"github.com/jfk9w/hikkabot/app/subscription"
+	"github.com/jfk9w/hikkabot/services/dvach"
+	"github.com/jfk9w/hikkabot/services/reddit"
+	"github.com/jfk9w/hikkabot/subscription"
 )
 
 var (

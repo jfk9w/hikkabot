@@ -4,8 +4,8 @@ import (
 	"os"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w/hikkabot/app/media"
 	"github.com/jfk9w/hikkabot/html"
+	"github.com/jfk9w/hikkabot/media"
 	"golang.org/x/exp/utf8string"
 )
 

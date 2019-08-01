@@ -3,7 +3,7 @@ package subscription
 import (
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
-	"github.com/jfk9w/hikkabot/app/media"
+	"github.com/jfk9w/hikkabot/media"
 )
 
 // Context is passed to a subscription for update.

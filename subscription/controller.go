@@ -35,7 +35,7 @@ func (c *controller) init() {
 	}
 }
 
-func (c *controller) get(primaryID string) (*itemData, bool) {
+func (c *controller) get(primaryID string) (*ItemData, bool) {
 	return c.storage.GetItem(primaryID)
 }
 
@@ -45,13 +45,14 @@ func (c *controller) run(chatID telegram.ID) {
 		c.mu.Lock()
 		delete(c.active, chatID)
 		c.mu.Unlock()
+		log.Printf("Stopped updater for %v", chatID)
 		return
 	}
 
 	err := c.update(chatID, item)
 	if err != nil {
 		if err != errCancelled {
-			c.suspend(item.PrimaryID, &auth{chatID: item.ChatID}, err)
+			c.suspend(item, &auth{chatID: item.ChatID}, err)
 		}
 	}
 
@@ -60,7 +61,7 @@ func (c *controller) run(chatID telegram.ID) {
 
 var errCancelled = errors.New("cancelled")
 
-func (c *controller) update(chatID telegram.ID, item *itemData) error {
+func (c *controller) update(chatID telegram.ID, item *ItemData) error {
 	uc := NewUpdateCollection(10)
 	go item.Update(c.ctx, item.Offset, uc)
 	sender := NewSender(c.bot, chatID)
@@ -72,10 +73,13 @@ func (c *controller) update(chatID telegram.ID, item *itemData) error {
 			return errors.Wrap(err, "on send update")
 		}
 
-		if !c.storage.UpdateItemOffset(item.PrimaryID, u.Offset) {
+		if !c.storage.UpdateOffset(item.PrimaryID, u.Offset) {
 			uc.cancel <- struct{}{}
 			close(uc.cancel)
 			return errCancelled
+		} else {
+			log.Printf("Updated offset for %v: %v -> %v", item, item.Offset, u.Offset)
+			item.Offset = u.Offset
 		}
 	}
 
@@ -84,27 +88,29 @@ func (c *controller) update(chatID telegram.ID, item *itemData) error {
 	}
 
 	if !hasUpdates {
-		if !c.storage.UpdateItemOffset(item.PrimaryID, item.Offset) {
+		if !c.storage.UpdateOffset(item.PrimaryID, item.Offset) {
 			return errCancelled
+		} else {
+			log.Printf("Updated offset for %v: %v -> %v", item, item.Offset, item.Offset)
 		}
 	}
 
 	return nil
 }
 
-func (c *controller) create(item Item, auth *auth) bool {
-	primaryID, ok := c.storage.AddItem(auth.chat.ID, item)
+func (c *controller) create(candidate Item, auth *auth) bool {
+	item, ok := c.storage.AddItem(auth.chat.ID, candidate)
 	if ok {
-		c.resume(primaryID, auth)
+		c.resume(item, auth)
 		return true
 	}
 
 	return false
 }
 
-func (c *controller) suspend(primaryID string, auth *auth, err error) bool {
-	item, ok := c.storage.UpdateItemError(primaryID, err)
-	if ok {
+func (c *controller) suspend(item *ItemData, auth *auth, err error) bool {
+	if c.storage.UpdateError(item.PrimaryID, err) {
+		log.Printf("Suspended %v: %v", item, err)
 		go c.notify(item, auth, &suspendEvent{err})
 		return true
 	}
@@ -112,10 +118,10 @@ func (c *controller) suspend(primaryID string, auth *auth, err error) bool {
 	return false
 }
 
-func (c *controller) resume(primaryID string, auth *auth) bool {
-	item, ok := c.storage.UpdateItemError(primaryID, nil)
-	if ok {
+func (c *controller) resume(item *ItemData, auth *auth) bool {
+	if c.storage.ResetError(item.PrimaryID) {
 		c.ensure(item.ChatID)
+		log.Printf("Resumed %v", item)
 		go c.notify(item, auth, resume)
 		return true
 	}
@@ -140,9 +146,10 @@ func (c *controller) ensure(chatID telegram.ID) {
 	c.active[chatID] = true
 	c.mu.Unlock()
 	go c.run(chatID)
+	log.Printf("Started updater for %v", chatID)
 }
 
-func (c *controller) notify(item *itemData, auth *auth, event event) {
+func (c *controller) notify(item *ItemData, auth *auth, event event) {
 	adminIDs, err := auth.getAdminIDs(c.bot)
 	if err != nil {
 		log.Printf("Failed to load admin IDs for %v: %v", item.ChatID, err)
@@ -167,7 +174,7 @@ func (c *controller) notify(item *itemData, auth *auth, event event) {
 	sb.WriteString(item.Name())
 	event.details(sb)
 
-	command := telegram.CommandButton(strings.Title(event.undo()), event.undo(), item.PrimaryID)
+	command := telegram.CommandButton(strings.Title(event.undo()), "/"+event.undo(), item.PrimaryID)
 	for _, adminID := range adminIDs {
 		go c.bot.Send(adminID,
 			&telegram.Text{

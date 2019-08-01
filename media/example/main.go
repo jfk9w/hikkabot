@@ -7,7 +7,7 @@ import (
 	"github.com/jfk9w-go/flu"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
-	"github.com/jfk9w/hikkabot/app/media"
+	"github.com/jfk9w/hikkabot/media"
 )
 
 func main() {

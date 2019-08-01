@@ -19,11 +19,11 @@ var (
 )
 
 type Config struct {
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-	Username     string `json:"username"`
-	Password     string `json:"password"`
-	UserAgent    string `json:"user_agent"`
+	ClientID     string
+	ClientSecret string
+	Username     string
+	Password     string
+	UserAgent    string
 	MaxRetries   int
 }
 

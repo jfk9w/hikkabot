@@ -6,12 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-
 	"github.com/jfk9w/hikkabot/api/dvach"
-	"github.com/jfk9w/hikkabot/app/media"
-	"github.com/jfk9w/hikkabot/app/subscription"
 	"github.com/jfk9w/hikkabot/html"
+	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/pkg/errors"
 )
 
@@ -25,7 +23,7 @@ type Catalog struct {
 }
 
 func (c *Catalog) Service() string {
-	return "2ch catalog"
+	return "Dvach/Catalog"
 }
 
 func (c *Catalog) ID() string {
@@ -89,7 +87,7 @@ func (c *Catalog) Update(ctx subscription.Context, offset subscription.Offset, u
 
 		update := subscription.Update{
 			Offset: subscription.Offset(thread.Num),
-			Text: html.NewBuilder(telegram.MaxCaptionSize, 1).
+			Text: html.NewBuilder(subscription.MaxCollapsedCaptionSize, 1).
 				B().Text(thread.DateString).EndB().Br().
 				Link(thread.URL(), "[link]").Br().
 				Text("---").Br().

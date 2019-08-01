@@ -9,9 +9,9 @@ import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 
 	"github.com/jfk9w/hikkabot/api/dvach"
-	"github.com/jfk9w/hikkabot/app/media"
-	"github.com/jfk9w/hikkabot/app/subscription"
 	"github.com/jfk9w/hikkabot/html"
+	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/utf8string"
 )
@@ -28,7 +28,7 @@ type Thread struct {
 }
 
 func (t *Thread) Service() string {
-	return "2ch thread"
+	return "Dvach/Thread"
 }
 
 func (t *Thread) ID() string {
@@ -91,7 +91,7 @@ func (t *Thread) Update(ctx subscription.Context, offset subscription.Offset, uc
 		ctx.MediaManager.Download(me)
 
 		b := html.NewBuilder(telegram.MaxMessageSize, -1).
-			Text(`#` + t.Title).Br().
+			Text(t.Title).Br().
 			Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.Board), post.Num))
 		if post.IsOriginal() {
 			b.Text(" #OP")
@@ -134,8 +134,8 @@ func threadTitle(post *dvach.Post) string {
 	title = strings.Join(fields, "")
 	utf8str := utf8string.NewString(title)
 	if utf8str.RuneCount() > 25 {
-		return utf8str.Slice(0, 25)
+		return "#" + utf8str.Slice(0, 25)
 	}
 
-	return utf8str.String()
+	return "#" + utf8str.String()
 }

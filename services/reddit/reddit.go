@@ -7,9 +7,9 @@ import (
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/reddit"
-	"github.com/jfk9w/hikkabot/app/media"
-	"github.com/jfk9w/hikkabot/app/subscription"
 	"github.com/jfk9w/hikkabot/html"
+	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/pkg/errors"
 )
 
@@ -34,12 +34,7 @@ func (s *Subscription) ID() string {
 }
 
 func (s *Subscription) Name() string {
-	name := "/r/" + s.Subreddit + "/" + s.Sort
-	if s.MinUps > 0 {
-		name = name + " min ups: " + strconv.Itoa(s.MinUps)
-	}
-
-	return name
+	return "#" + s.Subreddit
 }
 
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)

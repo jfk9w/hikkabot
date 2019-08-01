@@ -1,6 +1,8 @@
 package subscription
 
 import (
+	"fmt"
+
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 )
@@ -28,10 +30,14 @@ type Service = func() Item
 
 var ErrParseFailed = errors.New("failed to parse")
 
-type itemData struct {
+type ItemData struct {
 	Item
 	PrimaryID   string
 	SecondaryID string
 	ChatID      telegram.ID
 	Offset      Offset
+}
+
+func (item *ItemData) String() string {
+	return fmt.Sprintf("%v (%s / %v @ %v)", item.PrimaryID, item.Service(), item.ID(), item.ChatID)
 }
