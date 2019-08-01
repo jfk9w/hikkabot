@@ -2,9 +2,9 @@ package main
 
 import (
 	"os"
+	"time"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
-	"github.com/jfk9w-go/lego/json"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
@@ -20,7 +20,7 @@ func main() {
 		AdminID        telegram.ID
 		Aliases        map[telegram.Username]telegram.ID
 		Storage        storage.SQLConfig
-		UpdateInterval json.Duration
+		UpdateInterval string
 		Telegram       struct{ Token string }
 		Media          struct {
 			media.Config
@@ -32,6 +32,9 @@ func main() {
 	})
 
 	util.ReadJSON(os.Args[1], config)
+	updateInterval, err := time.ParseDuration(config.UpdateInterval)
+	util.Check(err)
+
 	bot := telegram.NewBot(nil, config.Telegram.Token)
 	aconvertClient := aconvert.NewClient(nil, &config.Media.Aconvert)
 	mediaManager := media.NewManager(config.Media.Config, aconvertClient)
@@ -44,7 +47,7 @@ func main() {
 	}
 
 	storage := storage.NewSQL(config.Storage)
-	handler := subscription.NewHandler(bot, ctx, storage, config.UpdateInterval.Value(), services.All, config.Aliases)
+	handler := subscription.NewHandler(bot, ctx, storage, updateInterval, services.All, config.Aliases)
 	go bot.Send(config.AdminID, &telegram.Text{Text: "⬆️"}, nil)
 	bot.Listen(handler.CommandListener())
 }
