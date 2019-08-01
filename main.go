@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/jfk9w-go/lego/json"
+	"os"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
+	"github.com/jfk9w-go/lego/json"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
@@ -30,7 +31,7 @@ func main() {
 		Dvach  struct{ Usercode string }
 	})
 
-	util.ReadJSON("bin/config_dev.json", config)
+	util.ReadJSON(os.Args[1], config)
 	bot := telegram.NewBot(nil, config.Telegram.Token)
 	aconvertClient := aconvert.NewClient(nil, &config.Media.Aconvert)
 	mediaManager := media.NewManager(config.Media.Config, aconvertClient)
