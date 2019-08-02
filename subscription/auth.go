@@ -80,7 +80,7 @@ func (a *auth) fill(bot *telegram.Bot, c *telegram.Command, chatID telegram.Chat
 	if chatID == telegram.Username("") || chatID == telegram.Username(".") || chatID == c.Chat.ID {
 		a.chatID = c.Chat.ID
 		a.chat = c.Chat
+	} else {
+		a.chatID = chatID
 	}
-
-	a.chatID = chatID
 }

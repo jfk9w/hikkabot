@@ -1,8 +1,2 @@
 .idea/
 bin/
-hikkabot
-.vscode/
-debug
-config.json
-config_prod.json
-hikkabot.db
