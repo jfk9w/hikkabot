@@ -45,8 +45,8 @@ Simply returns an `OK` string.
 | Service | Item | Item examples | Options |
 |---|---|---|---|
 | Dvach/Thread | Thread URL | `https://2ch.hk/b/res/12345678.html` | `m` for streaming only media files. |
-| Dvach/Catalog | Board URL or code (end slashes are optional) | `https://2ch.hk/b[/]` <br><br> `/b[/]` | Regexp for filtering threads. Defaults to `.*`. |
-| Reddit | Subreddit URL or code with optional sort | `https://reddit.com/r/meirl[/hot]` <br><br> `/r/meirl[/hot]` | Minimum amount of ups. Defaults to -1. |
+| Dvach/Catalog | Board URL or code (end slashes are optional) | `https://2ch.hk/b[/]` <br> `/b[/]` | Regexp for filtering threads. Defaults to `.*`. |
+| Reddit | Subreddit URL or code with optional sort | `https://reddit.com/r/meirl[/hot]` <br> `/r/meirl[/hot]` | Minimum amount of ups. Defaults to -1. |
 
 
 ## Usage
