@@ -196,11 +196,6 @@ var tags = map[string]string{
 	"span":   "i",
 }
 
-type Parser interface {
-	OnTextToken(data string) bool
-	OnStartTagToken()
-}
-
 func (b *Builder) Parse(rawinput string) *Builder {
 	reader := strings.NewReader(rawinput)
 	tokenizer := html.NewTokenizer(reader)
