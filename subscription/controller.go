@@ -52,7 +52,7 @@ func (c *controller) run(chatID telegram.ID) {
 	err := c.update(chatID, item)
 	if err != nil {
 		if err != errCancelled {
-			c.suspend(item, &auth{chatID: item.ChatID}, err)
+			c.suspend(item, &access{chatID: item.ChatID}, err)
 		}
 	}
 
@@ -98,31 +98,31 @@ func (c *controller) update(chatID telegram.ID, item *ItemData) error {
 	return nil
 }
 
-func (c *controller) create(candidate Item, auth *auth) bool {
-	item, ok := c.storage.AddItem(auth.chat.ID, candidate)
+func (c *controller) create(candidate Item, access *access) bool {
+	item, ok := c.storage.AddItem(access.chat.ID, candidate)
 	if ok {
-		c.resume(item, auth)
+		c.resume(item, access)
 		return true
 	}
 
 	return false
 }
 
-func (c *controller) suspend(item *ItemData, auth *auth, err error) bool {
+func (c *controller) suspend(item *ItemData, access *access, err error) bool {
 	if c.storage.UpdateError(item.PrimaryID, err) {
 		log.Printf("Suspended %v: %v", item, err)
-		go c.notify(item, auth, &suspendEvent{err})
+		go c.notify(item, access, &suspendEvent{err})
 		return true
 	}
 
 	return false
 }
 
-func (c *controller) resume(item *ItemData, auth *auth) bool {
+func (c *controller) resume(item *ItemData, access *access) bool {
 	if c.storage.ResetError(item.PrimaryID) {
 		c.ensure(item.ChatID)
 		log.Printf("Resumed %v", item)
-		go c.notify(item, auth, resume)
+		go c.notify(item, access, resume)
 		return true
 	}
 
@@ -149,14 +149,14 @@ func (c *controller) ensure(chatID telegram.ID) {
 	log.Printf("Started updater for %v", chatID)
 }
 
-func (c *controller) notify(item *ItemData, auth *auth, event event) {
-	adminIDs, err := auth.getAdminIDs(c.bot)
+func (c *controller) notify(item *ItemData, access *access, event event) {
+	adminIDs, err := access.getAdminIDs(c.bot)
 	if err != nil {
 		log.Printf("Failed to load admin IDs for %v: %v", item.ChatID, err)
 	}
 
 	var chatTitle string
-	chat, _ := auth.getChat(c.bot)
+	chat, _ := access.getChat(c.bot)
 	if chat.Type == telegram.PrivateChat {
 		chatTitle = "<private>"
 	} else {
@@ -183,4 +183,10 @@ func (c *controller) notify(item *ItemData, auth *auth, event event) {
 			&telegram.SendOpts{
 				ReplyMarkup: command})
 	}
+}
+
+func (c *controller) getActiveChats() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.active)
 }

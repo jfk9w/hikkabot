@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -43,20 +44,20 @@ func (h *Handler) Sub(c *telegram.Command) error {
 		case ErrParseFailed:
 			continue
 		case nil:
-			auth := &auth{userID: c.User.ID}
+			access := &access{userID: c.User.ID}
 			var chatID telegram.ChatID
 			chatID, ok := h.aliases[username]
 			if !ok {
 				chatID = username
 			}
 
-			auth.fill(h.bot, c, chatID)
-			err := auth.check(h.bot)
+			access.fill(h.bot, c, chatID)
+			err := access.check(h.bot)
 			if err != nil {
 				return err
 			}
 
-			if !h.ctrl.create(item, auth) {
+			if !h.ctrl.create(item, access) {
 				return errors.New("exists")
 			}
 
@@ -75,13 +76,13 @@ func (h *Handler) Suspend(c *telegram.Command) error {
 		return errors.New("not found")
 	}
 
-	auth := &auth{chatID: item.ChatID, userID: c.User.ID}
-	err := auth.check(h.bot)
+	access := &access{chatID: item.ChatID, userID: c.User.ID}
+	err := access.check(h.bot)
 	if err != nil {
 		return err
 	}
 
-	if h.ctrl.suspend(item, auth, errors.New("suspended by user")) {
+	if h.ctrl.suspend(item, access, errors.New("suspended by user")) {
 		c.Reply("OK")
 	}
 
@@ -94,13 +95,13 @@ func (h *Handler) Resume(c *telegram.Command) error {
 		return errors.New("not found")
 	}
 
-	auth := &auth{chatID: item.ChatID, userID: c.User.ID}
-	err := auth.check(h.bot)
+	access := &access{chatID: item.ChatID, userID: c.User.ID}
+	err := access.check(h.bot)
 	if err != nil {
 		return err
 	}
 
-	if h.ctrl.resume(item, auth) {
+	if h.ctrl.resume(item, access) {
 		c.Reply("OK")
 	}
 
@@ -108,7 +109,8 @@ func (h *Handler) Resume(c *telegram.Command) error {
 }
 
 func (h *Handler) Status(c *telegram.Command) error {
-	c.Reply("OK")
+	activeChats := h.ctrl.getActiveChats()
+	c.Reply(fmt.Sprintf("OK. Active chats: %d", activeChats))
 	return nil
 }
 

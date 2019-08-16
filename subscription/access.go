@@ -5,14 +5,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-type auth struct {
+type access struct {
 	chatID   telegram.ChatID
 	userID   telegram.ID
 	chat     *telegram.Chat
 	adminIDs []telegram.ID
 }
 
-func (a *auth) getChat(bot *telegram.Bot) (*telegram.Chat, error) {
+func (a *access) getChat(bot *telegram.Bot) (*telegram.Chat, error) {
 	if a.chat != nil {
 		return a.chat, nil
 	}
@@ -26,7 +26,7 @@ func (a *auth) getChat(bot *telegram.Bot) (*telegram.Chat, error) {
 	return chat, nil
 }
 
-func (a *auth) getAdminIDs(bot *telegram.Bot) ([]telegram.ID, error) {
+func (a *access) getAdminIDs(bot *telegram.Bot) ([]telegram.ID, error) {
 	if a.adminIDs != nil {
 		return a.adminIDs, nil
 	}
@@ -57,7 +57,7 @@ func (a *auth) getAdminIDs(bot *telegram.Bot) ([]telegram.ID, error) {
 	return adminIDs, nil
 }
 
-func (a *auth) check(bot *telegram.Bot) error {
+func (a *access) check(bot *telegram.Bot) error {
 	if a.userID == telegram.ID(0) {
 		return nil
 	}
@@ -76,7 +76,7 @@ func (a *auth) check(bot *telegram.Bot) error {
 	return err
 }
 
-func (a *auth) fill(bot *telegram.Bot, c *telegram.Command, chatID telegram.ChatID) {
+func (a *access) fill(bot *telegram.Bot, c *telegram.Command, chatID telegram.ChatID) {
 	if chatID == telegram.Username("") || chatID == telegram.Username(".") || chatID == c.Chat.ID {
 		a.chatID = c.Chat.ID
 		a.chat = c.Chat
