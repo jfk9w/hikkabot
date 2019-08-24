@@ -1,0 +1,45 @@
+---
+- hosts: vps
+  vars:
+    homedir: /home/ikulkov
+    app: hikkabot
+    appdir: "{{ homedir }}/app/{{ app }}"
+  tasks:
+    - name: copy files to remote host
+      copy:
+        src: "{{ item }}"
+        dest: "{{ appdir }}"
+      with_items:
+        - ../bin/hikkabot
+        - ../bin/config.json
+        - ../bin/test.webm
+    - name: set hikkabot to executable
+      file:
+        path: "{{ appdir }}/{{ app }}"
+        mode: 755
+    - name: log directory exists
+      file:
+        path: "{{ homedir }}/log/{{ app }}"
+        state: directory
+  
+- hosts: vps
+  become: yes
+  vars:
+    app: hikkabot
+  tasks:
+    - name: copy logrotate config
+      copy:
+        src: logrotate.conf
+        dest: "/etc/logrotate.d/{{ app }}"
+    - name: copy supervisor config
+      copy:
+        src: supervisor.conf
+        dest: "/etc/supervisor/conf.d/{{ app }}.conf"
+    - name: manage {{ app }} via supervisor
+      supervisorctl:
+        name: "{{ app }}"
+        state: present
+    - name: restart {{ app }}
+      supervisorctl:
+        name: "{{ app }}"
+        state: restarted
