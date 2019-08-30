@@ -5,15 +5,19 @@
     app: hikkabot
     appdir: "{{ homedir }}/app/{{ app }}"
   tasks:
+    - name: ensure app directory exists
+      file:
+        path: "{{ appdir }}"
+        state: directory
     - name: copy files to remote host
       copy:
         src: "{{ item }}"
         dest: "{{ appdir }}"
       with_items:
-        - ../bin/hikkabot
-        - ../bin/config.json
-        - ../bin/test.webm
-    - name: set hikkabot to executable
+        - "../bin/{{ app }}"
+        - "../bin/config.json"
+        - "../bin/test.webm"
+    - name: set app to executable
       file:
         path: "{{ appdir }}/{{ app }}"
         mode: 755
