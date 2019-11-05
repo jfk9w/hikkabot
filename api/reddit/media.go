@@ -23,6 +23,8 @@ var (
 	gfycatCanonicalLinkRegexp = regexp.MustCompile(`(?i)https://[a-z]+.gfycat.com/[a-z0-9]+?\.mp4`)
 
 	mediaScanners = map[string]mediaScanner{
+		"i.imgur.com": plainMedia,
+		"vidble.com":  plainMedia,
 		"i.redd.it": func(c *flu.Client, u string) (*media, error) {
 			groups := redditCanonicalLinkRegexp.FindStringSubmatch(u)
 			m := &media{url: u}
@@ -32,15 +34,6 @@ var (
 			}
 
 			return nil, errors.New("unable to detect file format")
-		},
-		"i.imgur.com": func(c *flu.Client, u string) (*media, error) {
-			idx := strings.LastIndex(u, ".")
-			m := &media{url: u}
-			if idx > 0 {
-				m.ext = u[idx+1:]
-			}
-
-			return m, nil
 		},
 		"imgur.com": func(c *flu.Client, u string) (*media, error) {
 			m := new(media)
@@ -84,3 +77,13 @@ var (
 		},
 	}
 )
+
+func plainMedia(c *flu.Client, u string) (*media, error) {
+	idx := strings.LastIndex(u, ".")
+	m := &media{url: u}
+	if idx > 0 {
+		m.ext = u[idx+1:]
+	}
+
+	return m, nil
+}
