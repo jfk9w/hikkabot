@@ -5,6 +5,7 @@ require (
 	github.com/jfk9w-go/flu v0.9.8
 	github.com/jfk9w-go/telegram-bot-api v0.9.4
 	github.com/lib/pq v1.2.0
+	github.com/mattn/go-sqlite3 v2.0.0+incompatible
 	github.com/pkg/errors v0.8.1
 	github.com/segmentio/ksuid v1.0.2
 	golang.org/x/crypto v0.0.0-20190829043050-9756ffdc2472 // indirect

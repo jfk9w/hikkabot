@@ -1,9 +1,9 @@
 ---
-- hosts: vps
+- hosts: pi
   vars:
-    homedir: /home/ikulkov
+    homedir: /media/external
     app: hikkabot
-    appdir: "{{ homedir }}/app/{{ app }}"
+    appdir: "{{ homedir }}/App/{{ app }}"
   tasks:
     - name: ensure app directory exists
       file:
@@ -23,10 +23,10 @@
         mode: 755
     - name: log directory exists
       file:
-        path: "{{ homedir }}/log/{{ app }}"
+        path: "{{ appdir }}/log"
         state: directory
   
-- hosts: vps
+- hosts: pi
   become: yes
   vars:
     app: hikkabot
