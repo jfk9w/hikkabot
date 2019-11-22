@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"net"
 	"os"
+	"strings"
 	"time"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
+	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
@@ -13,6 +17,7 @@ import (
 	"github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/jfk9w/hikkabot/util"
+	"golang.org/x/net/proxy"
 )
 
 func main() {
@@ -21,8 +26,12 @@ func main() {
 		Aliases        map[telegram.Username]telegram.ID
 		Storage        storage.SQLConfig
 		UpdateInterval string
-		Telegram       struct{ Token string }
-		Media          struct {
+		Telegram       struct {
+			Token string
+			Proxy string
+		}
+
+		Media struct {
 			media.Config
 			Aconvert aconvert.Config
 		}
@@ -35,7 +44,21 @@ func main() {
 	updateInterval, err := time.ParseDuration(config.UpdateInterval)
 	util.Check(err)
 
-	bot := telegram.NewBot(nil, config.Telegram.Token)
+	botTransport := flu.NewTransport().
+		ResponseHeaderTimeout(2 * time.Minute)
+	if config.Telegram.Proxy != "" {
+		tokens := strings.Split(config.Telegram.Proxy, "://")
+		proto, server := tokens[0], tokens[1]
+		if proto != "socks5" {
+			panic("only socks5 is supported")
+		}
+
+		dialer, err := proxy.SOCKS5("tcp", server, nil, proxy.Direct)
+		util.Check(err)
+		botTransport.DialContext(func(ctx context.Context, network, addr string) (net.Conn, error) { return dialer.Dial(network, addr) })
+	}
+
+	bot := telegram.NewBot(botTransport.NewClient(), config.Telegram.Token)
 	aconvertClient := aconvert.NewClient(nil, &config.Media.Aconvert)
 	mediaManager := media.NewManager(config.Media.Config, aconvertClient)
 	defer mediaManager.Shutdown()
