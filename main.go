@@ -1,10 +1,9 @@
 package main
 
 import (
-	"context"
-	"net"
+	"net/http"
+	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
@@ -17,7 +16,6 @@ import (
 	"github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/jfk9w/hikkabot/util"
-	"golang.org/x/net/proxy"
 )
 
 func main() {
@@ -47,15 +45,9 @@ func main() {
 	botTransport := flu.NewTransport().
 		ResponseHeaderTimeout(2 * time.Minute)
 	if config.Telegram.Proxy != "" {
-		tokens := strings.Split(config.Telegram.Proxy, "://")
-		proto, server := tokens[0], tokens[1]
-		if proto != "socks5" {
-			panic("only socks5 is supported")
-		}
-
-		dialer, err := proxy.SOCKS5("tcp", server, nil, proxy.Direct)
+		proxyURL, err := url.Parse(config.Telegram.Proxy)
 		util.Check(err)
-		botTransport.DialContext(func(ctx context.Context, network, addr string) (net.Conn, error) { return dialer.Dial(network, addr) })
+		botTransport.Proxy(func(*http.Request) (*url.URL, error) { return proxyURL, nil })
 	}
 
 	bot := telegram.NewBot(botTransport.NewClient(), config.Telegram.Token)
