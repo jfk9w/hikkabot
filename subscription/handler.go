@@ -10,20 +10,20 @@ import (
 )
 
 type Handler struct {
-	bot      *telegram.Bot
+	bot      telegram.Bot
 	services []Service
 	aliases  map[telegram.Username]telegram.ID
 	ctrl     *controller
 }
 
-func NewHandler(bot *telegram.Bot, ctx Context, storage Storage, interval time.Duration, services []Service,
+func NewHandler(bot telegram.Bot, ctx Context, storage Storage, interval time.Duration, services []Service,
 	aliases map[telegram.Username]telegram.ID) *Handler {
 	ctrl := newController(bot, ctx, storage, interval)
 	ctrl.init()
 	return &Handler{bot, services, aliases, ctrl}
 }
 
-func (h *Handler) Sub(c *telegram.Command) error {
+func (h *Handler) Sub(tg telegram.Client, c *telegram.Command) error {
 	parts := strings.Split(c.Payload, " ")
 	cmd := parts[0]
 	var (
@@ -70,7 +70,7 @@ func (h *Handler) Sub(c *telegram.Command) error {
 	return ErrParseFailed
 }
 
-func (h *Handler) Suspend(c *telegram.Command) error {
+func (h *Handler) Suspend(tg telegram.Client, c *telegram.Command) error {
 	item, ok := h.ctrl.get(c.Payload)
 	if !ok {
 		return errors.New("not found")
@@ -83,13 +83,16 @@ func (h *Handler) Suspend(c *telegram.Command) error {
 	}
 
 	if h.ctrl.suspend(item, access, errors.New("suspended by user")) {
-		c.Reply("OK")
+		_, err := tg.AnswerCallbackQuery(c.CallbackQueryID,
+			&telegram.AnswerCallbackQueryOptions{Text: "OK"})
+
+		return err
 	}
 
 	return nil
 }
 
-func (h *Handler) Resume(c *telegram.Command) error {
+func (h *Handler) Resume(tg telegram.Client, c *telegram.Command) error {
 	item, ok := h.ctrl.get(c.Payload)
 	if !ok {
 		return errors.New("not found")
@@ -102,20 +105,26 @@ func (h *Handler) Resume(c *telegram.Command) error {
 	}
 
 	if h.ctrl.resume(item, access) {
-		c.Reply("OK")
+		_, err := tg.AnswerCallbackQuery(c.CallbackQueryID,
+			&telegram.AnswerCallbackQueryOptions{Text: "OK"})
+
+		return err
 	}
 
 	return nil
 }
 
-func (h *Handler) Status(c *telegram.Command) error {
+func (h *Handler) Status(tg telegram.Client, c *telegram.Command) error {
 	activeChats := h.ctrl.getActiveChats()
-	c.Reply(fmt.Sprintf("OK. Active chats: %d", activeChats))
-	return nil
+	_, err := tg.Send(c.Chat.ID,
+		&telegram.Text{Text: fmt.Sprintf("OK. Active chats: %d", activeChats)},
+		&telegram.SendOptions{ReplyToMessageID: c.MessageID})
+
+	return err
 }
 
 func (h *Handler) CommandListener() *telegram.CommandListener {
-	return telegram.NewCommandListener(h.bot).
+	return telegram.NewCommandListener().
 		HandleFunc("/sub", h.Sub).
 		HandleFunc("/suspend", h.Suspend).
 		HandleFunc("/resume", h.Resume).

@@ -11,7 +11,7 @@ import (
 )
 
 type controller struct {
-	bot      *telegram.Bot
+	bot      telegram.Bot
 	ctx      Context
 	storage  Storage
 	interval time.Duration
@@ -19,7 +19,7 @@ type controller struct {
 	mu       sync.RWMutex
 }
 
-func newController(bot *telegram.Bot, ctx Context, storage Storage, interval time.Duration) *controller {
+func newController(bot telegram.Bot, ctx Context, storage Storage, interval time.Duration) *controller {
 	return &controller{
 		bot:      bot,
 		ctx:      ctx,
@@ -180,7 +180,7 @@ func (c *controller) notify(item *ItemData, access *access, event event) {
 			&telegram.Text{
 				Text:                  sb.String(),
 				DisableWebPagePreview: true},
-			&telegram.SendOpts{
+			&telegram.SendOptions{
 				ReplyMarkup: command})
 	}
 }

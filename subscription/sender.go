@@ -12,11 +12,11 @@ import (
 const MaxCollapsedCaptionSize int = telegram.MaxCaptionSize * 85 / 100
 
 type Sender struct {
-	bot    *telegram.Bot
+	bot    telegram.Bot
 	chatID telegram.ChatID
 }
 
-func NewSender(bot *telegram.Bot, chatID telegram.ChatID) *Sender {
+func NewSender(bot telegram.Bot, chatID telegram.ChatID) *Sender {
 	return &Sender{bot, chatID}
 }
 
@@ -65,7 +65,7 @@ func (s *Sender) sendMedia(media *media.Media, caption string) error {
 				Resource:  resource,
 				Caption:   caption,
 				ParseMode: telegram.HTML},
-			&telegram.SendOpts{DisableNotification: true})
+			&telegram.SendOptions{DisableNotification: true})
 	}
 
 	if err != nil {
@@ -73,7 +73,7 @@ func (s *Sender) sendMedia(media *media.Media, caption string) error {
 			&telegram.Text{
 				Text:      caption,
 				ParseMode: telegram.HTML},
-			&telegram.SendOpts{DisableNotification: true})
+			&telegram.SendOptions{DisableNotification: true})
 	}
 
 	return err
@@ -89,7 +89,7 @@ func (s *Sender) sendText(text string) error {
 			Text:                  text,
 			ParseMode:             telegram.HTML,
 			DisableWebPagePreview: true},
-		&telegram.SendOpts{DisableNotification: true})
+		&telegram.SendOptions{DisableNotification: true})
 
 	return err
 }

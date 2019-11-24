@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-	"net/url"
 	"os"
 	"time"
 
@@ -42,15 +40,10 @@ func main() {
 	updateInterval, err := time.ParseDuration(config.UpdateInterval)
 	util.Check(err)
 
-	botTransport := flu.NewTransport().
-		ResponseHeaderTimeout(2 * time.Minute)
-	if config.Telegram.Proxy != "" {
-		proxyURL, err := url.Parse(config.Telegram.Proxy)
-		util.Check(err)
-		botTransport.Proxy(func(*http.Request) (*url.URL, error) { return proxyURL, nil })
-	}
-
-	bot := telegram.NewBot(botTransport.NewClient(), config.Telegram.Token)
+	bot := telegram.NewBot(flu.NewTransport().
+		ResponseHeaderTimeout(2*time.Minute).
+		ProxyURL(config.Telegram.Proxy).
+		NewClient(), config.Telegram.Token)
 	aconvertClient := aconvert.NewClient(nil, &config.Media.Aconvert)
 	mediaManager := media.NewManager(config.Media.Config, aconvertClient)
 	defer mediaManager.Shutdown()
