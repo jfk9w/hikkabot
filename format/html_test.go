@@ -2,11 +2,13 @@ package format
 
 import (
 	"reflect"
+	"runtime/debug"
 	"testing"
 )
 
 func assertEquals(t *testing.T, actual, expected interface{}) {
 	if !reflect.DeepEqual(expected, actual) {
+		debug.PrintStack()
 		t.Errorf("Values are not equal.\nExpected: %+v\nActual:   %+v", expected, actual)
 	}
 }
@@ -74,7 +76,10 @@ func Test_PageWriter_BasicHTML(t *testing.T) {
 		Parse(`<strong>Музыкальный webm mp4 тред</strong><br><em>Не нашел - создал</em><br>Делимся вкусами, ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные видео.<br>Рекомендации для самостоятельного поиска соусов: <a href="https:&#47;&#47;pastebin.com&#47;i32h11vd" target="_blank" rel="nofollow noopener noreferrer">https:&#47;&#47;pastebin.com&#47;i32h11vd</a>`).
 		Pages()
 	sample = []string{
-		`<b>Музыкальный webm mp4 тред</b><br><i>Не нашел - создал</i><br>Делимся вкусами, ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные видео.<br>Рекомендации для самостоятельного поиска соусов: <a href="https://pastebin.com/i32h11vd">https://pastebin.com/i32h11vd</a>`,
+		`<b>Музыкальный webm mp4 тред</b>
+<i>Не нашел - создал</i>
+Делимся вкусами, ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные видео.
+Рекомендации для самостоятельного поиска соусов: <a href="https://pastebin.com/i32h11vd">https://pastebin.com/i32h11vd</a>`,
 	}
 	assertEquals(t, pages, sample)
 
@@ -82,9 +87,11 @@ func Test_PageWriter_BasicHTML(t *testing.T) {
 		Parse(`<strong>Музыкальный webm mp4 тред</strong><br><em>Не нашел - создал</em><br>Делимся вкусами, ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные видео.<br>Рекомендации для самостоятельного поиска соусов: <a href="https:&#47;&#47;pastebin.com&#47;i32h11vd" target="_blank" rel="nofollow noopener noreferrer">https:&#47;&#47;pastebin.com&#47;i32h11vd</a>`).
 		Pages()
 	sample = []string{
-		`<b>Музыкальный webm mp4 тред</b><br><i>Не нашел - создал</i><br>Делимся`,
-		`вкусами, ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные`,
-		`видео.<br>Рекомендации для самостоятельного поиска соусов: `,
+		`<b>Музыкальный webm mp4 тред</b>
+<i>Не нашел - создал</i>
+Делимся вкусами,`,
+		`ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные видео.`,
+		`Рекомендации для самостоятельного поиска соусов: `,
 		`<a href="https://pastebin.com/i32h11vd">https://pastebin.com/i32h11vd</a>`,
 	}
 	assertEquals(t, pages, sample)
@@ -95,10 +102,13 @@ func Test_PageWriter_LinkPrinter(t *testing.T) {
 		Parse(`<strong>Музыкальный webm mp4 тред</strong><br><em>Не нашел - создал</em><br>Делимся вкусами, ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные видео.<br>Рекомендации для самостоятельного поиска соусов: <a href="https:&#47;&#47;pastebin.com&#47;i32h11vd" target="_blank" rel="nofollow noopener noreferrer">https:&#47;&#47;pastebin.com&#47;i32h11vd</a>`).
 		Pages()
 	sample := []string{
-		`<b>Музыкальный webm mp4 тред</b><br><i>Не</i>`,
-		`<i>нашел - создал</i><br>Делимся вкусами, ищем`,
-		`музыку, создаем, нарезаем, постим свои либо чужие`,
-		`музыкальные видео.<br>Рекомендации для`,
+		`<b>Музыкальный webm mp4 тред</b>
+<i>Не нашел -</i>`,
+		`<i>создал</i>
+Делимся вкусами, ищем музыку,`,
+		`создаем, нарезаем, постим свои либо чужие`,
+		`музыкальные видео.
+Рекомендации для`,
 		`самостоятельного поиска соусов: `,
 		`https://pastebin.com/i32h11vd`,
 	}
