@@ -1,58 +1,70 @@
 package dvach
 
 import (
-	"encoding/json"
-	"errors"
+	"bytes"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 
 	"github.com/jfk9w-go/flu"
+	"github.com/pkg/errors"
 )
 
-type Client struct {
-	httpClient *flu.Client
+type defaultResponseHandler struct {
+	value interface{}
+	err   error
 }
 
-func NewClient(httpClient *flu.Client, usercode string) *Client {
-	if httpClient == nil {
-		httpClient = flu.NewClient(nil)
-	}
+func newResponseHandler(value interface{}) flu.ResponseHandler {
+	return &defaultResponseHandler{value: value}
+}
 
+func (h *defaultResponseHandler) Handle(r *http.Response) error {
+	if r.StatusCode != http.StatusOK {
+		return flu.StatusCodeError{r.StatusCode, r.Status}
+	}
+	data, err := ioutil.ReadAll(r.Body)
+	r.Body.Close()
+	if err != nil {
+		return errors.Wrapf(err, "on reading body")
+	}
+	err = flu.JSON(h.value).DecodeFrom(bytes.NewBuffer(data))
+	if err == nil {
+		return nil
+	}
+	err = new(Error)
+	if flu.JSON(err).DecodeFrom(bytes.NewBuffer(data)) == nil {
+		return err
+	}
+	return errors.Errorf("Failed to decode response: %s", string(data))
+}
+
+type Client struct {
+	http *flu.Client
+}
+
+func NewClient(http *flu.Client, usercode string) *Client {
+	if http == nil {
+		http = flu.NewClient(nil)
+	}
 	return &Client{
-		httpClient: httpClient.
+		http: http.
 			SetCookies(Host, cookies(usercode, "/")...).
 			SetCookies(Host, cookies(usercode, "/makaba")...),
 	}
 }
 
-func defaultBodyProcessor(value interface{}) flu.ReadBytesFunc {
-	return func(body []byte) error {
-		err := json.Unmarshal(body, value)
-		if err != nil {
-			apierr := new(Error)
-			err := json.Unmarshal(body, apierr)
-			if err == nil {
-				return apierr
-			}
-		}
-
-		return err
-	}
-}
-
 func (c *Client) GetCatalog(board string) (*Catalog, error) {
 	catalog := new(Catalog)
-	err := c.httpClient.NewRequest().
+	err := c.http.NewRequest().
 		GET().
 		Resource(Host + "/" + board + "/catalog_num.json").
 		Send().
-		ReadBytesFunc(defaultBodyProcessor(catalog)).
+		HandleResponse(newResponseHandler(catalog)).
 		Error
-
 	if err != nil {
 		return nil, err
 	}
-
 	return catalog, catalog.init(board)
 }
 
@@ -60,9 +72,8 @@ func (c *Client) GetThread(board string, num int, offset int) ([]Post, error) {
 	if offset <= 0 {
 		offset = num
 	}
-
 	thread := make([]Post, 0)
-	err := c.httpClient.NewRequest().
+	err := c.http.NewRequest().
 		GET().
 		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_thread").
@@ -70,13 +81,11 @@ func (c *Client) GetThread(board string, num int, offset int) ([]Post, error) {
 		QueryParam("thread", strconv.Itoa(num)).
 		QueryParam("num", strconv.Itoa(offset)).
 		Send().
-		ReadBytesFunc(defaultBodyProcessor(&thread)).
+		HandleResponse(newResponseHandler(&thread)).
 		Error
-
 	if err != nil {
 		return nil, err
 	}
-
 	return thread, Posts(thread).init(board)
 }
 
@@ -84,29 +93,26 @@ var ErrPostNotFound = errors.New("post not found")
 
 func (c *Client) GetPost(board string, num int) (*Post, error) {
 	posts := make([]Post, 0)
-	err := c.httpClient.NewRequest().
+	err := c.http.NewRequest().
 		GET().
 		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_post").
 		QueryParam("board", board).
 		QueryParam("post", strconv.Itoa(num)).
 		Send().
-		ReadBytesFunc(defaultBodyProcessor(&posts)).
+		HandleResponse(newResponseHandler(&posts)).
 		Error
-
 	if err != nil {
 		return nil, err
 	}
-
 	if len(posts) > 0 {
 		return &posts[0], (&posts[0]).init(board)
 	}
-
 	return nil, ErrPostNotFound
 }
 
-func (c *Client) DownloadFile(file *File, resource flu.WriteResource) error {
-	return c.httpClient.NewRequest().
+func (c *Client) DownloadFile(file *File, resource flu.ResourceWriter) error {
+	return c.http.NewRequest().
 		GET().
 		Resource(Host + file.Path).
 		Send().
@@ -116,26 +122,23 @@ func (c *Client) DownloadFile(file *File, resource flu.WriteResource) error {
 }
 
 func (c *Client) GetBoards() ([]Board, error) {
-	bmap := make(map[string][]Board)
-	err := c.httpClient.NewRequest().
+	boardMap := make(map[string][]Board)
+	err := c.http.NewRequest().
 		GET().
 		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_boards").
 		Send().
-		ReadBytesFunc(defaultBodyProcessor(&bmap)).
+		HandleResponse(newResponseHandler(&boardMap)).
 		Error
-
 	if err != nil {
 		return nil, err
 	}
-
 	boards := make([]Board, 0)
-	for _, barr := range bmap {
-		for _, board := range barr {
+	for _, boardMapValue := range boardMap {
+		for _, board := range boardMapValue {
 			boards = append(boards, board)
 		}
 	}
-
 	return boards, nil
 }
 
@@ -146,12 +149,10 @@ func (c *Client) GetBoard(id string) (*Board, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	for _, board := range boards {
 		if board.ID == id {
 			return &board, nil
 		}
 	}
-
 	return nil, ErrBoardNotFound
 }

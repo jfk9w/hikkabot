@@ -62,30 +62,24 @@ func (p *Post) init(board string) (err error) {
 		if err != nil {
 			panic(err)
 		}
-
 		tz = loc
 	})
-
 	p.Board = board
 	p.Num, err = strconv.Atoi(p.NumString)
 	if err != nil {
 		return
 	}
-
 	p.Parent, err = strconv.Atoi(p.ParentString)
 	if err != nil {
 		return
 	}
-
 	if p.Parent == 0 {
 		p.Parent = p.Num
 		p.ParentString = p.NumString
 	}
-
 	datestr := []rune(p.DateString)
 	p.Date, err = time.ParseInLocation("02/01/06 15:04:05",
 		string(datestr[:8])+string(datestr[12:]), tz)
-
 	return err
 }
 
@@ -97,7 +91,6 @@ func (p *Post) URL() string {
 	if p.IsOriginal() {
 		return fmt.Sprintf("%s/%s/res/%s.html", Host, p.Board, p.NumString)
 	}
-
 	return fmt.Sprintf("%s/%s/res/%s.html#%s", Host, p.Board, p.ParentString, p.NumString)
 }
 
@@ -110,7 +103,6 @@ func (ps Posts) init(board string) (err error) {
 			return
 		}
 	}
-
 	return
 }
 

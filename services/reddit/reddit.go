@@ -5,10 +5,9 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/reddit"
-	"github.com/jfk9w/hikkabot/html"
+	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/pkg/errors"
@@ -45,12 +44,10 @@ func (s *Subscription) Parse(ctx subscription.Context, cmd string, opts string) 
 	if len(groups) != 7 {
 		return subscription.ErrParseFailed
 	}
-
 	subreddit, sort := groups[4], groups[6]
 	if sort == "" {
 		sort = reddit.Hot
 	}
-
 	minUps := 0
 	if opts != "" {
 		var err error
@@ -59,20 +56,16 @@ func (s *Subscription) Parse(ctx subscription.Context, cmd string, opts string) 
 			return errors.Wrap(err, "on minups conversion")
 		}
 	}
-
 	things, err := ctx.RedditClient.GetListing(subreddit, sort, 1)
 	if err != nil {
 		return errors.Wrap(err, "on listing")
 	}
-
 	if len(things) < 1 {
 		return errors.New("no entries in /r/" + subreddit)
 	}
-
 	s.Subreddit = subreddit
 	s.Sort = sort
 	s.MinUps = minUps
-
 	return nil
 }
 
@@ -83,55 +76,33 @@ func (s *Subscription) Update(ctx subscription.Context, offset subscription.Offs
 		uc.Error = err
 		return
 	}
-
 	sort.Sort(listing(things))
 	for i := range things {
 		thing := &things[i]
-		o := subscription.Offset(thing.Data.Created.Unix())
-		if o <= offset || thing.Data.Ups < s.MinUps || thing.Data.URL == "" {
+		if thing.Data.Created.Unix() <= offset || thing.Data.Ups < s.MinUps || thing.Data.URL == "" {
 			continue
 		}
-
-		me := []media.Media{{
-			Href:    thing.Data.URL,
-			Factory: s.mediaFactory(ctx, thing),
-		}}
-		ctx.MediaManager.Download(me)
-
-		update := subscription.Update{
-			Offset: o,
-			Text: html.NewBuilder(telegram.MaxCaptionSize, 1).
-				Text("#" + s.Subreddit).Br().
-				Text(thing.Data.Title).
-				Build(),
-			Media: me,
+		var mediaBatch media.Batch
+		if thing.Data.URL != "" {
+			mediaBatch = media.Batch{&media.Media{
+				Loader: defaultMediaLoader{thing, ctx.RedditClient},
+				Href:   thing.Data.URL,
+			}}
 		}
-
+		ctx.MediaManager.Download(mediaBatch)
+		update := subscription.Update{
+			Offset: thing.Data.Created.Unix(),
+			Text: format.NewHTML(telegram.MaxCaptionSize, 1, nil, nil).
+				Text("#" + s.Subreddit).NewLine().
+				Text(thing.Data.Title).
+				Pages(),
+			Media: mediaBatch,
+		}
 		select {
 		case <-uc.Cancel():
 			return
 		case uc.C <- update:
 			continue
 		}
-	}
-}
-
-func (s *Subscription) mediaFactory(ctx subscription.Context, thing *reddit.Thing) media.Factory {
-	return func(resource flu.FileSystemResource) (media.Type, error) {
-		err := ctx.RedditClient.Download(thing, resource)
-		if err != nil {
-			return 0, err
-		}
-
-		return mediaType(thing), nil
-	}
-}
-
-func mediaType(thing *reddit.Thing) media.Type {
-	switch thing.Data.Extension {
-	case "gifv", "gif", "mp4":
-		return media.Video
-	default:
-		return media.Photo
 	}
 }

@@ -10,7 +10,7 @@ type Thing struct {
 		Subreddit  string  `json:"subreddit"`
 		Name       string  `json:"name"`
 		Domain     string  `json:"domain"`
-		URL        string  `json:"url"`
+		URL        string  `json:"URL"`
 		CreatedUTC float32 `json:"created_utc"`
 		Ups        int     `json:"ups"`
 

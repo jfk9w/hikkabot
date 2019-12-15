@@ -6,8 +6,10 @@ import (
 	"sort"
 	"strings"
 
+	telegram "github.com/jfk9w-go/telegram-bot-api"
+
 	"github.com/jfk9w/hikkabot/api/dvach"
-	"github.com/jfk9w/hikkabot/html"
+	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/pkg/errors"
@@ -36,14 +38,12 @@ func (c *Catalog) Name() string {
 
 var catalogRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
 
-func (c *Catalog) Parse(ctx subscription.Context, cmd string, opts string) error {
+func (c *Catalog) Parse(_ subscription.Context, cmd string, opts string) error {
 	groups := catalogRegexp.FindStringSubmatch(cmd)
 	if len(groups) < 6 {
 		return subscription.ErrParseFailed
 	}
-
 	board := groups[4]
-
 	var re *regexp.Regexp
 	if opts != "" {
 		var err error
@@ -52,10 +52,8 @@ func (c *Catalog) Parse(ctx subscription.Context, cmd string, opts string) error
 			return errors.Wrap(err, "on regexp compilation")
 		}
 	}
-
 	c.Board = board
 	c.Query = query{re}
-
 	return nil
 }
 
@@ -66,7 +64,6 @@ func (c *Catalog) Update(ctx subscription.Context, offset subscription.Offset, u
 		uc.Error = errors.Wrap(err, "on catalog load")
 		return
 	}
-
 	results := make([]dvach.Post, 0)
 	for _, thread := range catalog.Threads {
 		matches := thread.Num > int(offset)
@@ -75,27 +72,25 @@ func (c *Catalog) Update(ctx subscription.Context, offset subscription.Offset, u
 			results = append(results, thread)
 		}
 	}
-
 	sort.Sort(queryResults(results))
 	for _, thread := range results {
-		var me []media.Media
-		for _, file := range thread.Files {
-			me = []media.Media{createMedia(ctx, &file)}
-			ctx.MediaManager.Download(me)
+		var mediaBatch media.Batch
+		for i := range thread.Files {
+			file := &thread.Files[i]
+			mediaBatch = media.NewBatch(defaultMediaLoader{file, ctx.DvachClient})
+			ctx.MediaManager.Download(mediaBatch)
 			break
 		}
-
 		update := subscription.Update{
 			Offset: subscription.Offset(thread.Num),
-			Text: html.NewBuilder(subscription.MaxCollapsedCaptionSize, 1).
-				B().Text(thread.DateString).EndB().Br().
-				Link(thread.URL(), "[link]").Br().
-				Text("---").Br().
-				Parse(comment(thread.Comment)).
-				Build(),
-			Media: me,
+			Text: format.NewHTML(telegram.MaxCaptionSize, 1, DefaultSupportedTags, Board(thread.Board)).
+				Tag("b").Text(thread.DateString).EndTag().NewLine().
+				Link(thread.URL(), "[link]").NewLine().
+				Text("---").NewLine().
+				Parse(thread.Comment).
+				Pages(),
+			Media: mediaBatch,
 		}
-
 		select {
 		case <-uc.Cancel():
 			return

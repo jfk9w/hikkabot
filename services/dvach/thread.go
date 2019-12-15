@@ -2,6 +2,7 @@ package dvach
 
 import (
 	"fmt"
+	"html"
 	"regexp"
 	"strconv"
 	"strings"
@@ -9,7 +10,7 @@ import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 
 	"github.com/jfk9w/hikkabot/api/dvach"
-	"github.com/jfk9w/hikkabot/html"
+	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/pkg/errors"
@@ -46,24 +47,20 @@ func (t *Thread) Parse(ctx subscription.Context, cmd string, opts string) error 
 	if len(groups) < 6 {
 		return subscription.ErrParseFailed
 	}
-
 	board := groups[4]
 	num, _ := strconv.Atoi(groups[5])
 	mediaOnly := false
 	if strings.HasPrefix(opts, "m") {
 		mediaOnly = true
 	}
-
 	post, err := ctx.DvachClient.GetPost(board, num)
 	if err != nil {
 		return errors.Wrap(err, "on post load")
 	}
-
 	t.Board = board
 	t.Num = num
 	t.Title = threadTitle(post)
 	t.MediaOnly = mediaOnly
-
 	return nil
 }
 
@@ -72,42 +69,40 @@ func (t *Thread) Update(ctx subscription.Context, offset subscription.Offset, uc
 	if offset > 0 {
 		offset++
 	}
-
 	posts, err := ctx.DvachClient.GetThread(t.Board, t.Num, int(offset))
 	if err != nil {
 		uc.Error = errors.Wrap(err, "on posts load")
 		return
 	}
-
 	for _, post := range posts {
 		if t.MediaOnly && len(post.Files) == 0 {
 			continue
 		}
-
-		me := make([]media.Media, len(post.Files))
+		mediaBatch := make(media.Batch, len(post.Files))
 		for i := range post.Files {
-			me[i] = createMedia(ctx, &post.Files[i])
+			file := &post.Files[i]
+			mediaBatch[i] = &media.Media{
+				Href:   dvach.Host + file.Path,
+				Loader: defaultMediaLoader{file, ctx.DvachClient},
+			}
 		}
-		ctx.MediaManager.Download(me)
-
-		b := html.NewBuilder(telegram.MaxMessageSize, -1).
-			Text(t.Title).Br().
+		ctx.MediaManager.Download(mediaBatch)
+		text := format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(post.Board)).
+			Text(t.Title).NewLine().
 			Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.Board), post.Num))
 		if post.IsOriginal() {
-			b.Text(" #OP")
+			text.Text(" #OP")
 		}
 		if !t.MediaOnly && post.Comment != "" {
-			b.Br().
-				Text("---").Br().
-				Parse(comment(post.Comment))
+			text.NewLine().
+				Text("---").NewLine().
+				Parse(post.Comment)
 		}
-
 		update := subscription.Update{
 			Offset: int64(post.Num),
-			Text:   b.Build(),
-			Media:  me,
+			Text:   text.Pages(),
+			Media:  mediaBatch,
 		}
-
 		select {
 		case <-uc.Cancel():
 			return
@@ -126,16 +121,13 @@ func threadTitle(post *dvach.Post) string {
 	title := html.UnescapeString(post.Subject)
 	title = tagRegexp.ReplaceAllString(title, "")
 	fields := strings.Fields(title)
-
 	for i, field := range fields {
 		fields[i] = strings.Title(junkRegexp.ReplaceAllString(field, ""))
 	}
-
 	title = strings.Join(fields, "")
 	utf8str := utf8string.NewString(title)
 	if utf8str.RuneCount() > 25 {
 		return "#" + utf8str.Slice(0, 25)
 	}
-
 	return "#" + utf8str.String()
 }

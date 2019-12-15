@@ -1,6 +1,9 @@
 package media
 
 import (
+	"os"
+	"sync"
+
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 )
@@ -30,42 +33,49 @@ func (t Type) IsVideo() bool {
 func (t Type) MaxSize() int64 {
 	if t.IsPhoto() {
 		return MaxPhotoSize
+	} else {
+		return MaxVideoSize
 	}
-
-	return MaxVideoSize
 }
 
 func (t Type) TelegramType() telegram.MediaType {
 	if t.IsPhoto() {
 		return telegram.Photo
+	} else {
+		return telegram.Video
 	}
-
-	return telegram.Video
 }
 
-type Factory = func(flu.FileSystemResource) (Type, error)
+type Loader interface {
+	LoadMedia(flu.ResourceWriter) (Type, error)
+}
 
 type Media struct {
-	Href    string
-	Factory Factory
-
-	resource  flu.FileSystemResource
-	mediaType Type
-	err       error
-	done      chan struct{}
+	Href   string
+	Loader Loader
+	file   flu.File
+	type_  Type
+	err    error
+	work   sync.WaitGroup
 }
 
-func (m *Media) init() *Media {
-	m.done = make(chan struct{}, 1)
-	return m
+type Batch = []*Media
+
+func NewBatch(loaders ...Loader) Batch {
+	batch := make([]*Media, len(loaders))
+	for i, loader := range loaders {
+		batch[i] = &Media{Loader: loader}
+		batch[i].work.Add(1)
+	}
+	return batch
 }
 
-func (m *Media) complete() {
-	m.done <- struct{}{}
-	close(m.done)
-}
-
-func (m *Media) Get() (flu.FileSystemResource, Type, error) {
-	<-m.done
-	return m.resource, m.mediaType, m.err
+func (m *Media) WaitForResult() (flu.File, Type, error) {
+	m.work.Wait()
+	if m.err != nil {
+		os.RemoveAll(m.file.Path())
+		return "", 0, m.err
+	} else {
+		return m.file, m.type_, nil
+	}
 }

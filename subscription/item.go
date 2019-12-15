@@ -16,7 +16,7 @@ type Item interface {
 	// ID should return a subscription ID (will be compared only for the same chats).
 	ID() string
 
-	// Name should return a human-readable name of this subscription.
+	// name should return a human-readable name of this subscription.
 	Name() string
 
 	// Parse should try to initialize a subscription from a given input string and an optional options string.

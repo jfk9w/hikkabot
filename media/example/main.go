@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/jfk9w-go/flu"
@@ -14,30 +14,28 @@ func main() {
 	config := media.Config{
 		Workers: 1,
 		TempDir: "/tmp/hikkabot_media",
-	}
-	aconvertConfig := aconvert.Config{
-		TestFile:   "app/media/example/testdata/test.webm",
-		TestFormat: "webm",
-	}
-
-	aconvertClient := aconvert.NewClient(nil, &aconvertConfig)
-	mediaManager := media.NewManager(config, aconvertClient)
-	defer mediaManager.Shutdown()
-
-	me := []media.Media{{
-		Href: "http://test",
-		Factory: func(resource flu.FileSystemResource) (media.Type, error) {
-			os.Link(aconvertConfig.TestFile, resource.Path())
-			return media.WebM, nil
+		Aconvert: aconvert.Config{
+			TestFile:   "mediaBatch/example/testdata/test.webm",
+			TestFormat: "webm",
 		},
-	}}
-
-	mediaManager.Download(me)
-	r, t, err := me[0].Get()
+	}
+	manager := media.NewManager(config, nil)
+	defer manager.Shutdown()
+	mediaBatch := media.NewBatch(mockMediaLoder{config.Aconvert.TestFile})
+	manager.Download(mediaBatch)
+	file, mediaType, err := (&mediaBatch[0]).WaitForResult()
 	if err != nil {
 		panic(err)
 	}
+	defer os.RemoveAll(file.Path())
+	log.Printf("Downloaded resource of type %v", mediaType)
+}
 
-	defer os.RemoveAll(r.Path())
-	fmt.Printf("Downloaded resource of type %v", t)
+type mockMediaLoder struct {
+	sourcePath string
+}
+
+func (l mockMediaLoder) LoadMedia(resource flu.ResourceWriter) (media.Type, error) {
+	os.Link(l.sourcePath, resource.(flu.File).Path())
+	return media.WebM, nil
 }
