@@ -149,15 +149,19 @@ func (w *HTMLWriter) writeUnbreakable(text string) bool {
 	return true
 }
 
-func (w *HTMLWriter) Pages() []string {
+func (w *HTMLWriter) Format() Text {
+	var pages Pages
 	if w.breakPage() {
-		return w.pages
+		pages = w.pages
 	} else {
 		if len(w.pages) > 0 {
-			return w.pages[:len(w.pages)-1]
+			pages = w.pages[:len(w.pages)-1]
+		} else {
+			pages = w.pages
 		}
-		return w.pages
 	}
+
+	return Text{pages, telegram.HTML}
 }
 
 func (w *HTMLWriter) StartTag(name string, attrs []html.Attribute) *HTMLWriter {

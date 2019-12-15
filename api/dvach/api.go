@@ -121,7 +121,7 @@ type Board struct {
 
 type Error struct {
 	Code int    `json:"Code"`
-	Err  string `json:"Error"`
+	Err  string `json:"Fail"`
 }
 
 func (e *Error) Error() string {

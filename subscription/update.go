@@ -1,30 +1,42 @@
 package subscription
 
 import (
+	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
 )
 
-type Offset = int64
-
 type Update struct {
-	Offset Offset
-	Text   []string
+	Offset int64
+	Text   format.Text
 	Media  media.Batch
 }
 
-type UpdateCollection struct {
-	C      chan Update
-	Error  error
+type UpdateSession struct {
+	ch     chan Update
+	err    error
 	cancel chan struct{}
 }
 
-func NewUpdateCollection(size int) *UpdateCollection {
-	if size < 0 {
-		panic("size must be non-negative")
+func (s *UpdateSession) Submit(update Update) bool {
+	select {
+	case <-s.cancel:
+		return false
+	case s.ch <- update:
+		return true
 	}
-	return &UpdateCollection{make(chan Update, size), nil, make(chan struct{}, 1)}
 }
 
-func (uc *UpdateCollection) Cancel() <-chan struct{} {
-	return uc.cancel
+func (s *UpdateSession) Fail(err error) {
+	if s.err == nil {
+		s.err = err
+	}
+}
+
+func (s *UpdateSession) close() {
+	close(s.ch)
+}
+
+func (s *UpdateSession) run(ctx Context, offset int64, item Item) {
+	defer close(s.ch)
+	item.Update(ctx, offset, s)
 }

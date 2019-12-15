@@ -164,7 +164,7 @@ func (s *SQL) GetNextItem(chatID telegram.ID) (*subscription.ItemData, bool) {
 	return item, item != nil
 }
 
-func (s *SQL) UpdateOffset(primaryID string, offset subscription.Offset) bool {
+func (s *SQL) UpdateOffset(primaryID string, offset int64) bool {
 	return s.mustUpdate(fmt.Sprintf(`
 UPDATE subscription
 SET "offset" = $1, updated = %s

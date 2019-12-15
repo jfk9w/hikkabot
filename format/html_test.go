@@ -20,32 +20,32 @@ func Test_PageWriter_SingleLetter(t *testing.T) {
 	pw.writeUnbreakable("hello")
 	assertEquals(t,
 		[]string{"h", "e", "l", "l", "o", "h", "e", "l", "l", "o", "B", "R", "O", "K", "E", "N"},
-		pw.Pages())
+		pw.Format())
 }
 
 func Test_PageWriter_OnePage(t *testing.T) {
 	pw := NewHTML(10, 1, nil, nil)
 	pw.writeBreakable("Hello, Mark. How do you do?")
-	assertEquals(t, []string{"Hello,"}, pw.Pages())
+	assertEquals(t, []string{"Hello,"}, pw.Format())
 }
 
 func Test_PageWriter_ManyPages(t *testing.T) {
 	pw := NewHTML(10, -1, nil, nil)
 	pw.writeBreakable("Hello, Mark. How do you do?")
-	assertEquals(t, []string{"Hello,", "Mark. How", "do you do?"}, pw.Pages())
+	assertEquals(t, []string{"Hello,", "Mark. How", "do you do?"}, pw.Format())
 }
 
 func Test_PageWriter_Emojis(t *testing.T) {
 	pw := NewHTML(3, 0, nil, nil)
 	pw.writeBreakable("😭👌🎉😞😘😔")
-	assertEquals(t, []string{"😭👌🎉", "😞😘😔"}, pw.Pages())
+	assertEquals(t, []string{"😭👌🎉", "😞😘😔"}, pw.Format())
 }
 
 func Test_PageWriter_Unbreakable(t *testing.T) {
 	pw := NewHTML(8, 0, nil, nil)
 	pw.writeUnbreakable("123")
 	pw.writeUnbreakable("😭👌🎉😞😘😔")
-	assertEquals(t, []string{"123", "😭👌🎉😞😘😔"}, pw.Pages())
+	assertEquals(t, []string{"123", "😭👌🎉😞😘😔"}, pw.Format())
 }
 
 type testLinkPrinter struct{}
@@ -64,7 +64,7 @@ func Test_PageWriter_BasicHTML(t *testing.T) {
 		Text("A Study in Scarlet is an 1887 detective novel by Scottish author Arthur Conan Doyle. ").
 		EndTag().
 		Link("Wikipedia", "https://en.wikipedia.org/wiki/A_Study_in_Scarlet").
-		Pages()
+		Format()
 	sample := []string{
 		`<b>A Study in Scarlet is an 1887 detective novel by Scottish author</b>`,
 		`<b>Arthur Conan Doyle. </b>`,
@@ -74,7 +74,7 @@ func Test_PageWriter_BasicHTML(t *testing.T) {
 
 	pages = NewHTML(0, 0, nil, nil).
 		Parse(`<strong>Музыкальный webm mp4 тред</strong><br><em>Не нашел - создал</em><br>Делимся вкусами, ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные видео.<br>Рекомендации для самостоятельного поиска соусов: <a href="https:&#47;&#47;pastebin.com&#47;i32h11vd" target="_blank" rel="nofollow noopener noreferrer">https:&#47;&#47;pastebin.com&#47;i32h11vd</a>`).
-		Pages()
+		Format()
 	sample = []string{
 		`<b>Музыкальный webm mp4 тред</b>
 <i>Не нашел - создал</i>
@@ -85,7 +85,7 @@ func Test_PageWriter_BasicHTML(t *testing.T) {
 
 	pages = NewHTML(75, 0, nil, nil).
 		Parse(`<strong>Музыкальный webm mp4 тред</strong><br><em>Не нашел - создал</em><br>Делимся вкусами, ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные видео.<br>Рекомендации для самостоятельного поиска соусов: <a href="https:&#47;&#47;pastebin.com&#47;i32h11vd" target="_blank" rel="nofollow noopener noreferrer">https:&#47;&#47;pastebin.com&#47;i32h11vd</a>`).
-		Pages()
+		Format()
 	sample = []string{
 		`<b>Музыкальный webm mp4 тред</b>
 <i>Не нашел - создал</i>
@@ -100,7 +100,7 @@ func Test_PageWriter_BasicHTML(t *testing.T) {
 func Test_PageWriter_LinkPrinter(t *testing.T) {
 	pages := NewHTML(50, 0, nil, testLinkPrinter{}).
 		Parse(`<strong>Музыкальный webm mp4 тред</strong><br><em>Не нашел - создал</em><br>Делимся вкусами, ищем музыку, создаем, нарезаем, постим свои либо чужие музыкальные видео.<br>Рекомендации для самостоятельного поиска соусов: <a href="https:&#47;&#47;pastebin.com&#47;i32h11vd" target="_blank" rel="nofollow noopener noreferrer">https:&#47;&#47;pastebin.com&#47;i32h11vd</a>`).
-		Pages()
+		Format()
 	sample := []string{
 		`<b>Музыкальный webm mp4 тред</b>
 <i>Не нашел -</i>`,

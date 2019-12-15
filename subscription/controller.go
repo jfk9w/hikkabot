@@ -62,31 +62,31 @@ func (c *controller) run(chatID telegram.ID) {
 var errCancelled = errors.New("cancelled")
 
 func (c *controller) update(chatID telegram.ID, item *ItemData) error {
-	uc := NewUpdateCollection(10)
-	go item.Update(c.ctx, item.Offset, uc)
+	session := &UpdateSession{
+		ch:     make(chan Update, 10),
+		cancel: make(chan struct{}),
+	}
+	go item.Update(c.ctx, item.Offset, session)
 	sender := NewSender(c.bot, chatID)
 	hasUpdates := false
-	for u := range uc.C {
+	for u := range session.ch {
 		hasUpdates = true
 		err := sender.Send(u)
 		if err != nil {
 			return errors.Wrap(err, "on send update")
 		}
-
 		if !c.storage.UpdateOffset(item.PrimaryID, u.Offset) {
-			uc.cancel <- struct{}{}
-			close(uc.cancel)
+			session.cancel <- struct{}{}
+			close(session.cancel)
 			return errCancelled
 		} else {
 			log.Printf("Updated offset for %v: %v -> %v", item, item.Offset, u.Offset)
 			item.Offset = u.Offset
 		}
 	}
-
-	if uc.Error != nil {
-		return errors.Wrap(uc.Error, "on update")
+	if session.err != nil {
+		return errors.Wrap(session.err, "on update")
 	}
-
 	if !hasUpdates {
 		if !c.storage.UpdateOffset(item.PrimaryID, item.Offset) {
 			return errCancelled
@@ -94,7 +94,6 @@ func (c *controller) update(chatID telegram.ID, item *ItemData) error {
 			log.Printf("Updated offset for %v: %v -> %v", item, item.Offset, item.Offset)
 		}
 	}
-
 	return nil
 }
 
@@ -104,7 +103,6 @@ func (c *controller) create(candidate Item, access *access) bool {
 		c.resume(item, access)
 		return true
 	}
-
 	return false
 }
 
@@ -114,7 +112,6 @@ func (c *controller) suspend(item *ItemData, access *access, err error) bool {
 		go c.notify(item, access, &suspendEvent{err})
 		return true
 	}
-
 	return false
 }
 
@@ -125,7 +122,6 @@ func (c *controller) resume(item *ItemData, access *access) bool {
 		go c.notify(item, access, resume)
 		return true
 	}
-
 	return false
 }
 
@@ -136,13 +132,11 @@ func (c *controller) ensure(chatID telegram.ID) {
 	if ok {
 		return
 	}
-
 	c.mu.Lock()
 	if c.active[chatID] {
 		c.mu.Unlock()
 		return
 	}
-
 	c.active[chatID] = true
 	c.mu.Unlock()
 	go c.run(chatID)

@@ -57,11 +57,10 @@ func (c *Catalog) Parse(_ subscription.Context, cmd string, opts string) error {
 	return nil
 }
 
-func (c *Catalog) Update(ctx subscription.Context, offset subscription.Offset, uc *subscription.UpdateCollection) {
-	defer close(uc.C)
+func (c *Catalog) Update(ctx subscription.Context, offset int64, session *subscription.UpdateSession) {
 	catalog, err := ctx.DvachClient.GetCatalog(c.Board)
 	if err != nil {
-		uc.Error = errors.Wrap(err, "on catalog load")
+		session.Fail(errors.Wrap(err, "on catalog load"))
 		return
 	}
 	results := make([]dvach.Post, 0)
@@ -82,20 +81,17 @@ func (c *Catalog) Update(ctx subscription.Context, offset subscription.Offset, u
 			break
 		}
 		update := subscription.Update{
-			Offset: subscription.Offset(thread.Num),
+			Offset: int64(thread.Num),
 			Text: format.NewHTML(telegram.MaxCaptionSize, 1, DefaultSupportedTags, Board(thread.Board)).
 				Tag("b").Text(thread.DateString).EndTag().NewLine().
 				Link(thread.URL(), "[link]").NewLine().
 				Text("---").NewLine().
 				Parse(thread.Comment).
-				Pages(),
+				Format(),
 			Media: mediaBatch,
 		}
-		select {
-		case <-uc.Cancel():
+		if !session.Submit(update) {
 			return
-		case uc.C <- update:
-			continue
 		}
 	}
 }

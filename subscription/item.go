@@ -23,7 +23,7 @@ type Item interface {
 	Parse(ctx Context, cmd string, opts string) error
 
 	// Update is called when a subscription is called for update.
-	Update(ctx Context, offset Offset, uc *UpdateCollection)
+	Update(ctx Context, offset int64, session *UpdateSession)
 }
 
 type Service = func() Item
@@ -35,7 +35,7 @@ type ItemData struct {
 	PrimaryID   string
 	SecondaryID string
 	ChatID      telegram.ID
-	Offset      Offset
+	Offset      int64
 }
 
 func (item *ItemData) String() string {

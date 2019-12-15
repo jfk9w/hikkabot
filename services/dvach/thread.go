@@ -64,14 +64,13 @@ func (t *Thread) Parse(ctx subscription.Context, cmd string, opts string) error 
 	return nil
 }
 
-func (t *Thread) Update(ctx subscription.Context, offset subscription.Offset, uc *subscription.UpdateCollection) {
-	defer close(uc.C)
+func (t *Thread) Update(ctx subscription.Context, offset int64, session *subscription.UpdateSession) {
 	if offset > 0 {
 		offset++
 	}
 	posts, err := ctx.DvachClient.GetThread(t.Board, t.Num, int(offset))
 	if err != nil {
-		uc.Error = errors.Wrap(err, "on posts load")
+		session.Fail(errors.Wrap(err, "on posts load"))
 		return
 	}
 	for _, post := range posts {
@@ -100,14 +99,11 @@ func (t *Thread) Update(ctx subscription.Context, offset subscription.Offset, uc
 		}
 		update := subscription.Update{
 			Offset: int64(post.Num),
-			Text:   text.Pages(),
+			Text:   text.Format(),
 			Media:  mediaBatch,
 		}
-		select {
-		case <-uc.Cancel():
+		if !session.Submit(update) {
 			return
-		case uc.C <- update:
-			continue
 		}
 	}
 }

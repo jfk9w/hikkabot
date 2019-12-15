@@ -2,11 +2,11 @@ package subscription
 
 import (
 	"os"
+	"unicode/utf8"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
-	"golang.org/x/exp/utf8string"
 )
 
 type Sender struct {
@@ -20,23 +20,23 @@ func NewSender(bot telegram.Bot, chatID telegram.ChatID) *Sender {
 
 func (s *Sender) Send(update Update) error {
 	canCollapse := len(update.Media) <= 1 &&
-		len(update.Text) == 1 &&
-		utf8string.NewString(update.Text[0]).RuneCount() < telegram.MaxCaptionSize
+		len(update.Text.Pages) == 1 &&
+		utf8.RuneCountInString(update.Text.Pages[0]) < telegram.MaxCaptionSize
 	if canCollapse {
 		if len(update.Media) == 1 {
-			return s.sendMedia(update.Media[0], update.Text[0])
+			return s.sendMedia(update.Media[0], update.Text.Pages[0], update.Text.ParseMode)
 		} else {
-			return s.sendText(update.Text[0])
+			return s.sendText(update.Text.Pages[0], update.Text.ParseMode)
 		}
 	} else {
-		for _, text := range update.Text {
-			err := s.sendText(text)
+		for _, page := range update.Text.Pages {
+			err := s.sendText(page, update.Text.ParseMode)
 			if err != nil {
 				return err
 			}
 		}
 		for i := range update.Media {
-			err := s.sendMedia(update.Media[i], "")
+			err := s.sendMedia(update.Media[i], "", update.Text.ParseMode)
 			if err != nil {
 				return err
 			}
@@ -45,43 +45,43 @@ func (s *Sender) Send(update Update) error {
 	return nil
 }
 
-func (s *Sender) sendMedia(media *media.Media, caption string) error {
+func (s *Sender) sendMedia(media *media.Media, caption string, parseMode telegram.ParseMode) error {
 	if caption != "" {
 		caption = "<br>" + caption
 	}
 	caption = format.NewHTML(telegram.MaxCaptionSize, 1, nil, nil).
 		Link("[media]", media.Href).
 		Parse(caption).
-		Pages()[0]
-	file, mediaType, err := media.WaitForResult()
+		Format().Pages[0]
+	file, type_, err := media.WaitForResult()
 	if err == nil {
 		defer os.RemoveAll(file.Path())
 		_, err = s.bot.Send(s.chatID,
 			&telegram.Media{
-				Type:      mediaType.TelegramType(),
+				Type:      type_.TelegramType(),
 				Resource:  file,
 				Caption:   caption,
-				ParseMode: telegram.HTML},
+				ParseMode: parseMode},
 			&telegram.SendOptions{DisableNotification: true})
 	}
 	if err != nil {
 		_, err = s.bot.Send(s.chatID,
 			&telegram.Text{
 				Text:      caption,
-				ParseMode: telegram.HTML},
+				ParseMode: parseMode},
 			&telegram.SendOptions{DisableNotification: true})
 	}
 	return err
 }
 
-func (s *Sender) sendText(text string) error {
+func (s *Sender) sendText(text string, parseMode telegram.ParseMode) error {
 	if text == "" {
 		return nil
 	}
 	_, err := s.bot.Send(s.chatID,
 		&telegram.Text{
 			Text:                  text,
-			ParseMode:             telegram.HTML,
+			ParseMode:             parseMode,
 			DisableWebPagePreview: true},
 		&telegram.SendOptions{DisableNotification: true})
 	return err

@@ -69,11 +69,10 @@ func (s *Subscription) Parse(ctx subscription.Context, cmd string, opts string) 
 	return nil
 }
 
-func (s *Subscription) Update(ctx subscription.Context, offset subscription.Offset, uc *subscription.UpdateCollection) {
-	defer close(uc.C)
+func (s *Subscription) Update(ctx subscription.Context, offset int64, session *subscription.UpdateSession) {
 	things, err := ctx.RedditClient.GetListing(s.Subreddit, s.Sort, thingLimit)
 	if err != nil {
-		uc.Error = err
+		session.Fail(err)
 		return
 	}
 	sort.Sort(listing(things))
@@ -95,14 +94,11 @@ func (s *Subscription) Update(ctx subscription.Context, offset subscription.Offs
 			Text: format.NewHTML(telegram.MaxCaptionSize, 1, nil, nil).
 				Text("#" + s.Subreddit).NewLine().
 				Text(thing.Data.Title).
-				Pages(),
+				Format(),
 			Media: mediaBatch,
 		}
-		select {
-		case <-uc.Cancel():
+		if !session.Submit(update) {
 			return
-		case uc.C <- update:
-			continue
 		}
 	}
 }
