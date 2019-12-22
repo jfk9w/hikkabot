@@ -81,9 +81,9 @@ func (c *Catalog) Update(ctx subscription.Context, offset int64, queue *subscrip
 		}
 		update := subscription.Update{
 			Offset: int64(thread.Num),
-			Text: format.NewHTML(telegram.MaxCaptionSize, 1, DefaultSupportedTags, Board(thread.Board)).
+			Text: format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(thread.Board)).
 				Tag("b").Text(thread.DateString).EndTag().NewLine().
-				Link(thread.URL(), "[link]").NewLine().
+				Link("[link]", thread.URL()).NewLine().
 				Text("---").NewLine().
 				Parse(thread.Comment).
 				Format(),

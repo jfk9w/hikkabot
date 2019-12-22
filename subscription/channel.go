@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"log"
 	"unicode/utf8"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -59,6 +60,7 @@ func (tg *Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 			&telegram.SendOptions{
 				DisableNotification: true})
 		if err != nil {
+			log.Printf("Failed to send message: %v. Message:\n%s", err, page)
 			return err
 		}
 	}

@@ -173,7 +173,11 @@ func (w *HTMLWriter) StartTag(name string, attrs []html.Attribute) *HTMLWriter {
 	}
 	if name == "a" {
 		if w.link == nil {
-			w.link = &Link{Attrs: attrs}
+			w.link = &Link{Attrs: attrs, tag: w.tag}
+			if w.tag != nil {
+				w.writeTagEnd()
+				w.tag = nil
+			}
 		}
 		return w
 	}
@@ -196,6 +200,10 @@ func (w *HTMLWriter) EndTag() *HTMLWriter {
 		link := w.link
 		w.link = nil
 		w.writeUnbreakable(w.linkPrinter.Print(link))
+		if link.tag != nil {
+			w.tag = link.tag
+			w.writeTagStart()
+		}
 		return w
 	}
 	if w.tag != nil {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"sync"
 	"time"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -29,24 +28,8 @@ type Config struct {
 	MaxRetries   int
 }
 
-type request struct {
-	http  *flu.Request
-	resp  interface{}
-	retry int
-	work  sync.WaitGroup
-	err   error
-}
-
-func newRequest(resp interface{}, http *flu.Request) *request {
-	req := new(request)
-	req.http = http
-	req.resp = resp
-	req.work.Add(1)
-	return req
-}
-
 type Client struct {
-	http      *flu.Client
+	*flu.Client
 	tokenTime time.Time
 	restraint telegram.Restraint
 	config    Config
@@ -59,7 +42,7 @@ func NewClient(http *flu.Client, config Config) *Client {
 	http.AcceptResponseCodes(200).
 		SetHeader("User-Agent", config.UserAgent)
 	client := &Client{
-		http:      http,
+		Client:    http,
 		restraint: telegram.NewIntervalRestraint(Timeout),
 		config:    config,
 	}
@@ -73,7 +56,7 @@ func (c *Client) updateToken() error {
 	resp := new(struct {
 		AccessToken string `json:"access_token"`
 	})
-	if err := c.http.NewRequest().
+	if err := c.NewRequest().
 		POST().
 		Resource(AuthEndpoint).
 		QueryParam("grant_type", "password").
@@ -85,7 +68,7 @@ func (c *Client) updateToken() error {
 		Error; err != nil {
 		return err
 	}
-	c.http.SetHeader("Authorization", "Bearer "+resp.AccessToken)
+	c.SetHeader("Authorization", "Bearer "+resp.AccessToken)
 	c.tokenTime = time.Now()
 	log.Println("Refreshed reddit access token")
 	return nil
@@ -113,7 +96,7 @@ func (c *Client) GetListing(subreddit string, sort Sort, limit int) ([]Thing, er
 			Children []Thing `json:"children"`
 		} `json:"data"`
 	})
-	err := c.execute(resp, c.http.NewRequest().
+	err := c.execute(resp, c.NewRequest().
 		GET().
 		Resource(Host+"/r/"+subreddit+"/"+sort).
 		QueryParam("limit", strconv.Itoa(limit)))
@@ -137,7 +120,7 @@ func (e UnsupportedMediaDomainError) Error() string {
 func (c *Client) Download(thing *Thing, out flu.Writable) error {
 	if mediaScanner, ok := mediaScanners[thing.Data.Domain]; ok {
 		if thing.Data.ResolvedURL == "" {
-			media, err := mediaScanner.Get(c.http, thing.Data.URL)
+			media, err := mediaScanner.Get(c.Client, thing.Data.URL)
 			if err != nil {
 				return errors.Wrap(err, "on Media scan")
 			}
@@ -147,7 +130,7 @@ func (c *Client) Download(thing *Thing, out flu.Writable) error {
 	} else {
 		return UnsupportedMediaDomainError{thing.Data.Domain}
 	}
-	return c.http.NewRequest().
+	return c.NewRequest().
 		GET().
 		Resource(thing.Data.ResolvedURL).
 		Send().

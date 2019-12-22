@@ -73,7 +73,7 @@ func (c *controller) update(chatID telegram.ID, item *ItemData) error {
 		hasUpdates = true
 		err := c.channel.SendUpdate(chatID, u)
 		if err != nil {
-			return errors.Wrap(err, "on send update")
+			return errors.Wrapf(err, "on send update: %+v", u)
 		}
 		if !c.storage.UpdateOffset(item.PrimaryID, u.Offset) {
 			session.cancel <- struct{}{}

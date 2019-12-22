@@ -38,7 +38,7 @@ func (h *defaultResponseHandler) Handle(r *http.Response) error {
 }
 
 type Client struct {
-	http *flu.Client
+	*flu.Client
 }
 
 func NewClient(http *flu.Client, usercode string) *Client {
@@ -46,7 +46,7 @@ func NewClient(http *flu.Client, usercode string) *Client {
 		http = flu.NewClient(nil)
 	}
 	return &Client{
-		http: http.
+		Client: http.
 			SetCookies(Host, cookies(usercode, "/")...).
 			SetCookies(Host, cookies(usercode, "/makaba")...),
 	}
@@ -54,7 +54,7 @@ func NewClient(http *flu.Client, usercode string) *Client {
 
 func (c *Client) GetCatalog(board string) (*Catalog, error) {
 	catalog := new(Catalog)
-	err := c.http.NewRequest().
+	err := c.NewRequest().
 		GET().
 		Resource(Host + "/" + board + "/catalog_num.json").
 		Send().
@@ -71,7 +71,7 @@ func (c *Client) GetThread(board string, num int, offset int) ([]Post, error) {
 		offset = num
 	}
 	thread := make([]Post, 0)
-	err := c.http.NewRequest().
+	err := c.NewRequest().
 		GET().
 		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_thread").
@@ -91,7 +91,7 @@ var ErrPostNotFound = errors.New("post not found")
 
 func (c *Client) GetPost(board string, num int) (*Post, error) {
 	posts := make([]Post, 0)
-	err := c.http.NewRequest().
+	err := c.NewRequest().
 		GET().
 		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_post").
@@ -110,7 +110,7 @@ func (c *Client) GetPost(board string, num int) (*Post, error) {
 }
 
 func (c *Client) DownloadFile(file *File, out flu.Writable) error {
-	return c.http.NewRequest().
+	return c.NewRequest().
 		GET().
 		Resource(Host + file.Path).
 		Send().
@@ -121,7 +121,7 @@ func (c *Client) DownloadFile(file *File, out flu.Writable) error {
 
 func (c *Client) GetBoards() ([]Board, error) {
 	boardMap := make(map[string][]Board)
-	err := c.http.NewRequest().
+	err := c.NewRequest().
 		GET().
 		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_boards").

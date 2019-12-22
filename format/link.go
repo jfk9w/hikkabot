@@ -9,6 +9,7 @@ import (
 type Link struct {
 	Attrs []html.Attribute
 	Text  string
+	tag   *tag
 }
 
 func (l *Link) Attr(key string) (string, bool) {
@@ -37,5 +38,5 @@ func (defaultLinkPrinter) Print(link *Link) string {
 }
 
 func PrintHTMLLink(text, href string) string {
-	return DefaultLinkPrinter.Print(&Link{[]html.Attribute{{Key: "href", Val: href}}, text})
+	return DefaultLinkPrinter.Print(&Link{Attrs: []html.Attribute{{Key: "href", Val: href}}, Text: text})
 }
