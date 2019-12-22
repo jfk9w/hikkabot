@@ -48,11 +48,7 @@ func NewAconverter(config aconvert.Config) Aconverter {
 
 func (a Aconverter) Convert(typ Type, rw ReadWrite) (TelegramType, error) {
 	if typ, ok := a.types[typ]; ok {
-		resp, err := a.Client.Convert(rw, make(aconvert.Opts).TargetFormat(typ[0]))
-		if err != nil {
-			return unknownType, err
-		}
-		err = a.Download(resp.URL(), rw)
+		err := a.Client.ConvertAndDownload(rw, rw, make(aconvert.Opts).TargetFormat(typ[0]))
 		if err != nil {
 			return unknownType, err
 		}
