@@ -23,7 +23,7 @@ type Item interface {
 	Parse(ctx Context, cmd string, opts string) error
 
 	// Update is called when a subscription is called for update.
-	Update(ctx Context, offset int64, session *UpdateSession)
+	Update(ctx Context, offset int64, session *UpdateQueue)
 }
 
 type Service = func() Item

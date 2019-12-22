@@ -64,7 +64,7 @@ func (t *Thread) Parse(ctx subscription.Context, cmd string, opts string) error 
 	return nil
 }
 
-func (t *Thread) Update(ctx subscription.Context, offset int64, session *subscription.UpdateSession) {
+func (t *Thread) Update(ctx subscription.Context, offset int64, session *subscription.UpdateQueue) {
 	if offset > 0 {
 		offset++
 	}
@@ -77,15 +77,11 @@ func (t *Thread) Update(ctx subscription.Context, offset int64, session *subscri
 		if t.MediaOnly && len(post.Files) == 0 {
 			continue
 		}
-		mediaBatch := make(media.Batch, len(post.Files))
+		remote := make([]media.Remote, len(post.Files))
 		for i := range post.Files {
-			file := &post.Files[i]
-			mediaBatch[i] = &media.Media{
-				Href:   dvach.Host + file.Path,
-				Loader: defaultMediaLoader{file, ctx.DvachClient},
-			}
+			remote[i] = Media{&post.Files[i], ctx.DvachClient}
 		}
-		ctx.MediaManager.Download(mediaBatch)
+		download := ctx.MediaManager.Download(remote...)
 		text := format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(post.Board)).
 			Text(t.Title).NewLine().
 			Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.Board), post.Num))
@@ -100,9 +96,9 @@ func (t *Thread) Update(ctx subscription.Context, offset int64, session *subscri
 		update := subscription.Update{
 			Offset: int64(post.Num),
 			Text:   text.Format(),
-			Media:  mediaBatch,
+			Media:  download,
 		}
-		if !session.Submit(update) {
+		if !session.Offer(update) {
 			return
 		}
 	}

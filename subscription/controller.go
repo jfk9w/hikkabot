@@ -11,7 +11,7 @@ import (
 )
 
 type controller struct {
-	bot      telegram.Bot
+	channel  Telegram
 	ctx      Context
 	storage  Storage
 	interval time.Duration
@@ -19,9 +19,9 @@ type controller struct {
 	mu       sync.RWMutex
 }
 
-func newController(bot telegram.Bot, ctx Context, storage Storage, interval time.Duration) *controller {
+func newController(channel Telegram, ctx Context, storage Storage, interval time.Duration) *controller {
 	return &controller{
-		bot:      bot,
+		channel:  channel,
 		ctx:      ctx,
 		storage:  storage,
 		interval: interval,
@@ -62,16 +62,16 @@ func (c *controller) run(chatID telegram.ID) {
 var errCancelled = errors.New("cancelled")
 
 func (c *controller) update(chatID telegram.ID, item *ItemData) error {
-	session := &UpdateSession{
-		ch:     make(chan Update, 10),
-		cancel: make(chan struct{}),
+	session := &UpdateQueue{
+		updates: make(chan Update, 10),
+		cancel:  make(chan struct{}),
 	}
 	go item.Update(c.ctx, item.Offset, session)
-	sender := NewSender(c.bot, chatID)
+
 	hasUpdates := false
-	for u := range session.ch {
+	for u := range session.updates {
 		hasUpdates = true
-		err := sender.Send(u)
+		err := c.channel.SendUpdate(chatID, u)
 		if err != nil {
 			return errors.Wrap(err, "on send update")
 		}
@@ -144,13 +144,13 @@ func (c *controller) ensure(chatID telegram.ID) {
 }
 
 func (c *controller) notify(item *ItemData, access *access, event event) {
-	adminIDs, err := access.getAdminIDs(c.bot)
+	adminIDs, err := access.getAdminIDs(c.channel)
 	if err != nil {
 		log.Printf("Failed to load admin IDs for %v: %v", item.ChatID, err)
 	}
 
 	var chatTitle string
-	chat, _ := access.getChat(c.bot)
+	chat, _ := access.getChat(c.channel)
 	if chat.Type == telegram.PrivateChat {
 		chatTitle = "<private>"
 	} else {
@@ -170,7 +170,7 @@ func (c *controller) notify(item *ItemData, access *access, event event) {
 
 	command := telegram.CommandButton(strings.Title(event.undo()), "/"+event.undo(), item.PrimaryID)
 	for _, adminID := range adminIDs {
-		go c.bot.Send(adminID,
+		go c.channel.Send(adminID,
 			&telegram.Text{
 				Text:                  sb.String(),
 				DisableWebPagePreview: true},

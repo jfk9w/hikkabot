@@ -2,147 +2,135 @@ package media
 
 import (
 	"log"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
-	"github.com/jfk9w-go/flu"
+
 	"github.com/pkg/errors"
-	"github.com/segmentio/ksuid"
 )
 
 type Config struct {
-	Workers  int
-	TempDir  string
-	Aconvert aconvert.Config
+	Concurrency int
+	TempDir     string
+	Aconvert    *aconvert.Config
 }
 
 func (c Config) validate() error {
-	if c.Workers < 1 {
-		return errors.New("there should be at least 1 worker")
-	}
-	os.RemoveAll(c.TempDir)
-	err := os.MkdirAll(c.TempDir, os.ModeDir|os.ModePerm)
-	if err != nil {
-		return errors.Wrap(err, "on temp dir creation")
+	if c.Concurrency < 1 {
+		return errors.New("concurrency should be at least 1")
 	}
 	return nil
 }
 
 type Manager struct {
-	tempDir  string
-	aconvert *aconvert.Client
-	queue    chan *Media
-	worker   *sync.WaitGroup
+	storage    Storage
+	converters []Converter
+	queue      chan *media
+	workers    sync.WaitGroup
 }
 
-func NewManager(config Config, aconvertClient *aconvert.Client) *Manager {
-	if err := config.validate(); err != nil {
+func NewManager(config Config) *Manager {
+	err := config.validate()
+	if err != nil {
 		panic(err)
 	}
-	if aconvertClient == nil {
-		if config.Aconvert.TestFile != "" {
-			aconvertClient = aconvert.NewClient(nil, &config.Aconvert)
-		} else {
-			panic("no aconvert client")
-		}
+	storage := FileStorage{config.TempDir}
+	err = storage.Init()
+	if err != nil {
+		panic(err)
 	}
 	manager := &Manager{
-		tempDir:  config.TempDir,
-		aconvert: aconvertClient,
-		queue:    make(chan *Media),
-		worker:   new(sync.WaitGroup)}
-	for i := 0; i < config.Workers; i++ {
-		go manager.runDownloadWorker()
+		storage:    storage,
+		converters: []Converter{BaseConverter},
+		queue:      make(chan *media),
+	}
+	if config.Aconvert != nil {
+		aconverter := NewAconverter(*config.Aconvert)
+		manager.AddConverter(aconverter)
+	}
+	manager.storage.Init()
+	for i := 0; i < config.Concurrency; i++ {
+		go manager.runWorker()
 	}
 	return manager
 }
 
-func (m *Manager) runDownloadWorker() {
-	m.worker.Add(1)
-	defer m.worker.Done()
-	for media := range m.queue {
-		m.downloadAndLog(media)
-	}
+func (m *Manager) AddConverter(converter Converter) *Manager {
+	m.converters = append(m.converters, converter)
+	return m
 }
 
-func (m *Manager) Download(batch Batch) {
-	for i := range batch {
-		batch[i].work.Add(1)
-		m.queue <- batch[i]
+func (m *Manager) Download(remote ...Remote) []Download {
+	download := make([]Download, len(remote))
+	for i, r := range remote {
+		media := New(r)
+		m.queue <- media
+		download[i] = media
 	}
+	return download
 }
 
 func (m *Manager) Shutdown() {
 	close(m.queue)
-	m.worker.Wait()
-	os.RemoveAll(m.tempDir)
-	if m.aconvert != nil {
-		m.aconvert.Shutdown()
-	}
+	m.workers.Wait()
+	m.storage.Cleanup()
 }
 
-func (m *Manager) downloadAndLog(media *Media) {
-	file := m.newTempFile()
-	start := time.Now()
-	type_, size, err := m.download(media.Loader, file)
-	if err != nil {
-		_ = os.RemoveAll(file.Path())
-		media.err = err
-		log.Printf("Failed to process media %s (took %v): %s", media.Href, time.Now().Sub(start), err)
-	} else {
-		media.file = file
-		media.type_ = type_
-		log.Printf("Processed media %s (size %dKb, took %v)", media.Href, size>>10, time.Now().Sub(start))
-	}
-	media.work.Done()
-}
-
-func (m *Manager) newTempFile() flu.File {
-	path := filepath.Join(m.tempDir, ksuid.New().String())
-	_ = os.RemoveAll(path)
-	return flu.File(path)
-}
-
-func (m *Manager) download(loader Loader, resource flu.File) (Type, int64, error) {
-	mediaType, err := loader.LoadMedia(resource)
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "on download")
-	}
-	if mediaType == WebM {
-		err := m.convertWebM(resource)
+func (m *Manager) runWorker() {
+	m.workers.Add(1)
+	defer m.workers.Done()
+	for media := range m.queue {
+		res := m.storage.NewResource()
+		start := time.Now()
+		size, err := m.download(media, res)
+		elapsed := time.Now().Sub(start)
 		if err != nil {
-			return 0, 0, errors.Wrap(err, "on WebM conversion")
+			res.Cleanup()
+			media.err = err
+			log.Printf("Failed to process media %s (took %v): %s", media.URL(), elapsed, err)
+		} else {
+			log.Printf("Processed media %s (size %d Kb, took %v)", media.URL(), size>>10, elapsed)
+		}
+		media.work.Done()
+	}
+}
+
+func (m *Manager) download(media *media, res ReadWrite) (int64, error) {
+	typ, err := media.Download(res)
+	if err != nil {
+		return -1, errors.Wrap(err, "on download")
+	}
+
+loop:
+	for _, converter := range m.converters {
+		typ, err := converter.Convert(typ, res)
+		switch err {
+		case nil:
+			size, err := res.Size()
+			if err != nil {
+				return -1, errors.Wrap(err, "on size calculation")
+			}
+			if size < MinMediaSize {
+				return -1, errors.Errorf(
+					"size (%d bytes) is below minimum size (%d bytes)",
+					size, MinMediaSize)
+			}
+			maxSize := maxMediaSize[typ]
+			if size > maxSize {
+				return -1, errors.Errorf(
+					"size (%d MB) exceeds limit (%d MB) for type %s",
+					size>>20, maxSize>>20, typ)
+			}
+			media.res = res
+			media.typ = typ
+			return size, nil
+		case UnsupportedTypeErr:
+			continue loop
+		default:
+			return -1, errors.Wrap(err, "on conversion")
 		}
 	}
-	stat, err := os.Stat(resource.Path())
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "on stat")
-	}
-	size := stat.Size()
-	if size > mediaType.MaxSize() {
-		return 0, 0, errors.Errorf(
-			"size (%d MB) exceeds limit (%d MB)",
-			size>>20, mediaType.MaxSize()>>20)
-	}
-	if size < MinMediaSize {
-		return 0, 0, errors.Errorf(
-			"size (%d bytes) is below minimum size (%d bytes)",
-			size, MinMediaSize)
-	}
-	return mediaType, size, nil
-}
 
-func (m *Manager) convertWebM(resource flu.File) error {
-	r, err := m.aconvert.ConvertResource(resource, aconvert.NewOpts().TargetFormat("mp4"))
-	if err != nil {
-		return errors.Wrap(err, "on processing")
-	}
-	err = m.aconvert.Download(r, resource)
-	if err != nil {
-		return errors.Wrap(err, "on download")
-	}
-	return nil
+	return -1, UnsupportedTypeErr
 }

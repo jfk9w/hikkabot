@@ -20,8 +20,8 @@ type Thing struct {
 	} `json:"data"`
 }
 
-func (thing *Thing) init() {
-	thing.Data.Created = time.Unix(int64(thing.Data.CreatedUTC), 0)
+func (t *Thing) init() {
+	t.Data.Created = time.Unix(int64(t.Data.CreatedUTC), 0)
 }
 
 type Sort = string

@@ -3,10 +3,11 @@ package reddit
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	telegram "github.com/jfk9w-go/telegram-bot-api"
 
 	"github.com/pkg/errors"
 
@@ -45,72 +46,34 @@ func newRequest(resp interface{}, http *flu.Request) *request {
 }
 
 type Client struct {
-	http            *flu.Client
-	token           string
-	lastTokenUpdate time.Time
-	queue           chan *request
-	config          *Config
-	worker          sync.WaitGroup
+	http      *flu.Client
+	tokenTime time.Time
+	restraint telegram.Restraint
+	config    Config
 }
 
-func NewClient(http *flu.Client, config *Config) *Client {
+func NewClient(http *flu.Client, config Config) *Client {
 	if http == nil {
 		http = flu.NewClient(nil)
 	}
+	http.AcceptResponseCodes(200).
+		SetHeader("User-Agent", config.UserAgent)
 	client := &Client{
-		http:   http.AddHeader("User-Agent", config.UserAgent),
-		queue:  make(chan *request, 1000),
-		config: config,
+		http:      http,
+		restraint: telegram.NewIntervalRestraint(Timeout),
+		config:    config,
 	}
 	if err := client.updateToken(); err != nil {
 		panic(err)
 	}
-	go client.runWorker()
 	return client
 }
 
-func (c *Client) runWorker() {
-	c.worker.Add(1)
-	defer c.worker.Done()
-	for req := range c.queue {
-		err := c.updateToken()
-		if err != nil {
-			log.Printf("Failed to update reddit token: %v", err)
-			err = errors.Wrap(err, "on token update")
-		}
-		if err == nil {
-			err = req.http.
-				SetHeader("Authorization", "Bearer "+c.token).
-				Send().
-				CheckStatusCode(http.StatusOK).
-				DecodeBody(flu.JSON(req.resp)).
-				Error
-		}
-		if err != nil && req.retry <= c.config.MaxRetries {
-			c.queue <- req
-		} else {
-			req.err = err
-			req.work.Done()
-		}
-		time.Sleep(Timeout)
-	}
-}
-
-func (c *Client) submitAndWait(resp interface{}, http *flu.Request) error {
-	req := newRequest(resp, http)
-	c.queue <- req
-	req.work.Wait()
-	return req.err
-}
-
 func (c *Client) updateToken() error {
-	if c.token != "" && time.Now().Sub(c.lastTokenUpdate).Minutes() <= 50 {
-		return nil
-	}
-	tokenResponse := new(struct {
+	resp := new(struct {
 		AccessToken string `json:"access_token"`
 	})
-	err := c.http.NewRequest().
+	if err := c.http.NewRequest().
 		POST().
 		Resource(AuthEndpoint).
 		QueryParam("grant_type", "password").
@@ -118,16 +81,27 @@ func (c *Client) updateToken() error {
 		QueryParam("password", c.config.Password).
 		BasicAuth(c.config.ClientID, c.config.ClientSecret).
 		Send().
-		CheckStatusCode(http.StatusOK).
-		DecodeBody(flu.JSON(tokenResponse)).
-		Error
-	if err != nil {
+		ReadBody(flu.JSON(resp)).
+		Error; err != nil {
 		return err
 	}
-	c.token = tokenResponse.AccessToken
-	c.lastTokenUpdate = time.Now()
+	c.http.SetHeader("Authorization", "Bearer "+resp.AccessToken)
+	c.tokenTime = time.Now()
 	log.Println("Refreshed reddit access token")
 	return nil
+}
+
+func (c *Client) execute(resp interface{}, req *flu.Request) error {
+	c.restraint.Start()
+	defer c.restraint.Complete()
+	if time.Now().Sub(c.tokenTime).Minutes() > 58 {
+		if err := c.updateToken(); err != nil {
+			return err
+		}
+	}
+	return req.Send().
+		ReadBody(flu.JSON(resp)).
+		Error
 }
 
 func (c *Client) GetListing(subreddit string, sort Sort, limit int) ([]Thing, error) {
@@ -139,7 +113,7 @@ func (c *Client) GetListing(subreddit string, sort Sort, limit int) ([]Thing, er
 			Children []Thing `json:"children"`
 		} `json:"data"`
 	})
-	err := c.submitAndWait(resp, c.http.NewRequest().
+	err := c.execute(resp, c.http.NewRequest().
 		GET().
 		Resource(Host+"/r/"+subreddit+"/"+sort).
 		QueryParam("limit", strconv.Itoa(limit)))
@@ -160,7 +134,7 @@ func (e UnsupportedMediaDomainError) Error() string {
 	return fmt.Sprintf("unsupported Media domain: %s", e.Domain)
 }
 
-func (c *Client) Download(thing *Thing, resource flu.ResourceWriter) error {
+func (c *Client) Download(thing *Thing, out flu.Writable) error {
 	if mediaScanner, ok := mediaScanners[thing.Data.Domain]; ok {
 		if thing.Data.ResolvedURL == "" {
 			media, err := mediaScanner.Get(c.http, thing.Data.URL)
@@ -177,11 +151,6 @@ func (c *Client) Download(thing *Thing, resource flu.ResourceWriter) error {
 		GET().
 		Resource(thing.Data.ResolvedURL).
 		Send().
-		ReadResource(resource).
+		ReadBodyTo(out).
 		Error
-}
-
-func (c *Client) Shutdown() {
-	close(c.queue)
-	c.worker.Wait()
 }

@@ -3,8 +3,9 @@ package main
 import (
 	"log"
 
+	"github.com/jfk9w-go/flu"
+
 	"github.com/jfk9w/hikkabot/api/dvach"
-	"github.com/jfk9w/hikkabot/util"
 )
 
 func main() {
@@ -13,22 +14,33 @@ func main() {
 			Usercode string `json:"usercode"`
 		} `json:"dvach"`
 	})
-	util.ReadJSON("bin/config.json", config)
+	err := flu.Read(flu.File("bin/config.json"), flu.JSON(config))
+	if err != nil {
+		panic(err)
+	}
 	c := dvach.NewClient(nil, config.Dvach.Usercode)
 	catalog, err := c.GetCatalog("e")
-	util.Check(err)
+	if err != nil {
+		panic(err)
+	}
 	log.Printf("Received %+v", catalog.Threads)
 	_, err = c.GetThread("tw", 1, 1)
 	if err == nil {
 		panic("err must not be nil")
 	}
 	post, err := c.GetPost("e", catalog.Threads[0].Num)
-	util.Check(err)
+	if err != nil {
+		panic(err)
+	}
 	log.Printf("Received %+v", post)
 	posts, err := c.GetThread("e", catalog.Threads[0].Num, 0)
-	util.Check(err)
+	if err != nil {
+		panic(err)
+	}
 	log.Printf("Received %+v", posts)
 	board, err := c.GetBoard("b")
-	util.Check(err)
+	if err != nil {
+		panic(err)
+	}
 	log.Printf("Received %+v", board)
 }

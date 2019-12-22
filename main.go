@@ -22,30 +22,33 @@ func main() {
 		Storage        storage.SQLConfig
 		UpdateInterval string
 		Telegram       struct {
-			Token string
-			Proxy string
+			Token       string
+			Proxy       string
+			Concurrency int
 		}
 		Media  media.Config
 		Reddit reddit.Config
 		Dvach  struct{ Usercode string }
 	})
-
-	util.ReadJSON(os.Args[1], config)
+	err := flu.Read(flu.File(os.Args[1]), util.YAML(config))
+	if err != nil {
+		panic(err)
+	}
 	updateInterval, err := time.ParseDuration(config.UpdateInterval)
 	util.Check(err)
 	bot := telegram.NewBot(flu.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).
 		NewClient(), config.Telegram.Token)
-	mediaManager := media.NewManager(config.Media, nil)
+	mediaManager := media.NewManager(config.Media)
 	defer mediaManager.Shutdown()
 	ctx := subscription.Context{
 		MediaManager: mediaManager,
 		DvachClient:  dvach.NewClient(nil, config.Dvach.Usercode),
-		RedditClient: reddit.NewClient(nil, &config.Reddit),
+		RedditClient: reddit.NewClient(nil, config.Reddit),
 	}
 	storage := storage.NewSQL(config.Storage)
-	handler := subscription.NewHandler(bot, ctx, storage, updateInterval, services.All, config.Aliases)
+	handler := subscription.NewHandler(subscription.Telegram{bot.Client}, ctx, storage, updateInterval, services.All, config.Aliases)
 	go bot.Send(config.AdminID, &telegram.Text{Text: "⬆️"}, nil)
-	bot.Listen(handler.CommandListener())
+	bot.Listen(config.Telegram.Concurrency, handler.CommandListener())
 }

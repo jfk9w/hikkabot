@@ -12,12 +12,12 @@ type access struct {
 	adminIDs []telegram.ID
 }
 
-func (a *access) getChat(bot telegram.Bot) (*telegram.Chat, error) {
+func (a *access) getChat(channel Telegram) (*telegram.Chat, error) {
 	if a.chat != nil {
 		return a.chat, nil
 	}
 
-	chat, err := bot.GetChat(a.chatID)
+	chat, err := channel.GetChat(a.chatID)
 	if err != nil {
 		return nil, errors.Wrap(err, "on getChat")
 	}
@@ -26,12 +26,12 @@ func (a *access) getChat(bot telegram.Bot) (*telegram.Chat, error) {
 	return chat, nil
 }
 
-func (a *access) getAdminIDs(bot telegram.Bot) ([]telegram.ID, error) {
+func (a *access) getAdminIDs(channel Telegram) ([]telegram.ID, error) {
 	if a.adminIDs != nil {
 		return a.adminIDs, nil
 	}
 
-	chat, err := a.getChat(bot)
+	chat, err := a.getChat(channel)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (a *access) getAdminIDs(bot telegram.Bot) ([]telegram.ID, error) {
 	if chat.Type == telegram.PrivateChat {
 		adminIDs = []telegram.ID{chat.ID}
 	} else {
-		admins, err := bot.GetChatAdministrators(a.chatID)
+		admins, err := channel.GetChatAdministrators(a.chatID)
 		if err != nil {
 			return nil, errors.Wrap(err, "on getChatAdministrators")
 		}
@@ -57,12 +57,12 @@ func (a *access) getAdminIDs(bot telegram.Bot) ([]telegram.ID, error) {
 	return adminIDs, nil
 }
 
-func (a *access) check(bot telegram.Bot) error {
+func (a *access) check(channel Telegram) error {
 	if a.userID == telegram.ID(0) {
 		return nil
 	}
 
-	adminIDs, err := a.getAdminIDs(bot)
+	adminIDs, err := a.getAdminIDs(channel)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (a *access) check(bot telegram.Bot) error {
 	return err
 }
 
-func (a *access) fill(bot telegram.Bot, c *telegram.Command, chatID telegram.ChatID) {
+func (a *access) fill(channel Telegram, c *telegram.Command, chatID telegram.ChatID) {
 	if chatID == telegram.Username("") || chatID == telegram.Username(".") || chatID == c.Chat.ID {
 		a.chatID = c.Chat.ID
 		a.chat = c.Chat

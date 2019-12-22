@@ -1,7 +1,6 @@
 package dvach
 
 import (
-	"bytes"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 
 type defaultResponseHandler struct {
 	value interface{}
-	err   error
 }
 
 func newResponseHandler(value interface{}) flu.ResponseHandler {
@@ -28,15 +26,15 @@ func (h *defaultResponseHandler) Handle(r *http.Response) error {
 	if err != nil {
 		return errors.Wrapf(err, "on reading body")
 	}
-	err = flu.JSON(h.value).DecodeFrom(bytes.NewBuffer(data))
+	err = flu.Read(flu.Bytes(data), flu.JSON(h.value))
 	if err == nil {
 		return nil
 	}
 	err = new(Error)
-	if flu.JSON(err).DecodeFrom(bytes.NewBuffer(data)) == nil {
+	if flu.Read(flu.Bytes(data), flu.JSON(err)) == nil {
 		return err
 	}
-	return errors.Errorf("Failed to decode response: %s", string(data))
+	return errors.Errorf("failed to decode response: %s", string(data))
 }
 
 type Client struct {
@@ -111,13 +109,13 @@ func (c *Client) GetPost(board string, num int) (*Post, error) {
 	return nil, ErrPostNotFound
 }
 
-func (c *Client) DownloadFile(file *File, resource flu.ResourceWriter) error {
+func (c *Client) DownloadFile(file *File, out flu.Writable) error {
 	return c.http.NewRequest().
 		GET().
 		Resource(Host + file.Path).
 		Send().
 		CheckStatusCode(http.StatusOK).
-		ReadResource(resource).
+		ReadBodyTo(out).
 		Error
 }
 

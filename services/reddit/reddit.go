@@ -69,7 +69,7 @@ func (s *Subscription) Parse(ctx subscription.Context, cmd string, opts string) 
 	return nil
 }
 
-func (s *Subscription) Update(ctx subscription.Context, offset int64, session *subscription.UpdateSession) {
+func (s *Subscription) Update(ctx subscription.Context, offset int64, session *subscription.UpdateQueue) {
 	things, err := ctx.RedditClient.GetListing(s.Subreddit, s.Sort, thingLimit)
 	if err != nil {
 		session.Fail(err)
@@ -81,23 +81,19 @@ func (s *Subscription) Update(ctx subscription.Context, offset int64, session *s
 		if thing.Data.Created.Unix() <= offset || thing.Data.Ups < s.MinUps || thing.Data.URL == "" {
 			continue
 		}
-		var mediaBatch media.Batch
+		var media []media.Download
 		if thing.Data.URL != "" {
-			mediaBatch = media.Batch{&media.Media{
-				Loader: defaultMediaLoader{thing, ctx.RedditClient},
-				Href:   thing.Data.URL,
-			}}
+			media = ctx.MediaManager.Download(Media{thing, ctx.RedditClient})
 		}
-		ctx.MediaManager.Download(mediaBatch)
 		update := subscription.Update{
 			Offset: thing.Data.Created.Unix(),
 			Text: format.NewHTML(telegram.MaxCaptionSize, 1, nil, nil).
 				Text("#" + s.Subreddit).NewLine().
 				Text(thing.Data.Title).
 				Format(),
-			Media: mediaBatch,
+			Media: media,
 		}
-		if !session.Submit(update) {
+		if !session.Offer(update) {
 			return
 		}
 	}

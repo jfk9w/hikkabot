@@ -10,17 +10,17 @@ import (
 )
 
 type Handler struct {
-	bot      telegram.Bot
+	channel  Telegram
 	services []Service
 	aliases  map[telegram.Username]telegram.ID
 	ctrl     *controller
 }
 
-func NewHandler(bot telegram.Bot, ctx Context, storage Storage, interval time.Duration, services []Service,
+func NewHandler(channel Telegram, ctx Context, storage Storage, interval time.Duration, services []Service,
 	aliases map[telegram.Username]telegram.ID) *Handler {
-	ctrl := newController(bot, ctx, storage, interval)
+	ctrl := newController(channel, ctx, storage, interval)
 	ctrl.init()
-	return &Handler{bot, services, aliases, ctrl}
+	return &Handler{channel, services, aliases, ctrl}
 }
 
 func (h *Handler) Sub(tg telegram.Client, c *telegram.Command) error {
@@ -51,8 +51,8 @@ func (h *Handler) Sub(tg telegram.Client, c *telegram.Command) error {
 				chatID = username
 			}
 
-			access.fill(h.bot, c, chatID)
-			err := access.check(h.bot)
+			access.fill(h.channel, c, chatID)
+			err := access.check(h.channel)
 			if err != nil {
 				return err
 			}
@@ -77,7 +77,7 @@ func (h *Handler) Suspend(tg telegram.Client, c *telegram.Command) error {
 	}
 
 	access := &access{chatID: item.ChatID, userID: c.User.ID}
-	err := access.check(h.bot)
+	err := access.check(h.channel)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (h *Handler) Resume(tg telegram.Client, c *telegram.Command) error {
 	}
 
 	access := &access{chatID: item.ChatID, userID: c.User.ID}
-	err := access.check(h.bot)
+	err := access.check(h.channel)
 	if err != nil {
 		return err
 	}

@@ -3,19 +3,23 @@ package main
 import (
 	"log"
 
-	"github.com/jfk9w/hikkabot/util"
+	"github.com/jfk9w-go/flu"
 
 	"github.com/jfk9w/hikkabot/api/reddit"
 )
 
 func main() {
 	config := new(struct {
-		Reddit *reddit.Config `json:"reddit"`
+		Reddit reddit.Config
 	})
-	util.ReadJSON("bin/config.json", config)
+	err := flu.Read(flu.File("bin/config.json"), flu.JSON(config))
+	if err != nil {
+		panic(err)
+	}
 	c := reddit.NewClient(nil, config.Reddit)
-	defer c.Shutdown()
 	listing, err := c.GetListing("me_irl", reddit.Top, 100)
-	util.Check(err)
+	if err != nil {
+		panic(err)
+	}
 	log.Printf("Received %+v", listing)
 }

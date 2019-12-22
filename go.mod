@@ -9,6 +9,7 @@ require (
 	github.com/segmentio/ksuid v1.0.2
 	golang.org/x/exp v0.0.0-20190829153037-c13cbed26979
 	golang.org/x/net v0.0.0-20190827160401-ba9fcec4b297
+	gopkg.in/yaml.v2 v2.2.7
 )
 
 go 1.13

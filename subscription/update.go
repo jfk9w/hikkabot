@@ -8,35 +8,31 @@ import (
 type Update struct {
 	Offset int64
 	Text   format.Text
-	Media  media.Batch
+	Media  []media.Download
 }
 
-type UpdateSession struct {
-	ch     chan Update
-	err    error
-	cancel chan struct{}
+type UpdateQueue struct {
+	updates chan Update
+	err     error
+	cancel  chan struct{}
 }
 
-func (s *UpdateSession) Submit(update Update) bool {
+func (s *UpdateQueue) Offer(update Update) bool {
 	select {
 	case <-s.cancel:
 		return false
-	case s.ch <- update:
+	case s.updates <- update:
 		return true
 	}
 }
 
-func (s *UpdateSession) Fail(err error) {
+func (s *UpdateQueue) Fail(err error) {
 	if s.err == nil {
 		s.err = err
 	}
 }
 
-func (s *UpdateSession) close() {
-	close(s.ch)
-}
-
-func (s *UpdateSession) run(ctx Context, offset int64, item Item) {
-	defer close(s.ch)
+func (s *UpdateQueue) run(ctx Context, offset int64, item Item) {
+	defer close(s.updates)
 	item.Update(ctx, offset, s)
 }

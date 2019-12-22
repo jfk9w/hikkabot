@@ -35,3 +35,7 @@ func (defaultLinkPrinter) Print(link *Link) string {
 		return ""
 	}
 }
+
+func PrintHTMLLink(text, href string) string {
+	return DefaultLinkPrinter.Print(&Link{[]html.Attribute{{Key: "href", Val: href}}, text})
+}

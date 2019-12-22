@@ -57,10 +57,10 @@ func (c *Catalog) Parse(_ subscription.Context, cmd string, opts string) error {
 	return nil
 }
 
-func (c *Catalog) Update(ctx subscription.Context, offset int64, session *subscription.UpdateSession) {
+func (c *Catalog) Update(ctx subscription.Context, offset int64, queue *subscription.UpdateQueue) {
 	catalog, err := ctx.DvachClient.GetCatalog(c.Board)
 	if err != nil {
-		session.Fail(errors.Wrap(err, "on catalog load"))
+		queue.Fail(errors.Wrap(err, "on catalog load"))
 		return
 	}
 	results := make([]dvach.Post, 0)
@@ -73,11 +73,10 @@ func (c *Catalog) Update(ctx subscription.Context, offset int64, session *subscr
 	}
 	sort.Sort(queryResults(results))
 	for _, thread := range results {
-		var mediaBatch media.Batch
+		var media []media.Download
 		for i := range thread.Files {
 			file := &thread.Files[i]
-			mediaBatch = media.NewBatch(defaultMediaLoader{file, ctx.DvachClient})
-			ctx.MediaManager.Download(mediaBatch)
+			media = ctx.MediaManager.Download(Media{file, ctx.DvachClient})
 			break
 		}
 		update := subscription.Update{
@@ -88,9 +87,9 @@ func (c *Catalog) Update(ctx subscription.Context, offset int64, session *subscr
 				Text("---").NewLine().
 				Parse(thread.Comment).
 				Format(),
-			Media: mediaBatch,
+			Media: media,
 		}
-		if !session.Submit(update) {
+		if !queue.Offer(update) {
 			return
 		}
 	}
