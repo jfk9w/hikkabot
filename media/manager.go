@@ -49,7 +49,6 @@ func NewManager(config Config) *Manager {
 		aconverter := NewAconverter(*config.Aconvert)
 		manager.AddConverter(aconverter)
 	}
-	manager.storage.Init()
 	for i := 0; i < config.Concurrency; i++ {
 		go manager.runWorker()
 	}
