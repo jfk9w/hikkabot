@@ -11,8 +11,8 @@ import (
 )
 
 type Config struct {
+	Dir         string
 	Concurrency int
-	TempDir     string
 	Aconvert    *aconvert.Config
 }
 
@@ -35,7 +35,7 @@ func NewManager(config Config) *Manager {
 	if err != nil {
 		panic(err)
 	}
-	storage := FileStorage{config.TempDir}
+	storage := FileStorage{config.Dir}
 	err = storage.Init()
 	if err != nil {
 		panic(err)

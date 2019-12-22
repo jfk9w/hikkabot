@@ -35,7 +35,9 @@ func main() {
 		panic(err)
 	}
 	updateInterval, err := time.ParseDuration(config.UpdateInterval)
-	util.Check(err)
+	if err != nil {
+		panic(err)
+	}
 	bot := telegram.NewBot(flu.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).

@@ -13,7 +13,7 @@ import (
 
 var config = media.Config{
 	Concurrency: 1,
-	TempDir:     "/tmp/hikkabot_media",
+	Dir:         "/tmp/hikkabot_media",
 	Aconvert:    new(aconvert.Config),
 }
 

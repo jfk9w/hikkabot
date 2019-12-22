@@ -9,17 +9,20 @@
       file:
         path: "{{ appdir }}"
         state: directory
+    - name: copy binary to remote host
+      copy:
+        src: "../bin/{{ app }}"
+        dest: "/home/ikulkov/.local/bin"
     - name: copy files to remote host
       copy:
         src: "{{ item }}"
         dest: "{{ appdir }}"
       with_items:
-        - "../bin/{{ app }}"
-        - "../bin/config.json"
+        - "../bin/config.yml"
         - "../bin/test.webm"
     - name: set app to executable
       file:
-        path: "{{ appdir }}/{{ app }}"
+        path: "/home/ikulkov/.local/bin/{{ app }}"
         mode: 755
     - name: log directory exists
       file:

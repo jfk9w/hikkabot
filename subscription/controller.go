@@ -62,30 +62,29 @@ func (c *controller) run(chatID telegram.ID) {
 var errCancelled = errors.New("cancelled")
 
 func (c *controller) update(chatID telegram.ID, item *ItemData) error {
-	session := &UpdateQueue{
+	queue := &UpdateQueue{
 		updates: make(chan Update, 10),
 		cancel:  make(chan struct{}),
 	}
-	go item.Update(c.ctx, item.Offset, session)
-
+	go queue.run(c.ctx, item.Offset, item)
 	hasUpdates := false
-	for u := range session.updates {
+	for u := range queue.updates {
 		hasUpdates = true
 		err := c.channel.SendUpdate(chatID, u)
 		if err != nil {
 			return errors.Wrapf(err, "on send update: %+v", u)
 		}
 		if !c.storage.UpdateOffset(item.PrimaryID, u.Offset) {
-			session.cancel <- struct{}{}
-			close(session.cancel)
+			queue.cancel <- struct{}{}
+			close(queue.cancel)
 			return errCancelled
 		} else {
 			log.Printf("Updated offset for %v: %v -> %v", item, item.Offset, u.Offset)
 			item.Offset = u.Offset
 		}
 	}
-	if session.err != nil {
-		return errors.Wrap(session.err, "on update")
+	if queue.err != nil {
+		return errors.Wrap(queue.err, "on update")
 	}
 	if !hasUpdates {
 		if !c.storage.UpdateOffset(item.PrimaryID, item.Offset) {
