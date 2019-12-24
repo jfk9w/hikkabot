@@ -16,13 +16,6 @@ type Config struct {
 	Aconvert    *aconvert.Config
 }
 
-func (c Config) validate() error {
-	if c.Concurrency < 1 {
-		return errors.New("concurrency should be at least 1")
-	}
-	return nil
-}
-
 type Manager struct {
 	storage    Storage
 	converters []Converter
@@ -31,13 +24,11 @@ type Manager struct {
 }
 
 func NewManager(config Config) *Manager {
-	err := config.validate()
-	if err != nil {
-		panic(err)
+	if config.Concurrency < 1 {
+		panic("concurrency should be greater than 0")
 	}
 	storage := FileStorage{config.Dir}
-	err = storage.Init()
-	if err != nil {
+	if err := storage.Init(); err != nil {
 		panic(err)
 	}
 	manager := &Manager{
