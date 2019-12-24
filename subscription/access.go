@@ -12,7 +12,7 @@ type access struct {
 	adminIDs []telegram.ID
 }
 
-func (a *access) getChat(channel Telegram) (*telegram.Chat, error) {
+func (a *access) getChat(channel Channel) (*telegram.Chat, error) {
 	if a.chat != nil {
 		return a.chat, nil
 	}
@@ -26,7 +26,7 @@ func (a *access) getChat(channel Telegram) (*telegram.Chat, error) {
 	return chat, nil
 }
 
-func (a *access) getAdminIDs(channel Telegram) ([]telegram.ID, error) {
+func (a *access) getAdminIDs(channel Channel) ([]telegram.ID, error) {
 	if a.adminIDs != nil {
 		return a.adminIDs, nil
 	}
@@ -57,7 +57,7 @@ func (a *access) getAdminIDs(channel Telegram) ([]telegram.ID, error) {
 	return adminIDs, nil
 }
 
-func (a *access) check(channel Telegram) error {
+func (a *access) check(channel Channel) error {
 	if a.userID == telegram.ID(0) {
 		return nil
 	}
@@ -76,7 +76,7 @@ func (a *access) check(channel Telegram) error {
 	return err
 }
 
-func (a *access) fill(channel Telegram, c *telegram.Command, chatID telegram.ChatID) {
+func (a *access) fill(c *telegram.Command, chatID telegram.ChatID) {
 	if chatID == telegram.Username("") || chatID == telegram.Username(".") || chatID == c.Chat.ID {
 		a.chatID = c.Chat.ID
 		a.chat = c.Chat

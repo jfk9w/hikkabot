@@ -42,7 +42,7 @@ func (t *Thread) Name() string {
 
 var threadRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)/res/([0-9]+)\.html?$`)
 
-func (t *Thread) Parse(ctx subscription.Context, cmd string, opts string) error {
+func (t *Thread) Parse(ctx subscription.ApplicationContext, cmd string, opts string) error {
 	groups := threadRegexp.FindStringSubmatch(cmd)
 	if len(groups) < 6 {
 		return subscription.ErrParseFailed
@@ -64,7 +64,7 @@ func (t *Thread) Parse(ctx subscription.Context, cmd string, opts string) error 
 	return nil
 }
 
-func (t *Thread) Update(ctx subscription.Context, offset int64, session *subscription.UpdateQueue) {
+func (t *Thread) Update(ctx subscription.ApplicationContext, offset int64, session *subscription.UpdateQueue) {
 	if offset > 0 {
 		offset++
 	}

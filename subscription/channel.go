@@ -11,13 +11,16 @@ import (
 
 type Channel interface {
 	SendUpdate(telegram.ID, Update) error
+	GetChat(telegram.ChatID) (*telegram.Chat, error)
+	GetChatAdministrators(telegram.ChatID) ([]telegram.ChatMember, error)
+	SendAlert([]telegram.ID, string, telegram.ReplyMarkup)
 }
 
 type Telegram struct {
 	telegram.Client
 }
 
-func (tg *Telegram) SendUpdate(chatID telegram.ID, update Update) error {
+func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 	parseMode := update.Text.ParseMode
 	pages := update.Text.Pages
 	if parseMode != telegram.HTML {
@@ -92,4 +95,23 @@ func (tg *Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 	}
 
 	return nil
+}
+
+func (tg Telegram) GetChat(chatID telegram.ChatID) (*telegram.Chat, error) {
+	return tg.Client.GetChat(chatID)
+}
+
+func (tg Telegram) GetChatAdministrators(chatID telegram.ChatID) ([]telegram.ChatMember, error) {
+	return tg.Client.GetChatAdministrators(chatID)
+}
+
+func (tg Telegram) SendAlert(chatIDs []telegram.ID, text string, replyMarkup telegram.ReplyMarkup) {
+	sendable := &telegram.Text{Text: text}
+	options := &telegram.SendOptions{ReplyMarkup: replyMarkup}
+	for _, chatID := range chatIDs {
+		_, err := tg.Send(chatID, sendable, options)
+		if err != nil {
+			log.Printf("Failed to send alert to %d: %s", chatID, err)
+		}
+	}
 }

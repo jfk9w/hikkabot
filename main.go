@@ -44,7 +44,7 @@ func main() {
 		NewClient(), config.Telegram.Token)
 	mediaManager := media.NewManager(config.Media)
 	defer mediaManager.Shutdown()
-	ctx := subscription.Context{
+	ctx := subscription.ApplicationContext{
 		MediaManager: mediaManager,
 		DvachClient:  dvach.NewClient(nil, config.Dvach.Usercode),
 		RedditClient: reddit.NewClient(nil, config.Reddit),

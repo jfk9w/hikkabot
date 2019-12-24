@@ -11,15 +11,15 @@ import (
 )
 
 type controller struct {
-	channel  Telegram
-	ctx      Context
+	channel  Channel
+	ctx      ApplicationContext
 	storage  Storage
 	interval time.Duration
 	active   map[telegram.ID]bool
 	mu       sync.RWMutex
 }
 
-func newController(channel Telegram, ctx Context, storage Storage, interval time.Duration) *controller {
+func newController(channel Channel, ctx ApplicationContext, storage Storage, interval time.Duration) *controller {
 	return &controller{
 		channel:  channel,
 		ctx:      ctx,
@@ -168,14 +168,7 @@ func (c *controller) notify(item *ItemData, access *access, event event) {
 	event.details(sb)
 
 	command := telegram.CommandButton(strings.Title(event.undo()), "/"+event.undo(), item.PrimaryID)
-	for _, adminID := range adminIDs {
-		go c.channel.Send(adminID,
-			&telegram.Text{
-				Text:                  sb.String(),
-				DisableWebPagePreview: true},
-			&telegram.SendOptions{
-				ReplyMarkup: command})
-	}
+	go c.channel.SendAlert(adminIDs, sb.String(), command)
 }
 
 func (c *controller) getActiveChats() int {

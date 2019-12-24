@@ -10,13 +10,13 @@ import (
 )
 
 type Handler struct {
-	channel  Telegram
+	channel  Channel
 	services []Service
 	aliases  map[telegram.Username]telegram.ID
 	ctrl     *controller
 }
 
-func NewHandler(channel Telegram, ctx Context, storage Storage, interval time.Duration, services []Service,
+func NewHandler(channel Channel, ctx ApplicationContext, storage Storage, interval time.Duration, services []Service,
 	aliases map[telegram.Username]telegram.ID) *Handler {
 	ctrl := newController(channel, ctx, storage, interval)
 	ctrl.init()
@@ -51,7 +51,7 @@ func (h *Handler) Sub(tg telegram.Client, c *telegram.Command) error {
 				chatID = username
 			}
 
-			access.fill(h.channel, c, chatID)
+			access.fill(c, chatID)
 			err := access.check(h.channel)
 			if err != nil {
 				return err

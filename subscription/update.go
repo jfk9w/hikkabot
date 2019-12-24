@@ -32,7 +32,7 @@ func (s *UpdateQueue) Fail(err error) {
 	}
 }
 
-func (s *UpdateQueue) run(ctx Context, offset int64, item Item) {
+func (s *UpdateQueue) run(ctx ApplicationContext, offset int64, item Item) {
 	defer close(s.updates)
 	item.Update(ctx, offset, s)
 }

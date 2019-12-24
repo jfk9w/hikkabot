@@ -39,7 +39,7 @@ func (s *Subscription) Name() string {
 
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
 
-func (s *Subscription) Parse(ctx subscription.Context, cmd string, opts string) error {
+func (s *Subscription) Parse(ctx subscription.ApplicationContext, cmd string, opts string) error {
 	groups := re.FindStringSubmatch(cmd)
 	if len(groups) != 7 {
 		return subscription.ErrParseFailed
@@ -69,7 +69,7 @@ func (s *Subscription) Parse(ctx subscription.Context, cmd string, opts string) 
 	return nil
 }
 
-func (s *Subscription) Update(ctx subscription.Context, offset int64, session *subscription.UpdateQueue) {
+func (s *Subscription) Update(ctx subscription.ApplicationContext, offset int64, session *subscription.UpdateQueue) {
 	things, err := ctx.RedditClient.GetListing(s.Subreddit, s.Sort, thingLimit)
 	if err != nil {
 		session.Fail(err)
