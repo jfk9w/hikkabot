@@ -1,8 +1,8 @@
 package main
 
 import (
-	"errors"
 	"log"
+	"os"
 
 	"github.com/jfk9w-go/flu"
 
@@ -13,37 +13,31 @@ import (
 
 var config = media.Config{
 	Concurrency: 1,
-	Dir:         "/tmp/hikkabot_media",
 	Aconvert:    new(aconvert.Config),
 }
 
 func main() {
 	manager := media.NewManager(config)
 	defer manager.Shutdown()
-	media := Media{"media/example/testdata/test.webm"}
-	res, typ, err := manager.Download(media)[0].Wait()
+	file := flu.File("media/example/testdata/test.webm")
+	media := media.New(file.Path(), "webm", SizeAwareReadable{file})
+	manager.Submit(media)
+	in, err := media.Ready()
 	if err != nil {
 		panic(err)
 	}
-	defer res.Cleanup()
-	log.Printf("Download resource of type %v", typ)
+	log.Printf("Processed resource of type %v", in.Type)
 }
 
-type Media struct {
-	Source flu.File
+type SizeAwareReadable struct {
+	flu.File
 }
 
-func (m Media) URL() string {
-	return m.Source.Path()
-}
-
-func (m Media) Download(out flu.Writable) (typ media.Type, err error) {
-	typ = "webm"
-	file, ok := out.(media.File)
-	if !ok {
-		err = errors.New("out should be a media.File")
+func (r SizeAwareReadable) Size() (size int64, err error) {
+	stat, err := os.Stat(r.File.Path())
+	if err != nil {
 		return
 	}
-	err = flu.Copy(m.Source, file)
+	size = stat.Size()
 	return
 }

@@ -1,9 +1,9 @@
 module github.com/jfk9w/hikkabot
 
 require (
-	github.com/jfk9w-go/aconvert-api v0.9.5-0.20191221195158-23b15366e731
-	github.com/jfk9w-go/flu v0.9.9-0.20191222065812-4c38e5a797c6
-	github.com/jfk9w-go/telegram-bot-api v0.9.5-0.20191222054702-2202f46ed7e2
+	github.com/jfk9w-go/aconvert-api v0.9.5-0.20191228122016-cc48b98a68ba
+	github.com/jfk9w-go/flu v0.9.9-0.20191228120430-084dfd7b43a1
+	github.com/jfk9w-go/telegram-bot-api v0.9.5-0.20191228122240-66a265fce834
 	github.com/mattn/go-sqlite3 v2.0.0+incompatible
 	github.com/pkg/errors v0.8.1
 	github.com/segmentio/ksuid v1.0.2

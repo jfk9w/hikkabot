@@ -8,7 +8,7 @@ import (
 type Update struct {
 	Offset int64
 	Text   format.Text
-	Media  []media.Download
+	Media  []*media.Media
 }
 
 type UpdateQueue struct {

@@ -73,10 +73,10 @@ func (c *Catalog) Update(ctx subscription.ApplicationContext, offset int64, queu
 	}
 	sort.Sort(queryResults(results))
 	for _, thread := range results {
-		var media []media.Download
-		for i := range thread.Files {
-			file := &thread.Files[i]
-			media = ctx.MediaManager.Download(Media{file, ctx.DvachClient})
+		//noinspection ALL
+		media := make([]*media.Media, 0)
+		for _, file := range thread.Files {
+			media = append(media, downloadMedia(ctx, file))
 			break
 		}
 		update := subscription.Update{

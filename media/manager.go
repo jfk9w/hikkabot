@@ -11,15 +11,13 @@ import (
 )
 
 type Config struct {
-	Dir         string
 	Concurrency int
 	Aconvert    *aconvert.Config
 }
 
 type Manager struct {
-	storage    Storage
 	converters []Converter
-	queue      chan *media
+	queue      chan *Media
 	workers    sync.WaitGroup
 }
 
@@ -27,14 +25,9 @@ func NewManager(config Config) *Manager {
 	if config.Concurrency < 1 {
 		panic("concurrency should be greater than 0")
 	}
-	storage := FileStorage{config.Dir}
-	if err := storage.Init(); err != nil {
-		panic(err)
-	}
 	manager := &Manager{
-		storage:    storage,
-		converters: []Converter{BaseConverter},
-		queue:      make(chan *media),
+		converters: []Converter{SupportedFormats},
+		queue:      make(chan *Media),
 	}
 	if config.Aconvert != nil {
 		aconverter := NewAconverter(*config.Aconvert)
@@ -51,76 +44,53 @@ func (m *Manager) AddConverter(converter Converter) *Manager {
 	return m
 }
 
-func (m *Manager) Download(remote ...Remote) []Download {
-	download := make([]Download, len(remote))
-	for i, r := range remote {
-		media := New(r)
-		m.queue <- media
-		download[i] = media
-	}
-	return download
+func (m *Manager) Submit(media *Media) {
+	media.work.Add(1)
+	m.queue <- media
 }
 
 func (m *Manager) Shutdown() {
 	close(m.queue)
 	m.workers.Wait()
-	m.storage.Cleanup()
 }
 
 func (m *Manager) runWorker() {
 	m.workers.Add(1)
 	defer m.workers.Done()
 	for media := range m.queue {
-		res := m.storage.NewResource()
-		start := time.Now()
-		size, err := m.download(media, res)
-		elapsed := time.Now().Sub(start)
+		err := m.download(media)
 		if err != nil {
-			res.Cleanup()
-			media.err = err
-			log.Printf("Failed to process media %s (took %v): %s", media.URL(), elapsed, err)
-		} else {
-			log.Printf("Processed media %s (size %d Kb, took %v)", media.URL(), size>>10, elapsed)
+			log.Printf("Failed to process media %s: %s", media.URL, err)
 		}
+		media.err = err
 		media.work.Done()
 	}
 }
 
-func (m *Manager) download(media *media, res ReadWrite) (int64, error) {
-	typ, err := media.Download(res)
-	if err != nil {
-		return -1, errors.Wrap(err, "on download")
-	}
-
-loop:
+func (m *Manager) download(media *Media) error {
+	start := time.Now()
 	for _, converter := range m.converters {
-		typ, err := converter.Convert(typ, res)
+		typ, err := converter.Convert(media)
 		switch err {
 		case nil:
-			size, err := res.Size()
+			size, err := media.in.Size()
 			if err != nil {
-				return -1, errors.Wrap(err, "on size calculation")
+				return errors.Wrap(err, "size calculation")
 			}
 			if size < MinMediaSize {
-				return -1, errors.Errorf(
-					"size (%d bytes) is below minimum size (%d bytes)",
-					size, MinMediaSize)
+				return errors.Errorf("size (%d bytes) is below minimum size (%d bytes)", size, MinMediaSize)
 			}
-			maxSize := maxMediaSize[typ]
-			if size > maxSize {
-				return -1, errors.Errorf(
-					"size (%d MB) exceeds limit (%d MB) for type %s",
-					size>>20, maxSize>>20, typ)
+			if maxSize, ok := MaxMediaSize[typ]; ok && size > maxSize {
+				return errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
 			}
-			media.res = res
-			media.typ = typ
-			return size, nil
+			media.ready = &TypeAwareReadable{Readable: media.in, Type: typ}
+			log.Printf("Processed %s %s (%d Kb) via %T in %v", typ, media.URL, size>>10, converter, time.Now().Sub(start))
+			return nil
 		case UnsupportedTypeErr:
-			continue loop
+			continue
 		default:
-			return -1, errors.Wrap(err, "on conversion")
+			return errors.Wrap(err, "conversion failed")
 		}
 	}
-
-	return -1, UnsupportedTypeErr
+	return UnsupportedTypeErr
 }

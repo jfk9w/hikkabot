@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"github.com/jfk9w/hikkabot/util"
+
 	"github.com/jfk9w-go/flu"
 
 	"github.com/jfk9w/hikkabot/api/dvach"
@@ -14,7 +16,7 @@ func main() {
 			Usercode string `json:"usercode"`
 		} `json:"dvach"`
 	})
-	err := flu.Read(flu.File("bin/config.json"), flu.JSON(config))
+	err := flu.Read(flu.File("bin/config.yml"), util.YAML(config))
 	if err != nil {
 		panic(err)
 	}

@@ -114,26 +114,21 @@ type UnsupportedMediaDomainError struct {
 }
 
 func (e UnsupportedMediaDomainError) Error() string {
-	return fmt.Sprintf("unsupported Media domain: %s", e.Domain)
+	return fmt.Sprintf("unsupported media domain: %s", e.Domain)
 }
 
-func (c *Client) Download(thing *Thing, out flu.Writable) error {
+func (c *Client) ResolveMediaURL(thing *Thing) error {
 	if mediaScanner, ok := mediaScanners[thing.Data.Domain]; ok {
 		if thing.Data.ResolvedURL == "" {
 			media, err := mediaScanner.Get(c.Client, thing.Data.URL)
 			if err != nil {
-				return errors.Wrap(err, "on Media scan")
+				return errors.Wrap(err, "on media scan")
 			}
 			thing.Data.ResolvedURL = media.URL
 			thing.Data.Extension = media.Container
 		}
+		return nil
 	} else {
 		return UnsupportedMediaDomainError{thing.Data.Domain}
 	}
-	return c.NewRequest().
-		GET().
-		Resource(thing.Data.ResolvedURL).
-		Send().
-		ReadBodyTo(out).
-		Error
 }

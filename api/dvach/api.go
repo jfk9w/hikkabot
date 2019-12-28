@@ -32,6 +32,10 @@ type File struct {
 	Height       *int     `json:"height"`
 }
 
+func (f File) URL() string {
+	return Host + f.Path
+}
+
 type Post struct {
 	NumString    string `json:"num"`
 	ParentString string `json:"parent"`

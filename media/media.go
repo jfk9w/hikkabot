@@ -1,39 +1,96 @@
 package media
 
 import (
+	"io"
+	"net/http"
+	"strconv"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 )
 
-type Remote interface {
-	URL() string
-	Download(flu.Writable) (Type, error)
+const MinMediaSize int64 = 10 << 10
+
+var MaxMediaSize = map[telegram.MediaType]int64{
+	telegram.Photo: 10 * (2 << 20),
+	telegram.Video: 50 * (2 << 20),
 }
 
-type Download interface {
-	URL() string
-	Wait() (ReadOnly, telegram.MediaType, error)
+type SizeAwareReadable interface {
+	flu.Readable
+	Size() (int64, error)
 }
 
-type media struct {
-	Remote
-	res  ReadOnly
-	typ  telegram.MediaType
-	err  error
-	work sync.WaitGroup
+type HTTPRequestReadable struct {
+	Request *flu.Request
+	size    int64
+	body    io.Reader
+	done    bool
 }
 
-func New(remote Remote) *media {
-	media := &media{Remote: remote}
-	media.work.Add(1)
-	return media
+func (r *HTTPRequestReadable) ensure() (err error) {
+	if !r.done {
+		err = r.Request.Send().HandleResponse(r).Error
+	}
+	return
 }
 
-type Batch = []*media
+func (r *HTTPRequestReadable) Handle(resp *http.Response) error {
+	contentLength := resp.Header.Get("Content-Length")
+	size, err := strconv.ParseInt(contentLength, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse Content-Length header")
+	}
+	r.size = size
+	r.body = resp.Body
+	return nil
+}
 
-func (m *media) Wait() (ReadOnly, telegram.MediaType, error) {
+func (r *HTTPRequestReadable) Reader() (reader io.Reader, err error) {
+	err = r.ensure()
+	if err != nil {
+		return
+	}
+	reader = r.body
+	return
+}
+
+func (r *HTTPRequestReadable) Size() (size int64, err error) {
+	err = r.ensure()
+	if err != nil {
+		return
+	}
+	size = r.size
+	return
+}
+
+type Media struct {
+	URL    string
+	format string
+	in     SizeAwareReadable
+	ready  *TypeAwareReadable
+	err    error
+	work   sync.WaitGroup
+}
+
+func New(url string, format string, in SizeAwareReadable) *Media {
+	return &Media{
+		URL:    url,
+		format: format,
+		in:     in,
+		err:    errors.New("not loaded"),
+	}
+}
+
+type TypeAwareReadable struct {
+	flu.Readable
+	Type telegram.MediaType
+}
+
+func (m *Media) Ready() (*TypeAwareReadable, error) {
 	m.work.Wait()
-	return m.res, m.typ, m.err
+	return m.ready, m.err
 }

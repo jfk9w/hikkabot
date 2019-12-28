@@ -81,9 +81,12 @@ func (s *Subscription) Update(ctx subscription.ApplicationContext, offset int64,
 		if thing.Data.Created.Unix() <= offset || thing.Data.Ups < s.MinUps || thing.Data.URL == "" {
 			continue
 		}
-		var media []media.Download
+		media := make([]*media.Media, 0)
 		if thing.Data.URL != "" {
-			media = ctx.MediaManager.Download(Media{thing, ctx.RedditClient})
+			err := ctx.RedditClient.ResolveMediaURL(thing)
+			if err == nil {
+				media = append(media, downloadMedia(ctx, thing))
+			}
 		}
 		update := subscription.Update{
 			Offset: thing.Data.Created.Unix(),
@@ -97,4 +100,16 @@ func (s *Subscription) Update(ctx subscription.ApplicationContext, offset int64,
 			return
 		}
 	}
+}
+
+func downloadMedia(ctx subscription.ApplicationContext, thing *reddit.Thing) *media.Media {
+	var in media.SizeAwareReadable
+	if thing.Data.ResolvedURL != "" {
+		in = &media.HTTPRequestReadable{Request: ctx.RedditClient.NewRequest().Resource(thing.Data.ResolvedURL).GET()}
+	}
+	media := media.New(thing.Data.URL, thing.Data.Extension, in)
+	if thing.Data.ResolvedURL != "" {
+		ctx.MediaManager.Submit(media)
+	}
+	return media
 }

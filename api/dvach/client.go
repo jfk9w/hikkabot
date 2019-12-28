@@ -1,7 +1,7 @@
 package dvach
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -9,32 +9,29 @@ import (
 	"github.com/pkg/errors"
 )
 
-type defaultResponseHandler struct {
+type response struct {
 	value interface{}
 }
 
-func newResponseHandler(value interface{}) flu.ResponseHandler {
-	return &defaultResponseHandler{value: value}
+func newResponse(value interface{}) flu.ReaderFrom {
+	return &response{value: value}
 }
 
-func (h *defaultResponseHandler) Handle(r *http.Response) error {
-	if r.StatusCode != http.StatusOK {
-		return flu.StatusCodeError{r.StatusCode, r.Status}
-	}
-	data, err := ioutil.ReadAll(r.Body)
-	r.Body.Close()
+func (r *response) ReadFrom(body io.Reader) (err error) {
+	buf := flu.NewBuffer()
+	err = flu.Copy(flu.Xable{R: body}, buf)
 	if err != nil {
-		return errors.Wrapf(err, "on reading body")
+		return errors.Wrap(err, "read body")
 	}
-	err = flu.Read(flu.Bytes(data), flu.JSON(h.value))
+	err = flu.Read(buf, flu.JSON(r.value))
 	if err == nil {
-		return nil
+		return
 	}
 	err = new(Error)
-	if flu.Read(flu.Bytes(data), flu.JSON(err)) == nil {
-		return err
+	if flu.Read(buf, flu.JSON(err)) != nil {
+		err = errors.Errorf("failed to decode response: %s", string(buf.Bytes()))
 	}
-	return errors.Errorf("failed to decode response: %s", string(data))
+	return
 }
 
 type Client struct {
@@ -48,7 +45,8 @@ func NewClient(http *flu.Client, usercode string) *Client {
 	return &Client{
 		Client: http.
 			SetCookies(Host, cookies(usercode, "/")...).
-			SetCookies(Host, cookies(usercode, "/makaba")...),
+			SetCookies(Host, cookies(usercode, "/makaba")...).
+			AcceptResponseCodes(200),
 	}
 }
 
@@ -58,7 +56,7 @@ func (c *Client) GetCatalog(board string) (*Catalog, error) {
 		GET().
 		Resource(Host + "/" + board + "/catalog_num.json").
 		Send().
-		HandleResponse(newResponseHandler(catalog)).
+		Read(newResponse(catalog)).
 		Error
 	if err != nil {
 		return nil, err
@@ -79,7 +77,7 @@ func (c *Client) GetThread(board string, num int, offset int) ([]Post, error) {
 		QueryParam("thread", strconv.Itoa(num)).
 		QueryParam("num", strconv.Itoa(offset)).
 		Send().
-		HandleResponse(newResponseHandler(&thread)).
+		Read(newResponse(&thread)).
 		Error
 	if err != nil {
 		return nil, err
@@ -98,7 +96,7 @@ func (c *Client) GetPost(board string, num int) (*Post, error) {
 		QueryParam("board", board).
 		QueryParam("post", strconv.Itoa(num)).
 		Send().
-		HandleResponse(newResponseHandler(&posts)).
+		Read(newResponse(&posts)).
 		Error
 	if err != nil {
 		return nil, err
@@ -126,7 +124,7 @@ func (c *Client) GetBoards() ([]Board, error) {
 		Resource(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_boards").
 		Send().
-		HandleResponse(newResponseHandler(&boardMap)).
+		Read(newResponse(&boardMap)).
 		Error
 	if err != nil {
 		return nil, err

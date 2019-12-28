@@ -28,15 +28,15 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 	}
 	if len(update.Media) == 1 && len(pages) == 1 {
 		media := update.Media[0]
-		mediaURL := format.PrintHTMLLink("[media]", media.URL())
+		mediaURL := format.PrintHTMLLink("[media]", media.URL)
 		caption := mediaURL + "\n" + pages[0]
 		if utf8.RuneCountInString(caption) <= telegram.MaxCaptionSize {
-			res, typ, err := media.Wait()
+			in, err := media.Ready()
 			if err == nil {
 				_, err = tg.Send(chatID,
 					&telegram.Media{
-						Type:      typ,
-						Readable:  res,
+						Type:      in.Type,
+						Readable:  in,
 						Caption:   caption,
 						ParseMode: parseMode},
 					&telegram.SendOptions{
@@ -69,13 +69,13 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 	}
 
 	for _, media := range update.Media {
-		url := format.PrintHTMLLink("[media]", media.URL())
-		res, typ, err := media.Wait()
+		url := format.PrintHTMLLink("[media]", media.URL)
+		in, err := media.Ready()
 		if err == nil {
 			_, err = tg.Send(chatID,
 				&telegram.Media{
-					Type:      typ,
-					Readable:  res,
+					Type:      in.Type,
+					Readable:  in,
 					Caption:   url,
 					ParseMode: parseMode},
 				&telegram.SendOptions{
