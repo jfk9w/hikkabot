@@ -38,7 +38,7 @@ func (c *Catalog) Name() string {
 
 var catalogRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
 
-func (c *Catalog) Parse(_ feed.ApplicationContext, cmd string, opts string) error {
+func (c *Catalog) Parse(_ feed.Context, cmd string, opts string) error {
 	groups := catalogRegexp.FindStringSubmatch(cmd)
 	if len(groups) < 6 {
 		return feed.ErrParseFailed
@@ -57,11 +57,10 @@ func (c *Catalog) Parse(_ feed.ApplicationContext, cmd string, opts string) erro
 	return nil
 }
 
-func (c *Catalog) Update(ctx feed.ApplicationContext, offset int64, queue *feed.UpdateQueue) {
+func (c *Catalog) Update(ctx feed.Context, offset int64, queue *feed.UpdateQueue) error {
 	catalog, err := ctx.DvachClient.GetCatalog(c.Board)
 	if err != nil {
-		queue.Fail(errors.Wrap(err, "on catalog load"))
-		return
+		return errors.Wrap(err, "get catalog")
 	}
 	results := make([]dvach.Post, 0)
 	for _, thread := range catalog.Threads {
@@ -90,7 +89,8 @@ func (c *Catalog) Update(ctx feed.ApplicationContext, offset int64, queue *feed.
 			Media: media,
 		}
 		if !queue.Offer(update) {
-			return
+			break
 		}
 	}
+	return nil
 }

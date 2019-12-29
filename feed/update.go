@@ -17,6 +17,13 @@ type UpdateQueue struct {
 	cancel  chan struct{}
 }
 
+func newUpdateQueue() *UpdateQueue {
+	return &UpdateQueue{
+		updates: make(chan Update, 10),
+		cancel:  make(chan struct{}),
+	}
+}
+
 func (s *UpdateQueue) Offer(update Update) bool {
 	select {
 	case <-s.cancel:
@@ -26,13 +33,11 @@ func (s *UpdateQueue) Offer(update Update) bool {
 	}
 }
 
-func (s *UpdateQueue) Fail(err error) {
-	if s.err == nil {
+func (s *UpdateQueue) pull(ctx Context, offset int64, item Item) {
+	defer close(s.updates)
+	err := item.Update(ctx, offset, s)
+	if err != nil {
 		s.err = err
 	}
-}
-
-func (s *UpdateQueue) run(ctx ApplicationContext, offset int64, item Item) {
-	defer close(s.updates)
-	item.Update(ctx, offset, s)
+	return
 }

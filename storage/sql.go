@@ -105,7 +105,7 @@ func (s *SQL) init() *SQL {
 	return s
 }
 
-func (s *SQL) itemData(query string, args ...interface{}) *feed.ItemData {
+func (s *SQL) selectQuery(query string, args ...interface{}) *feed.ItemData {
 	rows := s.query(`
 	SELECT id, secondary_id, chat_id, service, item, "offset" 
 	FROM subscription `+query+` LIMIT 1`, args...)
@@ -132,7 +132,7 @@ func (s *SQL) itemData(query string, args ...interface{}) *feed.ItemData {
 	return idata
 }
 
-func (s *SQL) Create(chatID telegram.ID, item feed.Item) (*feed.ItemData, bool) {
+func (s *SQL) Create(chatID telegram.ID, item feed.Item) *feed.ItemData {
 	idata := &feed.ItemData{
 		Item:        item,
 		PrimaryID:   ksuid.New().String(),
@@ -143,21 +143,25 @@ func (s *SQL) Create(chatID telegram.ID, item feed.Item) (*feed.ItemData, bool) 
 	if err != nil {
 		panic(err)
 	}
-	return idata, s.update(`
+	ok := s.update(`
 	INSERT INTO subscription (id, secondary_id, chat_id, service, item, error) 
 	VALUES ($1, $2, $3, $4, $5, '__notstarted')
 	ON CONFLICT DO NOTHING`,
 		idata.PrimaryID, idata.SecondaryID, idata.ChatID, idata.Service(), itemJSON) == 1
+	if ok {
+		return idata
+	} else {
+		return nil
+	}
 }
 
-func (s *SQL) Get(primaryID string) (*feed.ItemData, bool) {
-	item := s.itemData(`
+func (s *SQL) Get(primaryID string) *feed.ItemData {
+	return s.selectQuery(`
 	WHERE id = $1`, primaryID)
-	return item, item != nil
 }
 
-func (s *SQL) Advance(chatID telegram.ID) (*feed.ItemData, bool) {
-	item := s.itemData(`
+func (s *SQL) Advance(chatID telegram.ID) *feed.ItemData {
+	item := s.selectQuery(`
 	WHERE chat_id = $1 
 	  AND error IS NULL 
 	ORDER BY CASE 
@@ -165,7 +169,7 @@ func (s *SQL) Advance(chatID telegram.ID) (*feed.ItemData, bool) {
 		THEN 0 
 	  ELSE 1 
 	END, updated`, chatID)
-	return item, item != nil
+	return item
 }
 
 func (s *SQL) Update(id string, change feed.Change) bool {

@@ -6,8 +6,8 @@ import (
 	"github.com/jfk9w/hikkabot/media"
 )
 
-// ApplicationContext is passed to a subscription for update.
-type ApplicationContext struct {
+// Context is passed to a subscription for pullUpdates.
+type Context struct {
 	MediaManager *media.Manager
 	DvachClient  *dvach.Client
 	RedditClient *reddit.Client

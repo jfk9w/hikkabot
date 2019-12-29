@@ -42,7 +42,7 @@ func (t *Thread) Name() string {
 
 var threadRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)/res/([0-9]+)\.html?$`)
 
-func (t *Thread) Parse(ctx feed.ApplicationContext, cmd string, opts string) error {
+func (t *Thread) Parse(ctx feed.Context, cmd string, opts string) error {
 	groups := threadRegexp.FindStringSubmatch(cmd)
 	if len(groups) < 6 {
 		return feed.ErrParseFailed
@@ -64,14 +64,13 @@ func (t *Thread) Parse(ctx feed.ApplicationContext, cmd string, opts string) err
 	return nil
 }
 
-func (t *Thread) Update(ctx feed.ApplicationContext, offset int64, queue *feed.UpdateQueue) {
+func (t *Thread) Update(ctx feed.Context, offset int64, queue *feed.UpdateQueue) error {
 	if offset > 0 {
 		offset++
 	}
 	posts, err := ctx.DvachClient.GetThread(t.Board, t.Num, int(offset))
 	if err != nil {
-		queue.Fail(errors.Wrap(err, "on posts load"))
-		return
+		return errors.Wrap(err, "get thread")
 	}
 	for _, post := range posts {
 		if t.MediaOnly && len(post.Files) == 0 {
@@ -98,9 +97,10 @@ func (t *Thread) Update(ctx feed.ApplicationContext, offset int64, queue *feed.U
 			Media:  media,
 		}
 		if !queue.Offer(update) {
-			return
+			break
 		}
 	}
+	return nil
 }
 
 var (

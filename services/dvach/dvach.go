@@ -6,7 +6,7 @@ import (
 	"github.com/jfk9w/hikkabot/media"
 )
 
-func downloadMedia(ctx feed.ApplicationContext, file dvach.File) *media.Media {
+func downloadMedia(ctx feed.Context, file dvach.File) *media.Media {
 	in := &media.HTTPRequest{Request: ctx.DvachClient.NewRequest().Resource(file.URL()).GET()}
 	return ctx.MediaManager.Submit(file.URL(), Formats[file.Type], in)
 }

@@ -5,7 +5,6 @@ import (
 	"sort"
 	"strconv"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
@@ -39,7 +38,7 @@ func (s *Subscription) Name() string {
 
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
 
-func (s *Subscription) Parse(ctx feed.ApplicationContext, cmd string, opts string) error {
+func (s *Subscription) Parse(ctx feed.Context, cmd string, opts string) error {
 	groups := re.FindStringSubmatch(cmd)
 	if len(groups) != 7 {
 		return feed.ErrParseFailed
@@ -69,11 +68,10 @@ func (s *Subscription) Parse(ctx feed.ApplicationContext, cmd string, opts strin
 	return nil
 }
 
-func (s *Subscription) Update(ctx feed.ApplicationContext, offset int64, session *feed.UpdateQueue) {
+func (s *Subscription) Update(ctx feed.Context, offset int64, session *feed.UpdateQueue) error {
 	things, err := ctx.RedditClient.GetListing(s.Subreddit, s.Sort, thingLimit)
 	if err != nil {
-		session.Fail(err)
-		return
+		return err
 	}
 	sort.Sort(listing(things))
 	for i := range things {
@@ -90,19 +88,20 @@ func (s *Subscription) Update(ctx feed.ApplicationContext, offset int64, session
 		}
 		update := feed.Update{
 			Offset: thing.Data.Created.Unix(),
-			Text: format.NewHTML(telegram.MaxCaptionSize, 1, nil, nil).
+			Text: format.NewHTML(-1, 1, nil, nil).
 				Text("#" + s.Subreddit).NewLine().
 				Text(thing.Data.Title).
 				Format(),
 			Media: media,
 		}
 		if !session.Offer(update) {
-			return
+			break
 		}
 	}
+	return nil
 }
 
-func downloadMedia(ctx feed.ApplicationContext, thing *reddit.Thing) *media.Media {
+func downloadMedia(ctx feed.Context, thing *reddit.Thing) *media.Media {
 	var in media.SizeAwareReadable
 	if thing.Data.ResolvedURL != "" {
 		in = &media.HTTPRequest{Request: ctx.RedditClient.NewRequest().Resource(thing.Data.ResolvedURL).GET()}

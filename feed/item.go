@@ -20,10 +20,10 @@ type Item interface {
 	Name() string
 
 	// Parse should try to initialize a subscription from a given input string and an optional options string.
-	Parse(ctx ApplicationContext, cmd string, opts string) error
+	Parse(ctx Context, cmd string, opts string) error
 
-	// Update is called when a subscription is called for update.
-	Update(ctx ApplicationContext, offset int64, session *UpdateQueue)
+	// Update is called when a subscription is called for pullUpdates.
+	Update(ctx Context, offset int64, queue *UpdateQueue) error
 }
 
 type Service = func() Item

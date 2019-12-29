@@ -4,24 +4,27 @@ import (
 	"os"
 	"time"
 
+	"github.com/jfk9w/hikkabot/services"
+
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/media"
-	"github.com/jfk9w/hikkabot/services"
 	"github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
 )
 
 func main() {
 	config := new(struct {
-		AdminID        telegram.ID
-		Aliases        map[telegram.Username]telegram.ID
-		Storage        storage.SQLConfig
-		UpdateInterval string
-		Telegram       struct {
+		Aggregator struct {
+			AdminID telegram.ID
+			Aliases map[telegram.Username]telegram.ID
+			Storage storage.SQLConfig
+			Timeout string
+		}
+		Telegram struct {
 			Token       string
 			Proxy       string
 			Concurrency int
@@ -34,7 +37,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	updateInterval, err := time.ParseDuration(config.UpdateInterval)
+	timeout, err := time.ParseDuration(config.Aggregator.Timeout)
 	if err != nil {
 		panic(err)
 	}
@@ -42,15 +45,21 @@ func main() {
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).
 		NewClient(), config.Telegram.Token)
-	mediaManager := media.NewManager(config.Media)
-	defer mediaManager.Shutdown()
-	ctx := feed.ApplicationContext{
-		MediaManager: mediaManager,
-		DvachClient:  dvach.NewClient(nil, config.Dvach.Usercode),
-		RedditClient: reddit.NewClient(nil, config.Reddit),
-	}
-	storage := storage.NewSQL(config.Storage)
-	handler := feed.NewHandler(feed.Telegram{bot.Client}, ctx, storage, updateInterval, services.All, config.Aliases)
-	go bot.Send(config.AdminID, &telegram.Text{Text: "⬆️"}, nil)
-	bot.Listen(config.Telegram.Concurrency, handler.CommandListener())
+	media := media.NewManager(config.Media)
+	defer media.Shutdown()
+	storage := storage.NewSQL(config.Aggregator.Storage)
+	defer storage.Close()
+	go bot.Send(config.Aggregator.AdminID, &telegram.Text{Text: "⬆️"}, nil)
+	bot.Listen(config.Telegram.Concurrency, (&feed.Aggregator{
+		Channel: feed.Telegram{Client: bot.Client},
+		Context: feed.Context{
+			MediaManager: media,
+			DvachClient:  dvach.NewClient(nil, config.Dvach.Usercode),
+			RedditClient: reddit.NewClient(nil, config.Reddit),
+		},
+		Storage:  storage,
+		Services: services.All,
+		Timeout:  timeout,
+		Aliases:  config.Aggregator.Aliases,
+	}).Init().CommandListener())
 }
