@@ -4,8 +4,6 @@ import (
 	"log"
 	"math"
 	"time"
-
-	sqlite32 "github.com/mattn/go-sqlite3/driver"
 )
 
 var KnownSQLQuirks = map[string]SQLQuirks{
@@ -53,9 +51,9 @@ func (sqlite3) Now() string {
 }
 
 func (sqlite3) RetryQueryOrExec(err error, try int) bool {
-	if err, ok := err.(sqlite32.Error); ok && err.Code == sqlite32.ErrLocked {
+	if err != nil && err.Error() == "database is locked" {
 		timeout := time.Duration(math.Pow(float64(try), 2)) * 100 * time.Millisecond
-		log.Printf("Database table is locked (query), sleeping for %v", timeout)
+		log.Printf("Database is locked, sleeping for %v", timeout)
 		time.Sleep(timeout)
 		return true
 	} else {
