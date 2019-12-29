@@ -16,9 +16,9 @@ type Config struct {
 }
 
 type Manager struct {
-	converters []Converter
-	queue      chan *Media
-	workers    sync.WaitGroup
+	convs []Converter
+	queue chan *Media
+	work  sync.WaitGroup
 }
 
 func NewManager(config Config) *Manager {
@@ -26,8 +26,8 @@ func NewManager(config Config) *Manager {
 		panic("concurrency should be greater than 0")
 	}
 	manager := &Manager{
-		converters: []Converter{SupportedFormats},
-		queue:      make(chan *Media),
+		convs: []Converter{SupportedFormats},
+		queue: make(chan *Media),
 	}
 	if config.Aconvert != nil {
 		aconverter := NewAconverter(*config.Aconvert)
@@ -39,8 +39,8 @@ func NewManager(config Config) *Manager {
 	return manager
 }
 
-func (m *Manager) AddConverter(converter Converter) *Manager {
-	m.converters = append(m.converters, converter)
+func (m *Manager) AddConverter(conv Converter) *Manager {
+	m.convs = append(m.convs, conv)
 	return m
 }
 
@@ -51,14 +51,14 @@ func (m *Manager) Submit(media *Media) {
 
 func (m *Manager) Shutdown() {
 	close(m.queue)
-	m.workers.Wait()
+	m.work.Wait()
 }
 
 func (m *Manager) runWorker() {
-	m.workers.Add(1)
-	defer m.workers.Done()
+	m.work.Add(1)
+	defer m.work.Done()
 	for media := range m.queue {
-		err := m.download(media)
+		err := m.process(media)
 		if err != nil {
 			log.Printf("Failed to process media %s: %s", media.URL, err)
 		}
@@ -67,10 +67,10 @@ func (m *Manager) runWorker() {
 	}
 }
 
-func (m *Manager) download(media *Media) error {
+func (m *Manager) process(media *Media) error {
 	start := time.Now()
-	for _, converter := range m.converters {
-		typ, err := converter.Convert(media)
+	for _, conv := range m.convs {
+		typ, err := conv.Convert(media)
 		switch err {
 		case nil:
 			size, err := media.in.Size()
@@ -84,7 +84,7 @@ func (m *Manager) download(media *Media) error {
 				return errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
 			}
 			media.ready = &TypeAwareReadable{Readable: media.in, Type: typ}
-			log.Printf("Processed %s %s (%d Kb) via %T in %v", typ, media.URL, size>>10, converter, time.Now().Sub(start))
+			log.Printf("Processed %s %s (%d Kb) via %T in %v", typ, media.URL, size>>10, conv, time.Now().Sub(start))
 			return nil
 		case UnsupportedTypeErr:
 			continue
