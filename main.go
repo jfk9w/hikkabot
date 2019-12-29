@@ -2,7 +2,6 @@ package main
 
 import (
 	"expvar"
-	"net/http"
 	"os"
 	"time"
 
@@ -24,7 +23,6 @@ func init() {
 	expvar.NewInt("converted_media_bytes")
 	expvar.NewInt("converted_media_files")
 	expvar.NewInt("sent_updates")
-	go http.ListenAndServe(":6060", nil)
 }
 
 func main() {
@@ -73,5 +71,6 @@ func main() {
 		Services: services.All,
 		Timeout:  timeout,
 		Aliases:  config.Aggregator.Aliases,
+		AdminID:  config.Aggregator.AdminID,
 	}).Init().CommandListener())
 }

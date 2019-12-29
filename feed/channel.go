@@ -13,7 +13,7 @@ type Channel interface {
 	SendUpdate(telegram.ID, Update) error
 	GetChat(telegram.ChatID) (*telegram.Chat, error)
 	GetChatAdministrators(telegram.ChatID) ([]telegram.ChatMember, error)
-	SendAlert([]telegram.ID, string, telegram.ReplyMarkup)
+	SendAlert([]telegram.ID, format.Text, telegram.ReplyMarkup)
 }
 
 type Telegram struct {
@@ -107,8 +107,8 @@ func (tg Telegram) GetChatAdministrators(chatID telegram.ChatID) ([]telegram.Cha
 	return tg.Client.GetChatAdministrators(chatID)
 }
 
-func (tg Telegram) SendAlert(chatIDs []telegram.ID, text string, replyMarkup telegram.ReplyMarkup) {
-	sendable := &telegram.Text{Text: text}
+func (tg Telegram) SendAlert(chatIDs []telegram.ID, text format.Text, replyMarkup telegram.ReplyMarkup) {
+	sendable := &telegram.Text{Text: text.Pages[0], ParseMode: text.ParseMode}
 	options := &telegram.SendOptions{ReplyMarkup: replyMarkup}
 	for _, chatID := range chatIDs {
 		_, err := tg.Send(chatID, sendable, options)
