@@ -19,76 +19,77 @@ type SQLConfig struct {
 	Datasource string
 }
 
-func (c SQLConfig) validate() error {
+func (c SQLConfig) validate() {
 	if c.Driver == "" {
-		return errors.New("driver must not be empty")
+		panic("driver must not be empty")
 	}
-
 	if c.Datasource == "" {
-		return errors.New("datasource must not be empty")
+		panic("datasource must not be empty")
 	}
-
-	if _, ok := sqlDialects[c.Driver]; !ok {
-		return errors.Errorf("unknown sql dialect: %s", c.Driver)
+	if _, ok := KnownSQLQuirks[c.Driver]; !ok {
+		panic(errors.Errorf("unknown driver: %s", c.Driver))
 	}
-
-	return nil
 }
 
 type SQL struct {
-	db      *sql.DB
-	dialect sqlDialect
+	db     *sql.DB
+	quirks SQLQuirks
 }
 
 func NewSQL(config SQLConfig) *SQL {
-	util.Check(config.validate())
+	config.validate()
 	db, err := sql.Open(config.Driver, config.Datasource)
-	util.Check(err)
-	return (&SQL{db, sqlDialects[config.Driver]}).init()
+	if err != nil {
+		panic(err)
+	}
+	return (&SQL{db, KnownSQLQuirks[config.Driver]}).init()
 }
 
 func (s *SQL) Close() error {
 	return s.db.Close()
 }
 
-func (s *SQL) query(query string, args ...interface{}) (*sql.Rows, error) {
-	return s.db.Query(query, args...)
-}
-
-func (s *SQL) mustQuery(query string, args ...interface{}) *sql.Rows {
-	rows, err := s.query(query, args...)
-	util.Check(err)
+func (s *SQL) query(query string, args ...interface{}) *sql.Rows {
+	rows, err := s.db.Query(query, args...)
+	for i := 0; i < 5; i++ {
+		if s.quirks.RetryQueryOrExec(err, i) {
+			rows, err = s.db.Query(query, args...)
+		} else {
+			break
+		}
+	}
+	if err != nil {
+		panic(err)
+	}
 	return rows
 }
 
-func (s *SQL) exec(query string, args ...interface{}) (sql.Result, error) {
-	return s.db.Exec(query, args...)
-}
-
-func (s *SQL) mustExec(query string, args ...interface{}) sql.Result {
-	result, err := s.exec(query, args...)
-	util.Check(err)
-	return result
-}
-
-func (s *SQL) update(query string, args ...interface{}) (rows int64, err error) {
-	result, err := s.exec(query, args...)
-	if err != nil {
-		return
+func (s *SQL) exec(query string, args ...interface{}) sql.Result {
+	res, err := s.db.Exec(query, args...)
+	for i := 0; i < 5; i++ {
+		if s.quirks.RetryQueryOrExec(err, i) {
+			res, err = s.db.Exec(query, args...)
+		} else {
+			break
+		}
 	}
-
-	rows, err = result.RowsAffected()
-	return
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
-func (s *SQL) mustUpdate(query string, args ...interface{}) int64 {
-	rows, err := s.update(query, args...)
-	util.Check(err)
+func (s *SQL) update(query string, args ...interface{}) int64 {
+	result := s.exec(query, args...)
+	rows, err := result.RowsAffected()
+	if err != nil {
+		panic(err)
+	}
 	return rows
 }
 
 func (s *SQL) init() *SQL {
-	s.mustExec(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS subscription (
+	s.exec(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS subscription (
   id TEXT NOT NULL,
   secondary_id TEXT NOT NULL,
   chat_id BIGINT NOT NULL,
@@ -97,16 +98,15 @@ func (s *SQL) init() *SQL {
   "offset" BIGINT NOT NULL DEFAULT 0,
   updated %s,
   error TEXT
-)`, s.dialect.jsonType(), s.dialect.timeType()))
-
-	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__id ON subscription(id)`)
-	s.mustExec(`CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__secondary_id ON subscription(secondary_id, chat_id, service)`)
+)`, s.quirks.JSONType(), s.quirks.TimeType()))
+	s.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__id ON subscription(id)`)
+	s.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__secondary_id ON subscription(secondary_id, chat_id, service)`)
 
 	return s
 }
 
 func (s *SQL) itemData(query string, args ...interface{}) *subscription.ItemData {
-	rows := s.mustQuery(`SELECT id, secondary_id, chat_id, service, item, "offset" FROM subscription `+query+` LIMIT 1`, args...)
+	rows := s.query(`SELECT id, secondary_id, chat_id, service, item, "offset" FROM subscription `+query+` LIMIT 1`, args...)
 	if !rows.Next() {
 		_ = rows.Close()
 		return nil
@@ -147,7 +147,7 @@ func (s *SQL) AddItem(chatID telegram.ID, item subscription.Item) (*subscription
 	itemJSON, err := json.Marshal(item)
 	util.Check(err)
 
-	return idata, s.mustUpdate(`
+	return idata, s.update(`
 INSERT INTO subscription (id, secondary_id, chat_id, service, item, error) 
 VALUES ($1, $2, $3, $4, $5, '__notstarted')
 ON CONFLICT DO NOTHING`,
@@ -165,41 +165,39 @@ func (s *SQL) GetNextItem(chatID telegram.ID) (*subscription.ItemData, bool) {
 }
 
 func (s *SQL) UpdateOffset(primaryID string, offset int64) bool {
-	return s.mustUpdate(fmt.Sprintf(`
+	return s.update(fmt.Sprintf(`
 UPDATE subscription
 SET "offset" = $1, updated = %s
-WHERE id = $2 AND error IS NULL`, s.dialect.now()),
+WHERE id = $2 AND error IS NULL`, s.quirks.Now()),
 		offset, primaryID) == 1
 }
 
 func (s *SQL) UpdateError(primaryID string, err error) bool {
-	return s.mustUpdate(fmt.Sprintf(`
+	return s.update(fmt.Sprintf(`
 UPDATE subscription
 SET error = $1, updated = %s
-WHERE id = $2 AND error IS NULL`, s.dialect.now()), err.Error(), primaryID) == 1
+WHERE id = $2 AND error IS NULL`, s.quirks.Now()), err.Error(), primaryID) == 1
 }
 
 func (s *SQL) ResetError(primaryID string) bool {
-	return s.mustUpdate(fmt.Sprintf(`
+	return s.update(fmt.Sprintf(`
 UPDATE subscription
 SET error = NULL, updated = %s
-WHERE id = $1 AND error IS NOT NULL`, s.dialect.now()), primaryID) == 1
+WHERE id = $1 AND error IS NOT NULL`, s.quirks.Now()), primaryID) == 1
 }
 
 func (s *SQL) GetActiveChats() []telegram.ID {
-	rows := s.mustQuery(`
-SELECT DISTINCT chat_id 
-FROM subscription
-WHERE error IS NULL
-ORDER BY chat_id`)
-
+	rows := s.query(`
+	SELECT DISTINCT chat_id 
+	FROM subscription
+	WHERE error IS NULL
+	ORDER BY chat_id`)
 	chatIDs := make([]telegram.ID, 0)
 	for rows.Next() {
 		var chatID telegram.ID
 		util.Check(rows.Scan(&chatID))
 		chatIDs = append(chatIDs, chatID)
 	}
-
 	_ = rows.Close()
 	return chatIDs
 }
