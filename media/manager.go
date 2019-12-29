@@ -104,7 +104,7 @@ func (m *Manager) process(url string, format string, in SizeAwareReadable) (*Typ
 				return nil, errors.Wrap(err, "size calculation")
 			}
 			if size < m.minSize {
-				return nil, errors.Errorf("size (%d bytes) is below minimum size (%d bytes)", size, m.minSize)
+				return nil, errors.Errorf("size (%d B) is below minimum size (%d B)", size, m.minSize)
 			}
 			if size > m.maxSize {
 				return nil, errors.Errorf("size (%d MB) exceeds hard limit (%d MB)", size>>20, m.maxSize>>20)
@@ -112,7 +112,7 @@ func (m *Manager) process(url string, format string, in SizeAwareReadable) (*Typ
 			if maxSize, ok := MaxMediaSize[typ]; ok && size > maxSize {
 				return nil, errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
 			}
-			log.Printf("Processed %s %s (%d Kilobytes) via %T in %v", typ, url, size>>10, conv, time.Now().Sub(start))
+			log.Printf("Processed %s %s (%d KB) via %T in %v", typ, url, size>>10, conv, time.Now().Sub(start))
 			return &TypeAwareReadable{Readable: in, Type: typ}, nil
 		case UnsupportedTypeErr:
 			continue
