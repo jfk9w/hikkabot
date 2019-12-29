@@ -89,49 +89,49 @@ func (s *SQL) update(query string, args ...interface{}) int64 {
 }
 
 func (s *SQL) init() *SQL {
-	s.exec(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS subscription (
-  id TEXT NOT NULL,
-  secondary_id TEXT NOT NULL,
-  chat_id BIGINT NOT NULL,
-  service TEXT NOT NULL,
-  item %s NOT NULL,
-  "offset" BIGINT NOT NULL DEFAULT 0,
-  updated %s,
-  error TEXT
-)`, s.quirks.JSONType(), s.quirks.TimeType()))
-	s.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__id ON subscription(id)`)
-	s.exec(`CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__secondary_id ON subscription(secondary_id, chat_id, service)`)
-
+	s.exec(fmt.Sprintf(`
+	CREATE TABLE IF NOT EXISTS subscription (
+	  id TEXT NOT NULL,
+	  secondary_id TEXT NOT NULL,
+	  chat_id BIGINT NOT NULL,
+	  service TEXT NOT NULL,
+	  item %s NOT NULL,
+	  "offset" BIGINT NOT NULL DEFAULT 0,
+	  updated %s,
+	  error TEXT
+	)`, s.quirks.JSONType(), s.quirks.TimeType()))
+	s.exec(`
+	CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__id 
+	ON subscription(id)`)
+	s.exec(`
+	CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__secondary_id 
+	ON subscription(secondary_id, chat_id, service)`)
 	return s
 }
 
 func (s *SQL) itemData(query string, args ...interface{}) *subscription.ItemData {
-	rows := s.query(`SELECT id, secondary_id, chat_id, service, item, "offset" FROM subscription `+query+` LIMIT 1`, args...)
+	rows := s.query(`
+	SELECT id, secondary_id, chat_id, service, item, "offset" 
+	FROM subscription `+query+` LIMIT 1`, args...)
+	defer rows.Close()
 	if !rows.Next() {
-		_ = rows.Close()
 		return nil
 	}
-
 	idata := new(subscription.ItemData)
 	var (
 		serviceID string
 		itemJSON  json.RawMessage
 	)
-
 	util.Check(rows.Scan(&idata.PrimaryID, &idata.SecondaryID, &idata.ChatID, &serviceID, &itemJSON, &idata.Offset))
-	_ = rows.Close()
-
 	service, ok := services.Map[serviceID]
 	if !ok {
 		panic("unsupported service " + serviceID)
 	}
-
 	item := service()
 	err := json.Unmarshal(itemJSON, item)
 	if err != nil {
-		return nil
+		panic(err)
 	}
-
 	idata.Item = item
 	return idata
 }
@@ -143,47 +143,56 @@ func (s *SQL) AddItem(chatID telegram.ID, item subscription.Item) (*subscription
 		SecondaryID: item.ID(),
 		ChatID:      chatID,
 	}
-
 	itemJSON, err := json.Marshal(item)
-	util.Check(err)
-
+	if err != nil {
+		panic(err)
+	}
 	return idata, s.update(`
-INSERT INTO subscription (id, secondary_id, chat_id, service, item, error) 
-VALUES ($1, $2, $3, $4, $5, '__notstarted')
-ON CONFLICT DO NOTHING`,
+	INSERT INTO subscription (id, secondary_id, chat_id, service, item, error) 
+	VALUES ($1, $2, $3, $4, $5, '__notstarted')
+	ON CONFLICT DO NOTHING`,
 		idata.PrimaryID, idata.SecondaryID, idata.ChatID, idata.Service(), itemJSON) == 1
 }
 
 func (s *SQL) GetItem(primaryID string) (*subscription.ItemData, bool) {
-	item := s.itemData(`WHERE id = $1`, primaryID)
+	item := s.itemData(`
+	WHERE id = $1`, primaryID)
 	return item, item != nil
 }
 
 func (s *SQL) GetNextItem(chatID telegram.ID) (*subscription.ItemData, bool) {
-	item := s.itemData(`WHERE chat_id = $1 AND error IS NULL ORDER BY CASE WHEN updated IS NULL THEN 0 ELSE 1 END, updated`, chatID)
+	item := s.itemData(`
+	WHERE chat_id = $1 
+	  AND error IS NULL 
+	ORDER BY CASE 
+	  WHEN updated IS NULL 
+		THEN 0 
+	  ELSE 1 
+	END, updated`, chatID)
 	return item, item != nil
 }
 
-func (s *SQL) UpdateOffset(primaryID string, offset int64) bool {
-	return s.update(fmt.Sprintf(`
-UPDATE subscription
-SET "offset" = $1, updated = %s
-WHERE id = $2 AND error IS NULL`, s.quirks.Now()),
-		offset, primaryID) == 1
-}
+func (s *SQL) Update(id string, change subscription.Change) bool {
+	var (
+		field             = "error"
+		value interface{} = nil
+		cond              = "error IS NULL"
+	)
 
-func (s *SQL) UpdateError(primaryID string, err error) bool {
-	return s.update(fmt.Sprintf(`
-UPDATE subscription
-SET error = $1, updated = %s
-WHERE id = $2 AND error IS NULL`, s.quirks.Now()), err.Error(), primaryID) == 1
-}
+	if change.Offset != 0 {
+		field = `"offset"`
+		value = change.Offset
+	} else if change.Error == nil {
+		cond = "error IS NOT NULL"
+	} else {
+		value = change.Error.Error()
+	}
 
-func (s *SQL) ResetError(primaryID string) bool {
-	return s.update(fmt.Sprintf(`
-UPDATE subscription
-SET error = NULL, updated = %s
-WHERE id = $1 AND error IS NOT NULL`, s.quirks.Now()), primaryID) == 1
+	sql := fmt.Sprintf(`
+	UPDATE subscription
+	SET %s = $1, updated = %s
+	WHERE id = $2 AND %s`, field, s.quirks.Now(), cond)
+	return s.update(sql, value, id) == 1
 }
 
 func (s *SQL) GetActiveChats() []telegram.ID {

@@ -74,7 +74,7 @@ func (c *controller) update(chatID telegram.ID, item *ItemData) error {
 		if err != nil {
 			return errors.Wrapf(err, "on send update: %+v", u)
 		}
-		if !c.storage.UpdateOffset(item.PrimaryID, u.Offset) {
+		if !c.storage.Update(item.PrimaryID, Change{Offset: u.Offset}) {
 			queue.cancel <- struct{}{}
 			close(queue.cancel)
 			return errCancelled
@@ -87,7 +87,7 @@ func (c *controller) update(chatID telegram.ID, item *ItemData) error {
 		return errors.Wrap(queue.err, "on update")
 	}
 	if !hasUpdates {
-		if !c.storage.UpdateOffset(item.PrimaryID, item.Offset) {
+		if !c.storage.Update(item.PrimaryID, Change{Offset: item.Offset}) {
 			return errCancelled
 		} else {
 			log.Printf("Updated offset for %v: %v -> %v", item, item.Offset, item.Offset)
@@ -106,7 +106,7 @@ func (c *controller) create(candidate Item, access *access) bool {
 }
 
 func (c *controller) suspend(item *ItemData, access *access, err error) bool {
-	if c.storage.UpdateError(item.PrimaryID, err) {
+	if c.storage.Update(item.PrimaryID, Change{Error: err}) {
 		log.Printf("Suspended %v: %v", item, err)
 		go c.notify(item, access, &suspendEvent{err})
 		return true
@@ -115,7 +115,7 @@ func (c *controller) suspend(item *ItemData, access *access, err error) bool {
 }
 
 func (c *controller) resume(item *ItemData, access *access) bool {
-	if c.storage.ResetError(item.PrimaryID) {
+	if c.storage.Update(item.PrimaryID, Change{}) {
 		c.ensure(item.ChatID)
 		log.Printf("Resumed %v", item)
 		go c.notify(item, access, resume)
