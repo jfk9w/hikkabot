@@ -105,7 +105,7 @@ func (s *Subscription) Update(ctx subscription.ApplicationContext, offset int64,
 func downloadMedia(ctx subscription.ApplicationContext, thing *reddit.Thing) *media.Media {
 	var in media.SizeAwareReadable
 	if thing.Data.ResolvedURL != "" {
-		in = &media.HTTPRequestReadable{Request: ctx.RedditClient.NewRequest().Resource(thing.Data.ResolvedURL).GET()}
+		in = &media.HTTPRequest{Request: ctx.RedditClient.NewRequest().Resource(thing.Data.ResolvedURL).GET()}
 	}
 	return ctx.MediaManager.Submit(thing.Data.URL, thing.Data.Extension, in)
 }

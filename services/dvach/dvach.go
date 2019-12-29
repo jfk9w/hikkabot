@@ -7,7 +7,7 @@ import (
 )
 
 func downloadMedia(ctx subscription.ApplicationContext, file dvach.File) *media.Media {
-	in := &media.HTTPRequestReadable{Request: ctx.DvachClient.NewRequest().Resource(file.URL()).GET()}
+	in := &media.HTTPRequest{Request: ctx.DvachClient.NewRequest().Resource(file.URL()).GET()}
 	return ctx.MediaManager.Submit(file.URL(), Formats[file.Type], in)
 }
 

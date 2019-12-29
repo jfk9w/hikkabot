@@ -24,21 +24,21 @@ type SizeAwareReadable interface {
 	Size() (int64, error)
 }
 
-type HTTPRequestReadable struct {
+type HTTPRequest struct {
 	Request *flu.Request
 	size    int64
 	body    io.Reader
 	done    bool
 }
 
-func (r *HTTPRequestReadable) ensure() (err error) {
+func (r *HTTPRequest) ensure() (err error) {
 	if !r.done {
 		err = r.Request.Send().HandleResponse(r).Error
 	}
 	return
 }
 
-func (r *HTTPRequestReadable) Handle(resp *http.Response) error {
+func (r *HTTPRequest) Handle(resp *http.Response) error {
 	contentLength := resp.Header.Get("Content-Length")
 	size, err := strconv.ParseInt(contentLength, 10, 64)
 	if err != nil {
@@ -49,7 +49,7 @@ func (r *HTTPRequestReadable) Handle(resp *http.Response) error {
 	return nil
 }
 
-func (r *HTTPRequestReadable) Reader() (reader io.Reader, err error) {
+func (r *HTTPRequest) Reader() (reader io.Reader, err error) {
 	err = r.ensure()
 	if err != nil {
 		return
@@ -58,7 +58,7 @@ func (r *HTTPRequestReadable) Reader() (reader io.Reader, err error) {
 	return
 }
 
-func (r *HTTPRequestReadable) Size() (size int64, err error) {
+func (r *HTTPRequest) Size() (size int64, err error) {
 	err = r.ensure()
 	if err != nil {
 		return

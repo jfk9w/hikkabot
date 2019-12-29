@@ -56,7 +56,7 @@ func (a Aconverter) Convert(format string, in SizeAwareReadable) (out SizeAwareR
 		if err != nil {
 			return
 		}
-		out = &HTTPRequestReadable{
+		out = &HTTPRequest{
 			Request: a.Client.NewRequest().
 				Resource(resp.URL()).
 				GET(),
