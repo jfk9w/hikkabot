@@ -71,18 +71,9 @@ type Media struct {
 	URL    string
 	format string
 	in     SizeAwareReadable
-	ready  *TypeAwareReadable
+	out    *TypeAwareReadable
 	err    error
 	work   sync.WaitGroup
-}
-
-func New(url string, format string, in SizeAwareReadable) *Media {
-	return &Media{
-		URL:    url,
-		format: format,
-		in:     in,
-		err:    errors.New("not loaded"),
-	}
 }
 
 type TypeAwareReadable struct {
@@ -92,5 +83,5 @@ type TypeAwareReadable struct {
 
 func (m *Media) Ready() (*TypeAwareReadable, error) {
 	m.work.Wait()
-	return m.ready, m.err
+	return m.out, m.err
 }

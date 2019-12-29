@@ -44,9 +44,18 @@ func (m *Manager) AddConverter(conv Converter) *Manager {
 	return m
 }
 
-func (m *Manager) Submit(media *Media) {
-	media.work.Add(1)
-	m.queue <- media
+func (m *Manager) Submit(url string, format string, in SizeAwareReadable) *Media {
+	media := &Media{
+		URL:    url,
+		format: format,
+		in:     in,
+		err:    errors.New("not loaded"),
+	}
+	if media.in != nil {
+		media.work.Add(1)
+		m.queue <- media
+	}
+	return media
 }
 
 func (m *Manager) Shutdown() {
@@ -83,7 +92,7 @@ func (m *Manager) process(media *Media) error {
 			if maxSize, ok := MaxMediaSize[typ]; ok && size > maxSize {
 				return errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
 			}
-			media.ready = &TypeAwareReadable{Readable: media.in, Type: typ}
+			media.out = &TypeAwareReadable{Readable: media.in, Type: typ}
 			log.Printf("Processed %s %s (%d Kb) via %T in %v", typ, media.URL, size>>10, conv, time.Now().Sub(start))
 			return nil
 		case UnsupportedTypeErr:

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/jfk9w-go/flu"
@@ -20,13 +19,11 @@ func main() {
 	manager := media.NewManager(config)
 	defer manager.Shutdown()
 	file := flu.File("media/example/testdata/test.webm")
-	media := media.New(file.Path(), "webm", SizeAwareReadable{file})
-	manager.Submit(media)
-	in, err := media.Ready()
+	media := manager.Submit(file.Path(), "webm", SizeAwareReadable{file})
+	_, err := media.Ready()
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("Processed resource of type %v", in.Type)
 }
 
 type SizeAwareReadable struct {

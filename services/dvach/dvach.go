@@ -8,9 +8,7 @@ import (
 
 func downloadMedia(ctx subscription.ApplicationContext, file dvach.File) *media.Media {
 	in := &media.HTTPRequestReadable{Request: ctx.DvachClient.NewRequest().Resource(file.URL()).GET()}
-	media := media.New(file.URL(), Formats[file.Type], in)
-	ctx.MediaManager.Submit(media)
-	return media
+	return ctx.MediaManager.Submit(file.URL(), Formats[file.Type], in)
 }
 
 var Formats = map[dvach.FileType]string{

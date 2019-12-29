@@ -107,9 +107,5 @@ func downloadMedia(ctx subscription.ApplicationContext, thing *reddit.Thing) *me
 	if thing.Data.ResolvedURL != "" {
 		in = &media.HTTPRequestReadable{Request: ctx.RedditClient.NewRequest().Resource(thing.Data.ResolvedURL).GET()}
 	}
-	media := media.New(thing.Data.URL, thing.Data.Extension, in)
-	if thing.Data.ResolvedURL != "" {
-		ctx.MediaManager.Submit(media)
-	}
-	return media
+	return ctx.MediaManager.Submit(thing.Data.URL, thing.Data.Extension, in)
 }
