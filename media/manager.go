@@ -67,39 +67,39 @@ func (m *Manager) runWorker() {
 	m.work.Add(1)
 	defer m.work.Done()
 	for media := range m.queue {
-		err := m.process(media)
+		out, err := m.process(media.URL, media.format, media.in)
 		if err != nil {
 			log.Printf("Failed to process media %s: %s", media.URL, err)
 		}
+		media.out = out
 		media.err = err
 		media.work.Done()
 	}
 }
 
-func (m *Manager) process(media *Media) error {
+func (m *Manager) process(url string, format string, in SizeAwareReadable) (*TypeAwareReadable, error) {
 	start := time.Now()
 	for _, conv := range m.convs {
-		typ, err := conv.Convert(media)
+		in, typ, err := conv.Convert(format, in)
 		switch err {
 		case nil:
-			size, err := media.in.Size()
+			size, err := in.Size()
 			if err != nil {
-				return errors.Wrap(err, "size calculation")
+				return nil, errors.Wrap(err, "size calculation")
 			}
 			if size < MinMediaSize {
-				return errors.Errorf("size (%d bytes) is below minimum size (%d bytes)", size, MinMediaSize)
+				return nil, errors.Errorf("size (%d bytes) is below minimum size (%d bytes)", size, MinMediaSize)
 			}
 			if maxSize, ok := MaxMediaSize[typ]; ok && size > maxSize {
-				return errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
+				return nil, errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
 			}
-			media.out = &TypeAwareReadable{Readable: media.in, Type: typ}
-			log.Printf("Processed %s %s (%d Kb) via %T in %v", typ, media.URL, size>>10, conv, time.Now().Sub(start))
-			return nil
+			log.Printf("Processed %s %s (%d Kb) via %T in %v", typ, url, size>>10, conv, time.Now().Sub(start))
+			return &TypeAwareReadable{Readable: in, Type: typ}, nil
 		case UnsupportedTypeErr:
 			continue
 		default:
-			return errors.Wrap(err, "conversion failed")
+			return nil, errors.Wrap(err, "conversion failed")
 		}
 	}
-	return UnsupportedTypeErr
+	return nil, UnsupportedTypeErr
 }

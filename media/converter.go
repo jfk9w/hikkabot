@@ -7,7 +7,7 @@ import (
 )
 
 type Converter interface {
-	Convert(media *Media) (telegram.MediaType, error)
+	Convert(string, SizeAwareReadable) (SizeAwareReadable, telegram.MediaType, error)
 }
 
 var UnsupportedTypeErr = errors.New("unsupported type")
@@ -21,10 +21,12 @@ func (sup FormatSupport) AddFormats(typ telegram.MediaType, formats ...string) F
 	return sup
 }
 
-func (sup FormatSupport) Convert(media *Media) (typ telegram.MediaType, err error) {
+func (sup FormatSupport) Convert(format string, in SizeAwareReadable) (out SizeAwareReadable, typ telegram.MediaType, err error) {
 	var ok bool
-	typ, ok = sup[media.format]
-	if !ok {
+	typ, ok = sup[format]
+	if ok {
+		out = in
+	} else {
 		err = UnsupportedTypeErr
 	}
 	return
@@ -47,19 +49,19 @@ func NewAconverter(config aconvert.Config) Aconverter {
 	}
 }
 
-func (a Aconverter) Convert(media *Media) (t telegram.MediaType, err error) {
-	if typ, ok := a.formats[media.format]; ok {
+func (a Aconverter) Convert(format string, in SizeAwareReadable) (out SizeAwareReadable, typ telegram.MediaType, err error) {
+	if supformat, ok := a.formats[format]; ok {
 		var resp *aconvert.Response
-		resp, err = a.Client.Convert(media.in, make(aconvert.Opts).TargetFormat(typ[0]))
+		resp, err = a.Client.Convert(in, make(aconvert.Opts).TargetFormat(supformat[0]))
 		if err != nil {
 			return
 		}
-		media.in = &HTTPRequestReadable{
+		out = &HTTPRequestReadable{
 			Request: a.Client.NewRequest().
 				Resource(resp.URL()).
 				GET(),
 		}
-		t = typ[1]
+		typ = supformat[1]
 	} else {
 		err = UnsupportedTypeErr
 	}
