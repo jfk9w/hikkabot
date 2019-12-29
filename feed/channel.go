@@ -43,6 +43,7 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 						DisableNotification: true})
 			}
 			if err != nil {
+				log.Printf("Failed to process media %s: %s", media.URL, err)
 				_, err = tg.Send(chatID,
 					&telegram.Text{
 						Text:      caption,
@@ -82,6 +83,7 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 					DisableNotification: true})
 		}
 		if err != nil {
+			log.Printf("Failed to process media %s: %s", media.URL, err)
 			_, err = tg.Send(chatID,
 				&telegram.Text{
 					Text:      url,

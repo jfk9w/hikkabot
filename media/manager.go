@@ -10,15 +10,32 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Size struct {
+	Bytes     int64
+	Kilobytes int64
+	Megabytes int64
+}
+
+func (s *Size) Value(defaultValue int64) int64 {
+	if s == nil {
+		return defaultValue
+	} else {
+		return s.Megabytes<<20 + s.Kilobytes<<10 + s.Bytes
+	}
+}
+
 type Config struct {
-	Concurrency int
-	Aconvert    *aconvert.Config
+	Concurrency      int
+	Aconvert         *aconvert.Config
+	MinSize, MaxSize *Size
 }
 
 type Manager struct {
-	convs []Converter
-	queue chan *Media
-	work  sync.WaitGroup
+	convs   []Converter
+	queue   chan *Media
+	work    sync.WaitGroup
+	minSize int64
+	maxSize int64
 }
 
 func NewManager(config Config) *Manager {
@@ -33,6 +50,8 @@ func NewManager(config Config) *Manager {
 		aconverter := NewAconverter(*config.Aconvert)
 		manager.AddConverter(aconverter)
 	}
+	manager.minSize = config.MinSize.Value(2 << 10)
+	manager.maxSize = config.MaxSize.Value(75 << 20)
 	for i := 0; i < config.Concurrency; i++ {
 		go manager.runWorker()
 	}
@@ -44,12 +63,14 @@ func (m *Manager) AddConverter(conv Converter) *Manager {
 	return m
 }
 
+var ErrNotLoaded = errors.New("not loaded")
+
 func (m *Manager) Submit(url string, format string, in SizeAwareReadable) *Media {
 	media := &Media{
 		URL:    url,
 		format: format,
 		in:     in,
-		err:    errors.New("not loaded"),
+		err:    ErrNotLoaded,
 	}
 	if media.in != nil {
 		media.work.Add(1)
@@ -67,12 +88,7 @@ func (m *Manager) runWorker() {
 	m.work.Add(1)
 	defer m.work.Done()
 	for media := range m.queue {
-		out, err := m.process(media.URL, media.format, media.in)
-		if err != nil {
-			log.Printf("Failed to process media %s: %s", media.URL, err)
-		}
-		media.out = out
-		media.err = err
+		media.out, media.err = m.process(media.URL, media.format, media.in)
 		media.work.Done()
 	}
 }
@@ -87,13 +103,16 @@ func (m *Manager) process(url string, format string, in SizeAwareReadable) (*Typ
 			if err != nil {
 				return nil, errors.Wrap(err, "size calculation")
 			}
-			if size < MinMediaSize {
-				return nil, errors.Errorf("size (%d bytes) is below minimum size (%d bytes)", size, MinMediaSize)
+			if size < m.minSize {
+				return nil, errors.Errorf("size (%d bytes) is below minimum size (%d bytes)", size, m.minSize)
+			}
+			if size > m.maxSize {
+				return nil, errors.Errorf("size (%d MB) exceeds hard limit (%d MB)", size>>20, m.maxSize>>20)
 			}
 			if maxSize, ok := MaxMediaSize[typ]; ok && size > maxSize {
 				return nil, errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
 			}
-			log.Printf("Processed %s %s (%d Kb) via %T in %v", typ, url, size>>10, conv, time.Now().Sub(start))
+			log.Printf("Processed %s %s (%d Kilobytes) via %T in %v", typ, url, size>>10, conv, time.Now().Sub(start))
 			return &TypeAwareReadable{Readable: in, Type: typ}, nil
 		case UnsupportedTypeErr:
 			continue

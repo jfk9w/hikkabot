@@ -21,7 +21,7 @@ func Test_PageWriter_SingleLetter(t *testing.T) {
 	pw.writeBreakable("hello")
 	pw.writeUnbreakable("hello")
 	assertEquals(t,
-		[]string{"h", "e", "l", "l", "o", "h", "e", "l", "l", "o", "B", "R", "O", "K", "E", "N"},
+		[]string{"h", "e", "l", "l", "o", "h", "e", "l", "l", "o", "Bytes", "R", "O", "K", "E", "N"},
 		pw.Format().Pages)
 }
 
