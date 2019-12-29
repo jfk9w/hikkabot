@@ -1,6 +1,7 @@
 package feed
 
 import (
+	"expvar"
 	"fmt"
 	"log"
 	"strings"
@@ -60,6 +61,7 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, item *ItemData) error {
 		if err != nil {
 			return errors.Wrapf(err, "on send pullUpdates: %+v", update)
 		}
+		expvar.Get("sent_updates").(*expvar.Int).Add(1)
 		err = a.Update(0, item.PrimaryID, Change{Offset: update.Offset})
 		if err != nil {
 			queue.cancel <- struct{}{}

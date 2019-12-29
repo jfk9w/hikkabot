@@ -1,6 +1,8 @@
 package main
 
 import (
+	"expvar"
+	"net/http"
 	"os"
 	"time"
 
@@ -14,6 +16,16 @@ import (
 	"github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
 )
+
+func init() {
+	expvar.NewString("start_date").Set(time.Now().String())
+	expvar.NewInt("processed_media_bytes")
+	expvar.NewInt("processed_media_files")
+	expvar.NewInt("converted_media_bytes")
+	expvar.NewInt("converted_media_files")
+	expvar.NewInt("sent_updates")
+	go http.ListenAndServe(":6060", nil)
+}
 
 func main() {
 	config := new(struct {

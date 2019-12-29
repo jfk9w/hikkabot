@@ -1,6 +1,7 @@
 package media
 
 import (
+	"expvar"
 	"log"
 	"sync"
 	"time"
@@ -113,6 +114,8 @@ func (m *Manager) process(url string, format string, in SizeAwareReadable) (*Typ
 				return nil, errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
 			}
 			log.Printf("Processed %s %s (%d KB) via %T in %v", typ, url, size>>10, conv, time.Now().Sub(start))
+			expvar.Get("processed_media_bytes").(*expvar.Int).Add(size)
+			expvar.Get("processed_media_files").(*expvar.Int).Add(1)
 			return &TypeAwareReadable{Readable: in, Type: typ}, nil
 		case UnsupportedTypeErr:
 			continue
