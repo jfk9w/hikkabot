@@ -1,4 +1,4 @@
-package subscription
+package feed
 
 import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"

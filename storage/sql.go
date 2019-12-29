@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/services"
-	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/jfk9w/hikkabot/util"
 	_ "github.com/mattn/go-sqlite3/driver"
 	"github.com/pkg/errors"
@@ -32,7 +32,7 @@ func (c SQLConfig) validate() {
 }
 
 type SQL struct {
-	db     *sql.DB
+	*sql.DB
 	quirks SQLQuirks
 }
 
@@ -45,15 +45,11 @@ func NewSQL(config SQLConfig) *SQL {
 	return (&SQL{db, KnownSQLQuirks[config.Driver]}).init()
 }
 
-func (s *SQL) Close() error {
-	return s.db.Close()
-}
-
 func (s *SQL) query(query string, args ...interface{}) *sql.Rows {
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.Query(query, args...)
 	for i := 0; i < 5; i++ {
 		if s.quirks.RetryQueryOrExec(err, i) {
-			rows, err = s.db.Query(query, args...)
+			rows, err = s.Query(query, args...)
 		} else {
 			break
 		}
@@ -65,10 +61,10 @@ func (s *SQL) query(query string, args ...interface{}) *sql.Rows {
 }
 
 func (s *SQL) exec(query string, args ...interface{}) sql.Result {
-	res, err := s.db.Exec(query, args...)
+	res, err := s.Exec(query, args...)
 	for i := 0; i < 5; i++ {
 		if s.quirks.RetryQueryOrExec(err, i) {
-			res, err = s.db.Exec(query, args...)
+			res, err = s.Exec(query, args...)
 		} else {
 			break
 		}
@@ -109,7 +105,7 @@ func (s *SQL) init() *SQL {
 	return s
 }
 
-func (s *SQL) itemData(query string, args ...interface{}) *subscription.ItemData {
+func (s *SQL) itemData(query string, args ...interface{}) *feed.ItemData {
 	rows := s.query(`
 	SELECT id, secondary_id, chat_id, service, item, "offset" 
 	FROM subscription `+query+` LIMIT 1`, args...)
@@ -117,7 +113,7 @@ func (s *SQL) itemData(query string, args ...interface{}) *subscription.ItemData
 	if !rows.Next() {
 		return nil
 	}
-	idata := new(subscription.ItemData)
+	idata := new(feed.ItemData)
 	var (
 		serviceID string
 		itemJSON  json.RawMessage
@@ -136,8 +132,8 @@ func (s *SQL) itemData(query string, args ...interface{}) *subscription.ItemData
 	return idata
 }
 
-func (s *SQL) AddItem(chatID telegram.ID, item subscription.Item) (*subscription.ItemData, bool) {
-	idata := &subscription.ItemData{
+func (s *SQL) Create(chatID telegram.ID, item feed.Item) (*feed.ItemData, bool) {
+	idata := &feed.ItemData{
 		Item:        item,
 		PrimaryID:   ksuid.New().String(),
 		SecondaryID: item.ID(),
@@ -154,13 +150,13 @@ func (s *SQL) AddItem(chatID telegram.ID, item subscription.Item) (*subscription
 		idata.PrimaryID, idata.SecondaryID, idata.ChatID, idata.Service(), itemJSON) == 1
 }
 
-func (s *SQL) GetItem(primaryID string) (*subscription.ItemData, bool) {
+func (s *SQL) Get(primaryID string) (*feed.ItemData, bool) {
 	item := s.itemData(`
 	WHERE id = $1`, primaryID)
 	return item, item != nil
 }
 
-func (s *SQL) GetNextItem(chatID telegram.ID) (*subscription.ItemData, bool) {
+func (s *SQL) Advance(chatID telegram.ID) (*feed.ItemData, bool) {
 	item := s.itemData(`
 	WHERE chat_id = $1 
 	  AND error IS NULL 
@@ -172,7 +168,7 @@ func (s *SQL) GetNextItem(chatID telegram.ID) (*subscription.ItemData, bool) {
 	return item, item != nil
 }
 
-func (s *SQL) Update(id string, change subscription.Change) bool {
+func (s *SQL) Update(id string, change feed.Change) bool {
 	var (
 		field             = "error"
 		value interface{} = nil
@@ -195,18 +191,20 @@ func (s *SQL) Update(id string, change subscription.Change) bool {
 	return s.update(sql, value, id) == 1
 }
 
-func (s *SQL) GetActiveChats() []telegram.ID {
+func (s *SQL) Active() []telegram.ID {
 	rows := s.query(`
 	SELECT DISTINCT chat_id 
 	FROM subscription
 	WHERE error IS NULL
 	ORDER BY chat_id`)
+	defer rows.Close()
 	chatIDs := make([]telegram.ID, 0)
 	for rows.Next() {
-		var chatID telegram.ID
-		util.Check(rows.Scan(&chatID))
-		chatIDs = append(chatIDs, chatID)
+		chatID := new(telegram.ID)
+		if err := rows.Scan(chatID); err != nil {
+			panic(err)
+		}
+		chatIDs = append(chatIDs, *chatID)
 	}
-	_ = rows.Close()
 	return chatIDs
 }

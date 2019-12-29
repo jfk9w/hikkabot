@@ -8,10 +8,10 @@ import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/jfk9w/hikkabot/services"
 	"github.com/jfk9w/hikkabot/storage"
-	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/jfk9w/hikkabot/util"
 )
 
@@ -44,13 +44,13 @@ func main() {
 		NewClient(), config.Telegram.Token)
 	mediaManager := media.NewManager(config.Media)
 	defer mediaManager.Shutdown()
-	ctx := subscription.ApplicationContext{
+	ctx := feed.ApplicationContext{
 		MediaManager: mediaManager,
 		DvachClient:  dvach.NewClient(nil, config.Dvach.Usercode),
 		RedditClient: reddit.NewClient(nil, config.Reddit),
 	}
 	storage := storage.NewSQL(config.Storage)
-	handler := subscription.NewHandler(subscription.Telegram{bot.Client}, ctx, storage, updateInterval, services.All, config.Aliases)
+	handler := feed.NewHandler(feed.Telegram{bot.Client}, ctx, storage, updateInterval, services.All, config.Aliases)
 	go bot.Send(config.AdminID, &telegram.Text{Text: "⬆️"}, nil)
 	bot.Listen(config.Telegram.Concurrency, handler.CommandListener())
 }

@@ -1,9 +1,9 @@
 package services
 
 import (
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/services/dvach"
 	"github.com/jfk9w/hikkabot/services/reddit"
-	"github.com/jfk9w/hikkabot/subscription"
 )
 
 var (
@@ -11,13 +11,13 @@ var (
 	DvachCatalog = dvach.CatalogService
 	DvachThread  = dvach.ThreadService
 
-	All = []subscription.Service{
+	All = []feed.Service{
 		Reddit,
 		DvachCatalog,
 		DvachThread,
 	}
 
-	Map = make(map[string]subscription.Service)
+	Map = make(map[string]feed.Service)
 )
 
 func init() {

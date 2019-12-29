@@ -7,15 +7,15 @@ import (
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/reddit"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
-	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/pkg/errors"
 )
 
 const thingLimit = 100
 
-func Service() subscription.Item {
+func Service() feed.Item {
 	return new(Subscription)
 }
 
@@ -39,10 +39,10 @@ func (s *Subscription) Name() string {
 
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
 
-func (s *Subscription) Parse(ctx subscription.ApplicationContext, cmd string, opts string) error {
+func (s *Subscription) Parse(ctx feed.ApplicationContext, cmd string, opts string) error {
 	groups := re.FindStringSubmatch(cmd)
 	if len(groups) != 7 {
-		return subscription.ErrParseFailed
+		return feed.ErrParseFailed
 	}
 	subreddit, sort := groups[4], groups[6]
 	if sort == "" {
@@ -69,7 +69,7 @@ func (s *Subscription) Parse(ctx subscription.ApplicationContext, cmd string, op
 	return nil
 }
 
-func (s *Subscription) Update(ctx subscription.ApplicationContext, offset int64, session *subscription.UpdateQueue) {
+func (s *Subscription) Update(ctx feed.ApplicationContext, offset int64, session *feed.UpdateQueue) {
 	things, err := ctx.RedditClient.GetListing(s.Subreddit, s.Sort, thingLimit)
 	if err != nil {
 		session.Fail(err)
@@ -88,7 +88,7 @@ func (s *Subscription) Update(ctx subscription.ApplicationContext, offset int64,
 				media = append(media, downloadMedia(ctx, thing))
 			}
 		}
-		update := subscription.Update{
+		update := feed.Update{
 			Offset: thing.Data.Created.Unix(),
 			Text: format.NewHTML(telegram.MaxCaptionSize, 1, nil, nil).
 				Text("#" + s.Subreddit).NewLine().
@@ -102,7 +102,7 @@ func (s *Subscription) Update(ctx subscription.ApplicationContext, offset int64,
 	}
 }
 
-func downloadMedia(ctx subscription.ApplicationContext, thing *reddit.Thing) *media.Media {
+func downloadMedia(ctx feed.ApplicationContext, thing *reddit.Thing) *media.Media {
 	var in media.SizeAwareReadable
 	if thing.Data.ResolvedURL != "" {
 		in = &media.HTTPRequest{Request: ctx.RedditClient.NewRequest().Resource(thing.Data.ResolvedURL).GET()}

@@ -1,4 +1,4 @@
-package subscription
+package feed
 
 import (
 	"github.com/jfk9w/hikkabot/api/dvach"

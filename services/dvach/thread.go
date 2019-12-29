@@ -10,14 +10,14 @@ import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 
 	"github.com/jfk9w/hikkabot/api/dvach"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
-	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/utf8string"
 )
 
-func ThreadService() subscription.Item {
+func ThreadService() feed.Item {
 	return new(Thread)
 }
 
@@ -42,10 +42,10 @@ func (t *Thread) Name() string {
 
 var threadRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)/res/([0-9]+)\.html?$`)
 
-func (t *Thread) Parse(ctx subscription.ApplicationContext, cmd string, opts string) error {
+func (t *Thread) Parse(ctx feed.ApplicationContext, cmd string, opts string) error {
 	groups := threadRegexp.FindStringSubmatch(cmd)
 	if len(groups) < 6 {
-		return subscription.ErrParseFailed
+		return feed.ErrParseFailed
 	}
 	board := groups[4]
 	num, _ := strconv.Atoi(groups[5])
@@ -64,7 +64,7 @@ func (t *Thread) Parse(ctx subscription.ApplicationContext, cmd string, opts str
 	return nil
 }
 
-func (t *Thread) Update(ctx subscription.ApplicationContext, offset int64, queue *subscription.UpdateQueue) {
+func (t *Thread) Update(ctx feed.ApplicationContext, offset int64, queue *feed.UpdateQueue) {
 	if offset > 0 {
 		offset++
 	}
@@ -92,7 +92,7 @@ func (t *Thread) Update(ctx subscription.ApplicationContext, offset int64, queue
 				Text("---").NewLine().
 				Parse(post.Comment)
 		}
-		update := subscription.Update{
+		update := feed.Update{
 			Offset: int64(post.Num),
 			Text:   text.Format(),
 			Media:  media,

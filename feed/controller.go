@@ -1,4 +1,4 @@
-package subscription
+package feed
 
 import (
 	"log"
@@ -30,17 +30,17 @@ func newController(channel Channel, ctx ApplicationContext, storage Storage, int
 }
 
 func (c *controller) init() {
-	for _, chatID := range c.storage.GetActiveChats() {
+	for _, chatID := range c.storage.Active() {
 		c.ensure(chatID)
 	}
 }
 
 func (c *controller) get(primaryID string) (*ItemData, bool) {
-	return c.storage.GetItem(primaryID)
+	return c.storage.Get(primaryID)
 }
 
 func (c *controller) run(chatID telegram.ID) {
-	item, ok := c.storage.GetNextItem(chatID)
+	item, ok := c.storage.Advance(chatID)
 	if !ok {
 		c.mu.Lock()
 		delete(c.active, chatID)
@@ -97,7 +97,7 @@ func (c *controller) update(chatID telegram.ID, item *ItemData) error {
 }
 
 func (c *controller) create(candidate Item, access *access) bool {
-	item, ok := c.storage.AddItem(access.chat.ID, candidate)
+	item, ok := c.storage.Create(access.chat.ID, candidate)
 	if ok {
 		c.resume(item, access)
 		return true

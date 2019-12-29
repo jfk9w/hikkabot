@@ -9,13 +9,13 @@ import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 
 	"github.com/jfk9w/hikkabot/api/dvach"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
-	"github.com/jfk9w/hikkabot/subscription"
 	"github.com/pkg/errors"
 )
 
-func CatalogService() subscription.Item {
+func CatalogService() feed.Item {
 	return new(Catalog)
 }
 
@@ -38,10 +38,10 @@ func (c *Catalog) Name() string {
 
 var catalogRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
 
-func (c *Catalog) Parse(_ subscription.ApplicationContext, cmd string, opts string) error {
+func (c *Catalog) Parse(_ feed.ApplicationContext, cmd string, opts string) error {
 	groups := catalogRegexp.FindStringSubmatch(cmd)
 	if len(groups) < 6 {
-		return subscription.ErrParseFailed
+		return feed.ErrParseFailed
 	}
 	board := groups[4]
 	var re *regexp.Regexp
@@ -57,7 +57,7 @@ func (c *Catalog) Parse(_ subscription.ApplicationContext, cmd string, opts stri
 	return nil
 }
 
-func (c *Catalog) Update(ctx subscription.ApplicationContext, offset int64, queue *subscription.UpdateQueue) {
+func (c *Catalog) Update(ctx feed.ApplicationContext, offset int64, queue *feed.UpdateQueue) {
 	catalog, err := ctx.DvachClient.GetCatalog(c.Board)
 	if err != nil {
 		queue.Fail(errors.Wrap(err, "on catalog load"))
@@ -79,7 +79,7 @@ func (c *Catalog) Update(ctx subscription.ApplicationContext, offset int64, queu
 			media = append(media, downloadMedia(ctx, file))
 			break
 		}
-		update := subscription.Update{
+		update := feed.Update{
 			Offset: int64(thread.Num),
 			Text: format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(thread.Board)).
 				Tag("b").Text(thread.DateString).EndTag().NewLine().
