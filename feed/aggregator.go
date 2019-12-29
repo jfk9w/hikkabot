@@ -270,7 +270,7 @@ func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
 	} else {
 		text.Text("OK")
 	}
-	a.SendAlert([]telegram.ID{c.User.ID}, text.Format(), nil)
+	a.SendAlert([]telegram.ID{c.Chat.ID}, text.Format(), nil)
 	return nil
 }
 
