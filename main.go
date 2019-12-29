@@ -17,12 +17,9 @@ import (
 )
 
 func init() {
-	expvar.NewString("start_date").Set(time.Now().String())
-	expvar.NewInt("processed_media_bytes")
-	expvar.NewInt("processed_media_files")
-	expvar.NewInt("converted_media_bytes")
-	expvar.NewInt("converted_media_files")
-	expvar.NewInt("sent_updates")
+	launch := time.Now()
+	expvar.NewString("launch").Set(launch.Format(time.RFC3339))
+	expvar.Publish("uptime", expvar.Func(func() interface{} { return time.Now().Sub(launch).String() }))
 }
 
 func main() {

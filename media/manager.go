@@ -37,6 +37,7 @@ type Manager struct {
 	work    sync.WaitGroup
 	minSize int64
 	maxSize int64
+	metrics *expvar.Map
 }
 
 func NewManager(config Config) *Manager {
@@ -44,8 +45,9 @@ func NewManager(config Config) *Manager {
 		panic("concurrency should be greater than 0")
 	}
 	manager := &Manager{
-		convs: []Converter{SupportedFormats},
-		queue: make(chan *Media),
+		convs:   []Converter{SupportedFormats},
+		queue:   make(chan *Media),
+		metrics: expvar.NewMap("media"),
 	}
 	if config.Aconvert != nil {
 		aconverter := NewAconverter(*config.Aconvert)
@@ -96,10 +98,19 @@ func (m *Manager) runWorker() {
 
 func (m *Manager) process(url string, format string, in SizeAwareReadable) (*TypeAwareReadable, error) {
 	start := time.Now()
+	size, err := in.Size()
+	if err != nil {
+		return nil, errors.Wrap(err, "initial size calculation")
+	}
+	if size > m.maxSize {
+		return nil, errors.Errorf("size (%d MB) exceeds hard limit (%d MB)", size>>20, m.maxSize>>20)
+	}
 	for _, conv := range m.convs {
 		in, typ, err := conv.Convert(format, in)
 		switch err {
 		case nil:
+			m.metrics.Add("size", size)
+			m.metrics.Add("files", 1)
 			size, err := in.Size()
 			if err != nil {
 				return nil, errors.Wrap(err, "size calculation")
@@ -107,15 +118,14 @@ func (m *Manager) process(url string, format string, in SizeAwareReadable) (*Typ
 			if size < m.minSize {
 				return nil, errors.Errorf("size (%d B) is below minimum size (%d B)", size, m.minSize)
 			}
-			if size > m.maxSize {
-				return nil, errors.Errorf("size (%d MB) exceeds hard limit (%d MB)", size>>20, m.maxSize>>20)
-			}
 			if maxSize, ok := MaxMediaSize[typ]; ok && size > maxSize {
 				return nil, errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
 			}
 			log.Printf("Processed %s %s (%d KB) via %T in %v", typ, url, size>>10, conv, time.Now().Sub(start))
-			expvar.Get("processed_media_bytes").(*expvar.Int).Add(size)
-			expvar.Get("processed_media_files").(*expvar.Int).Add(1)
+			if _, ok := conv.(FormatSupport); !ok {
+				m.metrics.Add("size", size)
+				m.metrics.Add("files", 1)
+			}
 			return &TypeAwareReadable{Readable: in, Type: typ}, nil
 		case UnsupportedTypeErr:
 			continue

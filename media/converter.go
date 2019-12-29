@@ -1,8 +1,6 @@
 package media
 
 import (
-	"expvar"
-
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
@@ -58,9 +56,6 @@ func (a Aconverter) Convert(format string, in SizeAwareReadable) (out SizeAwareR
 		if err != nil {
 			return
 		}
-		size, _ := in.Size()
-		expvar.Get("converted_media_bytes").(*expvar.Int).Add(size)
-		expvar.Get("converted_media_files").(*expvar.Int).Add(1)
 		out = &HTTPRequest{
 			Request: a.Client.NewRequest().
 				Resource(resp.URL()).

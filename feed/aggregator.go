@@ -2,15 +2,13 @@ package feed
 
 import (
 	"expvar"
-	"fmt"
 	"log"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/jfk9w/hikkabot/format"
-
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/format"
 	"github.com/pkg/errors"
 )
 
@@ -23,11 +21,13 @@ type Aggregator struct {
 	Services []Service
 	AdminID  telegram.ID
 	chats    map[telegram.ID]bool
+	metrics  *expvar.Map
 	mu       sync.RWMutex
 }
 
 func (a *Aggregator) Init() *Aggregator {
 	a.chats = make(map[telegram.ID]bool)
+	a.metrics = expvar.NewMap("aggregator")
 	for _, chatID := range a.Active() {
 		a.RunFeed(chatID)
 	}
@@ -41,6 +41,7 @@ func (a *Aggregator) runUpdater(chatID telegram.ID) {
 		delete(a.chats, chatID)
 		a.mu.Unlock()
 		log.Printf("Stopped updater for %v", chatID)
+		a.metrics.Add("active", -1)
 		return
 	}
 
@@ -64,7 +65,7 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, item *ItemData) error {
 		if err != nil {
 			return errors.Wrapf(err, "send update: %+v", update)
 		}
-		expvar.Get("sent_updates").(*expvar.Int).Add(1)
+		a.metrics.Add("updates", 1)
 		err = a.Update(0, item.PrimaryID, Change{Offset: update.Offset})
 		if err != nil {
 			queue.cancel <- struct{}{}
@@ -103,6 +104,7 @@ func (a *Aggregator) RunFeed(chatID telegram.ID) {
 	a.chats[chatID] = true
 	a.mu.Unlock()
 	go a.runUpdater(chatID)
+	a.metrics.Add("active", 1)
 	log.Printf("Started updater for %v", chatID)
 }
 
@@ -257,21 +259,18 @@ func (a *Aggregator) Suspend(tg telegram.Client, c *telegram.Command) error {
 }
 
 func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
-	text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil).
-		Text("OK")
+	text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil)
 	if c.User.ID == a.AdminID {
-		a.mu.RLock()
-		count := len(a.chats)
-		a.mu.RUnlock()
-		text.NewLine().Text(fmt.Sprintf("active: %d", count))
 		expvar.Do(func(kv expvar.KeyValue) {
-			if kv.Key != "memstats" && kv.Key != "cmdline" {
-				text.NewLine().Text(kv.Key + ": " + kv.Value.String())
+			if kv.Key == "cmdline" || kv.Key == "memstats" {
+				return
 			}
+			text.NewLine().Text(kv.Key + ": " + kv.Value.String())
 		})
+	} else {
+		text.Text("OK")
 	}
-
-	a.SendAlert([]telegram.ID{a.AdminID}, text.Format(), nil)
+	a.SendAlert([]telegram.ID{c.User.ID}, text.Format(), nil)
 	return nil
 }
 
