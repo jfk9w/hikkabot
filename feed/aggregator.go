@@ -59,7 +59,7 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, item *ItemData) error {
 		hasUpdates = true
 		err := a.SendUpdate(chatID, update)
 		if err != nil {
-			return errors.Wrapf(err, "on send pullUpdates: %+v", update)
+			return errors.Wrapf(err, "send update: %+v", update)
 		}
 		expvar.Get("sent_updates").(*expvar.Int).Add(1)
 		err = a.Update(0, item.PrimaryID, Change{Offset: update.Offset})
