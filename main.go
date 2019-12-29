@@ -4,14 +4,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/jfk9w/hikkabot/services"
-
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/services"
 	"github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
 )
@@ -41,6 +40,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	telegram.SendDelays[telegram.PrivateChat] = time.Second
 	bot := telegram.NewBot(flu.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).

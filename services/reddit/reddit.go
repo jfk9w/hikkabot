@@ -1,10 +1,12 @@
 package reddit
 
 import (
+	"html"
 	"regexp"
 	"sort"
 	"strconv"
 
+	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
@@ -80,19 +82,22 @@ func (s *Subscription) Update(ctx feed.Context, offset int64, session *feed.Upda
 			continue
 		}
 		media := make([]*media.Media, 0)
-		if thing.Data.URL != "" {
-			err := ctx.RedditClient.ResolveMediaURL(thing)
-			if err == nil {
-				media = append(media, downloadMedia(ctx, thing))
-			}
+		text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil).
+			Text("#" + s.Subreddit).NewLine()
+		if thing.Data.IsSelf {
+			text.
+				Tag("b").Text(thing.Data.Title).EndTag().
+				NewLine().NewLine().
+				Parse(html.UnescapeString(thing.Data.SelfTextHTML))
+		} else {
+			ctx.RedditClient.ResolveMediaURL(thing)
+			media = append(media, downloadMedia(ctx, thing))
+			text.Text(thing.Data.Title)
 		}
 		update := feed.Update{
 			Offset: thing.Data.Created.Unix(),
-			Text: format.NewHTML(-1, 1, nil, nil).
-				Text("#" + s.Subreddit).NewLine().
-				Text(thing.Data.Title).
-				Format(),
-			Media: media,
+			Text:   text.Format(),
+			Media:  media,
 		}
 		if !session.Offer(update) {
 			break

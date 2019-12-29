@@ -6,13 +6,15 @@ import (
 
 type Thing struct {
 	Data struct {
-		Title      string  `json:"title"`
-		Subreddit  string  `json:"subreddit"`
-		Name       string  `json:"name"`
-		Domain     string  `json:"domain"`
-		URL        string  `json:"URL"`
-		CreatedUTC float32 `json:"created_utc"`
-		Ups        int     `json:"ups"`
+		Title        string  `json:"title"`
+		Subreddit    string  `json:"subreddit"`
+		Name         string  `json:"name"`
+		Domain       string  `json:"domain"`
+		URL          string  `json:"URL"`
+		CreatedUTC   float32 `json:"created_utc"`
+		Ups          int     `json:"ups"`
+		SelfTextHTML string  `json:"selftext_html"`
+		IsSelf       bool    `json:"is_self"`
 
 		Created     time.Time `json:"-"`
 		ResolvedURL string    `json:"-"`
