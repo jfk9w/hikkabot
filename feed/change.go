@@ -5,8 +5,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ID = string
-
 type Change struct {
 	Offset int64
 	Error  error

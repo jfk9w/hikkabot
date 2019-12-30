@@ -11,7 +11,7 @@ import (
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/media"
-	"github.com/jfk9w/hikkabot/services"
+	"github.com/jfk9w/hikkabot/source"
 	"github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
 )
@@ -36,8 +36,8 @@ func main() {
 			Concurrency int
 		}
 		Media  media.Config
-		Reddit reddit.Config
-		Dvach  struct{ Usercode string }
+		Reddit *reddit.Config
+		Dvach  *struct{ Usercode string }
 	})
 	err := flu.Read(flu.File(os.Args[1]), util.YAML(config))
 	if err != nil {
@@ -57,17 +57,22 @@ func main() {
 	storage := storage.NewSQL(config.Aggregator.Storage)
 	defer storage.Close()
 	go bot.Send(config.Aggregator.AdminID, &telegram.Text{Text: "⬆️"}, nil)
-	bot.Listen(config.Telegram.Concurrency, (&feed.Aggregator{
+	agg := &feed.Aggregator{
 		Channel: feed.Telegram{Client: bot.Client},
-		Context: feed.Context{
-			MediaManager: media,
-			DvachClient:  dvach.NewClient(nil, config.Dvach.Usercode),
-			RedditClient: reddit.NewClient(nil, config.Reddit),
-		},
-		Storage:  storage,
-		Services: services.All,
-		Timeout:  timeout,
-		Aliases:  config.Aggregator.Aliases,
-		AdminID:  config.Aggregator.AdminID,
-	}).Init().CommandListener())
+		Storage: storage,
+		Media:   media,
+		Timeout: timeout,
+		Aliases: config.Aggregator.Aliases,
+		AdminID: config.Aggregator.AdminID,
+	}
+	if config.Dvach != nil {
+		client := dvach.NewClient(nil, config.Dvach.Usercode)
+		agg.AddSource(source.DvachCatalogSource{client}).
+			AddSource(source.DvachThreadSource{client})
+	}
+	if config.Reddit != nil {
+		client := reddit.NewClient(nil, *config.Reddit)
+		agg.AddSource(source.RedditSource{client})
+	}
+	bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener())
 }

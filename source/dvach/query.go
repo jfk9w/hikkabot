@@ -7,36 +7,32 @@ import (
 	"github.com/pkg/errors"
 )
 
-type query struct {
+type Query struct {
 	*regexp.Regexp
 }
 
-func (q *query) MarshalJSON() ([]byte, error) {
-	str := ""
-	if q.Regexp != nil {
-		str = q.String()
-	}
-	return json.Marshal(str)
+func (q Query) MarshalJSON() ([]byte, error) {
+	return json.Marshal(q.String())
 }
 
-func (q *query) UnmarshalJSON(data []byte) error {
+func (q *Query) UnmarshalJSON(data []byte) error {
 	var str string
 	err := json.Unmarshal(data, &str)
 	if err != nil {
-		return errors.Wrap(err, "on unmarshal")
+		return errors.Wrap(err, "unmarshal")
 	}
 	if str == "" {
 		return nil
 	}
 	re, err := regexp.Compile(str)
 	if err != nil {
-		return errors.Wrap(err, "on regexp compilation")
+		return errors.Wrap(err, "compile regexp")
 	}
 	q.Regexp = re
 	return nil
 }
 
-func (q *query) String() string {
+func (q *Query) String() string {
 	if q.Regexp == nil {
 		return ""
 	}

@@ -111,7 +111,8 @@ func (ps Posts) init(board string) (err error) {
 }
 
 type Catalog struct {
-	Threads []Post `json:"threads"`
+	BoardName string `json:"BoardName"`
+	Threads   []Post `json:"threads"`
 }
 
 func (c *Catalog) init(boardID string) (err error) {
