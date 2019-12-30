@@ -35,9 +35,7 @@ func (s *UpdateQueue) Offer(update Update) bool {
 
 func (s *UpdateQueue) pull(ctx Context, offset int64, item Item) {
 	defer close(s.updates)
-	err := item.Update(ctx, offset, s)
-	if err != nil {
+	if err := item.Update(ctx, offset, s); err != nil {
 		s.err = err
 	}
-	return
 }
