@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/jfk9w/hikkabot/format"
-
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/pkg/errors"
 )
@@ -26,7 +25,7 @@ func ParseID(str string) (id ID, err error) {
 	if len(parts) != 3 {
 		err = errors.New("invalid ID")
 	} else {
-		id.ChatID, err = telegram.ParseID(str)
+		id.ChatID, err = telegram.ParseID(parts[0])
 		if err != nil {
 			return
 		}

@@ -83,15 +83,15 @@ func (s *SQL) update(query string, args ...interface{}) int64 {
 func (s *SQL) init() *SQL {
 	sql := fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS subscription (
-	  id TEXT NOT NULL,
+	  id VARCHAR(50) NOT NULL,
 	  chat_id BIGINT NOT NULL,
-	  source TEXT NOT NULL,
-      name TEXT NOT NULL,
+	  source VARCHAR(20) NOT NULL,
+      name VARCHAR(50) NOT NULL,
 	  item %s NOT NULL,
 	  "offset" BIGINT NOT NULL DEFAULT 0,
 	  updated %s,
-	  error TEXT
-	)`, s.quirks.JSONType(), s.quirks.TimeType())
+	  error VARCHAR(100)
+	)`, s.quirks.ItemType(), s.quirks.TimeType())
 	s.exec(sql)
 	sql = `
 	CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__id 
@@ -124,6 +124,15 @@ func (s *SQL) selectQuery(query string, args ...interface{}) *feed.Subscription 
 }
 
 func (s *SQL) Create(sub *feed.Subscription) bool {
+	if len(sub.ID.ID) > 50 {
+		panic("too long id: " + sub.ID.ID)
+	}
+	if len(sub.ID.Source) > 20 {
+		panic("too long source: " + sub.ID.Source)
+	}
+	if len(sub.Name) > 50 {
+		panic("too long name: " + sub.Name)
+	}
 	sql := `
 	INSERT INTO subscription (id, chat_id, source, name, item, error) 
 	VALUES ($1, $2, $3, $4, $5, '__notstarted')
@@ -158,7 +167,11 @@ func (s *SQL) Change(id feed.ID, change feed.Change) bool {
 	} else if change.Error == nil {
 		cond = "error IS NOT NULL"
 	} else {
-		value = change.Error.Error()
+		msg := change.Error.Error()
+		if len(msg) > 100 {
+			msg = msg[:100]
+		}
+		value = msg
 	}
 
 	sql := fmt.Sprintf(`

@@ -12,7 +12,7 @@ var KnownSQLQuirks = map[string]SQLQuirks{
 }
 
 type SQLQuirks interface {
-	JSONType() string
+	ItemType() string
 	TimeType() string
 	Now() string
 	RetryQueryOrExec(error, int) bool
@@ -20,7 +20,7 @@ type SQLQuirks interface {
 
 type pg struct{}
 
-func (pg) JSONType() string {
+func (pg) ItemType() string {
 	return "JSONB"
 }
 
@@ -38,12 +38,12 @@ func (pg) RetryQueryOrExec(error, int) bool {
 
 type sqlite3 struct{}
 
-func (sqlite3) JSONType() string {
+func (sqlite3) ItemType() string {
 	return "TEXT"
 }
 
 func (sqlite3) TimeType() string {
-	return "TEXT"
+	return "VARCHAR(20)"
 }
 
 func (sqlite3) Now() string {
