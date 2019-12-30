@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jfk9w-go/flu"
+
 	aconvert "github.com/jfk9w-go/aconvert-api"
 
 	"github.com/pkg/errors"
@@ -121,12 +123,16 @@ func (m *Manager) process(url string, format string, in SizeAwareReadable) (*Typ
 			if maxSize, ok := MaxMediaSize[typ]; ok && size > maxSize {
 				return nil, errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", size>>20, maxSize>>20, typ)
 			}
+			buf := flu.NewBuffer()
+			if err = flu.Copy(in, buf); err != nil {
+				return nil, err
+			}
 			log.Printf("Processed %s %s (%d KB) via %T in %v", typ, url, size>>10, conv, time.Now().Sub(start))
 			if _, ok := conv.(FormatSupport); !ok {
 				m.metrics.Add("size", size)
 				m.metrics.Add("files", 1)
 			}
-			return &TypeAwareReadable{Readable: in, Type: typ}, nil
+			return &TypeAwareReadable{Readable: buf, Type: typ}, nil
 		case UnsupportedTypeErr:
 			continue
 		default:
