@@ -69,11 +69,3 @@ func (c *changeContext) checkAccess(channel Channel, userID telegram.ID) error {
 	}
 	return errors.New("forbidden")
 }
-
-type Storage interface {
-	Create(telegram.ID, Item) *ItemData
-	Get(ID) *ItemData
-	Advance(telegram.ID) *ItemData
-	Update(ID, Change) bool
-	Active() []telegram.ID
-}

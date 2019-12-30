@@ -4,8 +4,26 @@ import (
 	"fmt"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/api/dvach"
+	"github.com/jfk9w/hikkabot/api/reddit"
+	"github.com/jfk9w/hikkabot/media"
 	"github.com/pkg/errors"
 )
+
+// Context is passed to a subscription for pullUpdates.
+type Context struct {
+	MediaManager *media.Manager
+	DvachClient  *dvach.Client
+	RedditClient *reddit.Client
+}
+
+type Storage interface {
+	Create(telegram.ID, Item) *ItemData
+	Get(ID) *ItemData
+	Advance(telegram.ID) *ItemData
+	Update(ID, Change) bool
+	Active() []telegram.ID
+}
 
 // Item defines a subscription.
 type Item interface {
