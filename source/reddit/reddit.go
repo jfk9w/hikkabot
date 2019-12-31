@@ -85,7 +85,6 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 				NewLine().NewLine().
 				Parse(html.UnescapeString(thing.Data.SelfTextHTML))
 		} else {
-			s.ResolveMedia(thing)
 			media = append(media, s.downloadMedia(pull.Media, thing))
 			text.Text(thing.Data.Title)
 		}
@@ -102,9 +101,10 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 }
 
 func (s Source) downloadMedia(manager *media.Manager, thing *reddit.Thing) *media.Media {
+	err := s.ResolveMedia(thing)
 	var in media.SizeAwareReadable
-	if thing.Data.ResolvedURL != "" {
+	if err == nil {
 		in = &media.HTTPRequest{Request: s.NewRequest().Resource(thing.Data.ResolvedURL).GET()}
 	}
-	return manager.Submit(thing.Data.URL, thing.Data.Extension, in)
+	return manager.Submit(thing.Data.URL, thing.Data.Extension, in, err)
 }

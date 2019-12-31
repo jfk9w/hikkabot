@@ -68,16 +68,14 @@ func (m *Manager) AddConverter(conv Converter) *Manager {
 	return m
 }
 
-var ErrNotLoaded = errors.New("not loaded")
-
-func (m *Manager) Submit(url string, format string, in SizeAwareReadable) *Media {
+func (m *Manager) Submit(url string, format string, in SizeAwareReadable, err error) *Media {
 	media := &Media{
 		URL:    url,
 		format: format,
 		in:     in,
-		err:    ErrNotLoaded,
+		err:    err,
 	}
-	if media.in != nil {
+	if media.err == nil {
 		media.work.Add(1)
 		m.queue <- media
 	}

@@ -7,7 +7,7 @@ import (
 
 func downloadMedia(client *dvach.Client, manager *media.Manager, file dvach.File) *media.Media {
 	in := &media.HTTPRequest{Request: client.NewRequest().Resource(file.URL()).GET()}
-	return manager.Submit(file.URL(), Formats[file.Type], in)
+	return manager.Submit(file.URL(), Formats[file.Type], in, nil)
 }
 
 var Formats = map[dvach.FileType]string{

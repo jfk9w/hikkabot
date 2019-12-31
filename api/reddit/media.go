@@ -45,6 +45,7 @@ var mediaResolvers = map[string]MediaResolver{
 	"imgur.com":   imgur(`.*?(<link rel="image_src"\s+href="|<meta property="og:video"\s+content=")(.*\.(.*?))".*`),
 	"gfycat.com":  gfycat(`(?i)https://[a-z]+.gfycat.com/[a-z0-9]+?\.mp4`),
 	"youtube.com": YoutubeMediaResolver{},
+	"youtu.be":    YoutubeMediaResolver{},
 }
 
 var ErrNoCanonicalURL = errors.New("unable to find canonical URL")
