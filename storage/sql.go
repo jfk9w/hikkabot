@@ -3,6 +3,9 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"unicode/utf8"
+
+	"golang.org/x/exp/utf8string"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/feed"
@@ -124,13 +127,13 @@ func (s *SQL) selectQuery(query string, args ...interface{}) *feed.Subscription 
 }
 
 func (s *SQL) Create(sub *feed.Subscription) bool {
-	if len(sub.ID.ID) > 50 {
+	if utf8.RuneCountInString(sub.ID.ID) > 50 {
 		panic("too long id: " + sub.ID.ID)
 	}
-	if len(sub.ID.Source) > 20 {
+	if utf8.RuneCountInString(sub.ID.Source) > 20 {
 		panic("too long source: " + sub.ID.Source)
 	}
-	if len(sub.Name) > 50 {
+	if utf8.RuneCountInString(sub.Name) > 50 {
 		panic("too long name: " + sub.Name)
 	}
 	sql := `
@@ -168,8 +171,8 @@ func (s *SQL) Change(id feed.ID, change feed.Change) bool {
 		cond = "error IS NOT NULL"
 	} else {
 		msg := change.Error.Error()
-		if len(msg) > 100 {
-			msg = msg[:100]
+		if utf8.RuneCountInString(msg) > 100 {
+			msg = utf8string.NewString(msg).Slice(0, 100)
 		}
 		value = msg
 	}
