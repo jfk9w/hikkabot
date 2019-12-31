@@ -117,10 +117,10 @@ func (e UnsupportedMediaDomainError) Error() string {
 	return fmt.Sprintf("unsupported media domain: %s", e.Domain)
 }
 
-func (c *Client) ResolveMediaURL(thing *Thing) error {
-	if mediaScanner, ok := mediaScanners[thing.Data.Domain]; ok {
+func (c *Client) ResolveMedia(thing *Thing) error {
+	if resolver, ok := mediaResolvers[thing.Data.Domain]; ok {
 		if thing.Data.ResolvedURL == "" {
-			media, err := mediaScanner.Get(c.Client, thing.Data.URL)
+			media, err := resolver.Resolve(c.Client, thing)
 			if err != nil {
 				return errors.Wrap(err, "on media scan")
 			}

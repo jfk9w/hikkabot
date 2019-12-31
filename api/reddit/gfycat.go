@@ -9,24 +9,24 @@ import (
 	"github.com/pkg/errors"
 )
 
-type gfycatMediaScanner regexp.Regexp
+type gfycatMediaResolver regexp.Regexp
 
-func gfycat(re string) *gfycatMediaScanner {
-	return (*gfycatMediaScanner)(regexp.MustCompile(re))
+func gfycat(re string) *gfycatMediaResolver {
+	return (*gfycatMediaResolver)(regexp.MustCompile(re))
 }
 
-func (re *gfycatMediaScanner) Get(http *flu.Client, url string) (*Media, error) {
-	media := new(Media)
+func (re *gfycatMediaResolver) Resolve(http *flu.Client, thing *Thing) (*ResolvedMedia, error) {
+	media := new(ResolvedMedia)
 	return media, http.NewRequest().
 		GET().
-		Resource(url).
+		Resource(thing.Data.URL).
 		Send().
 		HandleResponse(gfycatResponseHandler{media, (*regexp.Regexp)(re)}).
 		Error
 }
 
 type gfycatResponseHandler struct {
-	media *Media
+	media *ResolvedMedia
 	re    *regexp.Regexp
 }
 

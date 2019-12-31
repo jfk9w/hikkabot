@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+type MediaContainer struct {
+	Media       Media `json:"media"`
+	SecureMedia Media `json:"secure_media"`
+}
+
 type Thing struct {
 	Data struct {
 		Title        string  `json:"title"`
@@ -15,11 +20,19 @@ type Thing struct {
 		Ups          int     `json:"ups"`
 		SelfTextHTML string  `json:"selftext_html"`
 		IsSelf       bool    `json:"is_self"`
+		MediaContainer
+		CrosspostParentList []MediaContainer `json:"crosspost_parent_list"`
 
 		Created     time.Time `json:"-"`
 		ResolvedURL string    `json:"-"`
 		Extension   string    `json:"-"`
 	} `json:"data"`
+}
+
+type Media struct {
+	RedditVideo struct {
+		FallbackURL string `json:"fallback_url"`
+	} `json:"reddit_video"`
 }
 
 func (t *Thing) init() {

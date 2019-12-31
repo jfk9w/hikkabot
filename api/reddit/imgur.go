@@ -8,24 +8,24 @@ import (
 	"github.com/jfk9w-go/flu"
 )
 
-type imgurMediaScanner regexp.Regexp
+type imgurMediaResolver regexp.Regexp
 
-func imgur(re string) *imgurMediaScanner {
-	return (*imgurMediaScanner)(regexp.MustCompile(re))
+func imgur(re string) *imgurMediaResolver {
+	return (*imgurMediaResolver)(regexp.MustCompile(re))
 }
 
-func (re *imgurMediaScanner) Get(http *flu.Client, url string) (*Media, error) {
-	media := new(Media)
+func (re *imgurMediaResolver) Resolve(http *flu.Client, thing *Thing) (*ResolvedMedia, error) {
+	media := new(ResolvedMedia)
 	return media, http.NewRequest().
 		GET().
-		Resource(url).
+		Resource(thing.Data.URL).
 		Send().
 		HandleResponse(imgurResponseHandler{media, (*regexp.Regexp)(re)}).
 		Error
 }
 
 type imgurResponseHandler struct {
-	media *Media
+	media *ResolvedMedia
 	re    *regexp.Regexp
 }
 

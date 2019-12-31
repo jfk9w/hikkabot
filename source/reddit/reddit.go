@@ -85,7 +85,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 				NewLine().NewLine().
 				Parse(html.UnescapeString(thing.Data.SelfTextHTML))
 		} else {
-			s.ResolveMediaURL(thing)
+			s.ResolveMedia(thing)
 			media = append(media, s.downloadMedia(pull.Media, thing))
 			text.Text(thing.Data.Title)
 		}
