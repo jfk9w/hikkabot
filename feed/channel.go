@@ -68,6 +68,8 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 		url := format.PrintHTMLLink("[media]", mediaFuture.URL)
 		media, err := mediaFuture.Result()
 		if err == nil {
+			media.Caption = url
+			media.ParseMode = parseMode
 			_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
 		}
 		if err != nil {
