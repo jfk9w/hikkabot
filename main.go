@@ -10,7 +10,7 @@ import (
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
-	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/mediator"
 	"github.com/jfk9w/hikkabot/source"
 	"github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
@@ -31,11 +31,12 @@ func main() {
 			Timeout string
 		}
 		Telegram struct {
+			Username    string
 			Token       string
 			Proxy       string
 			Concurrency int
 		}
-		Media  media.Config
+		Media  mediator.Config
 		Reddit *reddit.Config
 		Dvach  *struct{ Usercode string }
 	})
@@ -52,18 +53,18 @@ func main() {
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).
 		NewClient(), config.Telegram.Token)
-	media := media.NewManager(config.Media)
-	defer media.Shutdown()
+	mediator := mediator.New(config.Media)
+	defer mediator.Shutdown()
 	storage := storage.NewSQL(config.Aggregator.Storage)
 	defer storage.Close()
 	go bot.Send(config.Aggregator.AdminID, &telegram.Text{Text: "⬆️"}, nil)
 	agg := &feed.Aggregator{
-		Channel: feed.Telegram{Client: bot.Client},
-		Storage: storage,
-		Media:   media,
-		Timeout: timeout,
-		Aliases: config.Aggregator.Aliases,
-		AdminID: config.Aggregator.AdminID,
+		Channel:  feed.Telegram{Client: bot.Client},
+		Storage:  storage,
+		Mediator: mediator,
+		Timeout:  timeout,
+		Aliases:  config.Aggregator.Aliases,
+		AdminID:  config.Aggregator.AdminID,
 	}
 	if config.Dvach != nil {
 		client := dvach.NewClient(nil, config.Dvach.Usercode)
@@ -74,5 +75,5 @@ func main() {
 		client := reddit.NewClient(nil, *config.Reddit)
 		agg.AddSource(source.RedditSource{client})
 	}
-	bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener())
+	bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
 }

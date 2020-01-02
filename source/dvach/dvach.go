@@ -1,13 +1,32 @@
 package dvach
 
 import (
+	"io"
+
+	"github.com/jfk9w-go/flu"
+
 	"github.com/jfk9w/hikkabot/api/dvach"
-	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/mediator"
 )
 
-func downloadMedia(client *dvach.Client, manager *media.Manager, file dvach.File) *media.Media {
-	in := &media.HTTPRequest{Request: client.NewRequest().Resource(file.URL()).GET()}
-	return manager.Submit(file.URL(), Formats[file.Type], in, nil)
+type mediatorRequest struct {
+	client *flu.Client
+	file   dvach.File
+}
+
+func (r *mediatorRequest) Metadata() (*mediator.Metadata, error) {
+	return &mediator.Metadata{
+		URL:    r.file.URL(),
+		Size:   int64(r.file.Size),
+		Format: Formats[r.file.Type],
+	}, nil
+}
+
+func (r *mediatorRequest) Reader() (io.Reader, error) {
+	return r.client.
+		GET(r.file.URL()).
+		Execute().
+		Reader()
 }
 
 var Formats = map[dvach.FileType]string{

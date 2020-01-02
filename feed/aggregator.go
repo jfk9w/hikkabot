@@ -9,7 +9,7 @@ import (
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/format"
-	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/mediator"
 	"github.com/pkg/errors"
 )
 
@@ -17,14 +17,14 @@ type Aggregator struct {
 	Channel
 	Subscription
 	Storage
-	Timeout time.Duration
-	Media   *media.Manager
-	Aliases map[telegram.Username]telegram.ID
-	AdminID telegram.ID
-	sources map[string]Source
-	chats   map[telegram.ID]bool
-	mu      sync.RWMutex
-	metrics *expvar.Map
+	Timeout  time.Duration
+	Mediator *mediator.Mediator
+	Aliases  map[telegram.Username]telegram.ID
+	AdminID  telegram.ID
+	sources  map[string]Source
+	chats    map[telegram.ID]bool
+	mu       sync.RWMutex
+	metrics  *expvar.Map
 }
 
 func (a *Aggregator) AddSource(source Source) *Aggregator {
@@ -76,7 +76,7 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub *Subscription) error {
 	if !ok {
 		return errors.Errorf("no such source: %s", sub.ID.Source)
 	}
-	pull := newUpdatePull(sub.Item, a.Media, sub.Offset)
+	pull := newUpdatePull(sub.Item, a.Mediator, sub.Offset)
 	go pull.run(source)
 	hasUpdates := false
 	for update := range pull.queue {
@@ -189,11 +189,11 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 		Text("Item: " + sub.Name)
 	var button telegram.ReplyMarkup
 	if change.Error != nil {
-		button = telegram.CommandButton("Resume", "resume", id.String())
+		button = telegram.InlineKeyboard("Resume", "resume", id.String())
 		text.NewLine().
 			Text("Reason: " + change.Error.Error())
 	} else {
-		button = telegram.CommandButton("Suspend", "suspend", id.String())
+		button = telegram.InlineKeyboard("Suspend", "suspend", id.String())
 	}
 
 	go a.SendAlert(adminIDs, text.Format(), button)
@@ -269,7 +269,7 @@ func (a *Aggregator) Create(tg telegram.Client, c *telegram.Command) error {
 	if err != nil {
 		_, err = tg.Send(c.Chat.ID,
 			&telegram.Text{Text: err.Error()},
-			&telegram.SendOptions{ReplyToMessageID: c.MessageID})
+			&telegram.SendOptions{ReplyToMessageID: c.Message.ID})
 	}
 	return err
 }
@@ -300,8 +300,8 @@ func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
 	return nil
 }
 
-func (a *Aggregator) CommandListener() *telegram.CommandListener {
-	return telegram.NewCommandListener().
+func (a *Aggregator) CommandListener(username string) *telegram.CommandListener {
+	return telegram.NewCommandListener(username).
 		HandleFunc("/sub", a.Create).
 		HandleFunc("resume", a.Resume).
 		HandleFunc("suspend", a.Suspend).

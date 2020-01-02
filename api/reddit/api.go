@@ -4,6 +4,12 @@ import (
 	"time"
 )
 
+type Media struct {
+	RedditVideo struct {
+		FallbackURL string `json:"fallback_url"`
+	} `json:"reddit_video"`
+}
+
 type MediaContainer struct {
 	Media       Media `json:"media"`
 	SecureMedia Media `json:"secure_media"`
@@ -23,26 +29,10 @@ type Thing struct {
 		MediaContainer
 		CrosspostParentList []MediaContainer `json:"crosspost_parent_list"`
 
-		Created     time.Time `json:"-"`
-		ResolvedURL string    `json:"-"`
-		Extension   string    `json:"-"`
+		Created time.Time `json:"-"`
 	} `json:"data"`
-}
-
-type Media struct {
-	RedditVideo struct {
-		FallbackURL string `json:"fallback_url"`
-	} `json:"reddit_video"`
 }
 
 func (t *Thing) init() {
 	t.Data.Created = time.Unix(int64(t.Data.CreatedUTC), 0)
 }
-
-type Sort = string
-
-const (
-	Hot Sort = "hot"
-	New Sort = "new"
-	Top Sort = "top"
-)

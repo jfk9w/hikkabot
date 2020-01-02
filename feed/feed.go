@@ -6,7 +6,7 @@ import (
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/format"
-	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/mediator"
 	"github.com/pkg/errors"
 )
 
@@ -82,25 +82,25 @@ type Source interface {
 type Update struct {
 	Offset int64
 	Text   format.Text
-	Media  []*media.Media
+	Media  []*mediator.Future
 }
 
 type UpdatePull struct {
-	Media  *media.Manager
-	Offset int64
-	item   []byte
-	queue  chan Update
-	err    error
-	cancel chan struct{}
+	Mediator *mediator.Mediator
+	Offset   int64
+	item     []byte
+	queue    chan Update
+	err      error
+	cancel   chan struct{}
 }
 
-func newUpdatePull(item []byte, media *media.Manager, offset int64) *UpdatePull {
+func newUpdatePull(item []byte, mediator *mediator.Mediator, offset int64) *UpdatePull {
 	return &UpdatePull{
-		Media:  media,
-		Offset: offset,
-		item:   item,
-		queue:  make(chan Update, 10),
-		cancel: make(chan struct{}),
+		Mediator: mediator,
+		Offset:   offset,
+		item:     item,
+		queue:    make(chan Update, 10),
+		cancel:   make(chan struct{}),
 	}
 }
 

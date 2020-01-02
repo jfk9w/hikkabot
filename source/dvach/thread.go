@@ -12,7 +12,7 @@ import (
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
-	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/mediator"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/utf8string"
 )
@@ -71,9 +71,10 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 		if item.MediaOnly && len(post.Files) == 0 {
 			continue
 		}
-		media := make([]*media.Media, len(post.Files))
+		media := make([]*mediator.Future, len(post.Files))
 		for i, file := range post.Files {
-			media[i] = downloadMedia(s.Client, pull.Media, file)
+			media[i] = pull.Mediator.Submit(file.URL(),
+				&mediatorRequest{s.Client.Client, file})
 		}
 		text := format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(post.Board)).
 			Text(item.Title).NewLine().

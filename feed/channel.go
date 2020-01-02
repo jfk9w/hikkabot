@@ -20,6 +20,8 @@ type Telegram struct {
 	telegram.Client
 }
 
+var DefaultSendUpdateOptions = &telegram.SendOptions{DisableNotification: true}
+
 func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 	parseMode := update.Text.ParseMode
 	pages := update.Text.Pages
@@ -27,29 +29,23 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 		panic(errors.Errorf("unsupported parse mode: %s", parseMode))
 	}
 	if len(update.Media) == 1 && len(pages) == 1 {
-		media := update.Media[0]
-		mediaURL := format.PrintHTMLLink("[media]", media.URL)
+		mediaFuture := update.Media[0]
+		mediaURL := format.PrintHTMLLink("[media]", mediaFuture.URL)
 		caption := mediaURL + "\n" + pages[0]
 		if utf8.RuneCountInString(caption) <= telegram.MaxCaptionSize {
-			in, err := media.Ready()
+			media, err := mediaFuture.Result()
 			if err == nil {
-				_, err = tg.Send(chatID,
-					&telegram.Media{
-						Type:      in.Type,
-						Readable:  in,
-						Caption:   caption,
-						ParseMode: parseMode},
-					&telegram.SendOptions{
-						DisableNotification: true})
+				media.Caption = caption
+				media.ParseMode = parseMode
+				_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
 			}
 			if err != nil {
-				log.Printf("Failed to process media %s: %s", media.URL, err)
+				log.Printf("Failed to process media %s: %s", mediaFuture.URL, err)
 				_, err = tg.Send(chatID,
 					&telegram.Text{
 						Text:      caption,
 						ParseMode: parseMode},
-					&telegram.SendOptions{
-						DisableNotification: true})
+					DefaultSendUpdateOptions)
 			}
 			return err
 		}
@@ -61,35 +57,26 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 				Text:                  page,
 				ParseMode:             parseMode,
 				DisableWebPagePreview: true},
-			&telegram.SendOptions{
-				DisableNotification: true})
+			DefaultSendUpdateOptions)
 		if err != nil {
 			log.Printf("Failed to send message: %v. Message:\n%s", err, page)
 			return err
 		}
 	}
 
-	for _, media := range update.Media {
-		url := format.PrintHTMLLink("[media]", media.URL)
-		in, err := media.Ready()
+	for _, mediaFuture := range update.Media {
+		url := format.PrintHTMLLink("[media]", mediaFuture.URL)
+		media, err := mediaFuture.Result()
 		if err == nil {
-			_, err = tg.Send(chatID,
-				&telegram.Media{
-					Type:      in.Type,
-					Readable:  in,
-					Caption:   url,
-					ParseMode: parseMode},
-				&telegram.SendOptions{
-					DisableNotification: true})
+			_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
 		}
 		if err != nil {
-			log.Printf("Failed to process media %s: %s", media.URL, err)
+			log.Printf("Failed to process media %s: %s", mediaFuture.URL, err)
 			_, err = tg.Send(chatID,
 				&telegram.Text{
 					Text:      url,
 					ParseMode: parseMode},
-				&telegram.SendOptions{
-					DisableNotification: true})
+				DefaultSendUpdateOptions)
 		}
 		if err != nil {
 			return err

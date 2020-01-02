@@ -10,7 +10,7 @@ import (
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
-	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/mediator"
 	"github.com/pkg/errors"
 )
 
@@ -72,10 +72,10 @@ func (s CatalogSource) Pull(pull *feed.UpdatePull) error {
 	}
 	sort.Sort(queryResults(results))
 	for _, thread := range results {
-		//noinspection ALL
-		media := make([]*media.Media, 0)
+		media := make([]*mediator.Future, 0)
 		for _, file := range thread.Files {
-			media = append(media, downloadMedia(s.Client, pull.Media, file))
+			media = append(media, pull.Mediator.Submit(file.URL(),
+				&mediatorRequest{s.Client.Client, file}))
 			break
 		}
 		update := feed.Update{

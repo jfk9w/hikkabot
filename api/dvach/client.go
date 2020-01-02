@@ -38,24 +38,22 @@ type Client struct {
 	*flu.Client
 }
 
-func NewClient(http *flu.Client, usercode string) *Client {
-	if http == nil {
-		http = flu.NewClient(nil)
+func NewClient(client *flu.Client, usercode string) *Client {
+	if client == nil {
+		client = flu.NewClient(nil)
 	}
 	return &Client{
-		Client: http.
+		Client: client.
 			SetCookies(Host, cookies(usercode, "/")...).
 			SetCookies(Host, cookies(usercode, "/makaba")...).
-			AcceptResponseCodes(200),
+			AcceptResponseCodes(http.StatusOK),
 	}
 }
 
 func (c *Client) GetCatalog(board string) (*Catalog, error) {
 	catalog := new(Catalog)
-	err := c.NewRequest().
-		GET().
-		Resource(Host + "/" + board + "/catalog_num.json").
-		Send().
+	err := c.GET(Host + "/" + board + "/catalog_num.json").
+		Execute().
 		Read(newResponse(catalog)).
 		Error
 	if err != nil {
@@ -69,14 +67,12 @@ func (c *Client) GetThread(board string, num int, offset int) ([]Post, error) {
 		offset = num
 	}
 	thread := make([]Post, 0)
-	err := c.NewRequest().
-		GET().
-		Resource(Host+"/makaba/mobile.fcgi").
+	err := c.GET(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_thread").
 		QueryParam("board", board).
 		QueryParam("thread", strconv.Itoa(num)).
 		QueryParam("num", strconv.Itoa(offset)).
-		Send().
+		Execute().
 		Read(newResponse(&thread)).
 		Error
 	if err != nil {
@@ -89,13 +85,11 @@ var ErrPostNotFound = errors.New("post not found")
 
 func (c *Client) GetPost(board string, num int) (*Post, error) {
 	posts := make([]Post, 0)
-	err := c.NewRequest().
-		GET().
-		Resource(Host+"/makaba/mobile.fcgi").
+	err := c.GET(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_post").
 		QueryParam("board", board).
 		QueryParam("post", strconv.Itoa(num)).
-		Send().
+		Execute().
 		Read(newResponse(&posts)).
 		Error
 	if err != nil {
@@ -108,22 +102,17 @@ func (c *Client) GetPost(board string, num int) (*Post, error) {
 }
 
 func (c *Client) DownloadFile(file *File, out flu.Writable) error {
-	return c.NewRequest().
-		GET().
-		Resource(Host + file.Path).
-		Send().
-		CheckStatusCode(http.StatusOK).
+	return c.GET(Host + file.Path).
+		Execute().
 		ReadBodyTo(out).
 		Error
 }
 
 func (c *Client) GetBoards() ([]Board, error) {
 	boardMap := make(map[string][]Board)
-	err := c.NewRequest().
-		GET().
-		Resource(Host+"/makaba/mobile.fcgi").
+	err := c.GET(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_boards").
-		Send().
+		Execute().
 		Read(newResponse(&boardMap)).
 		Error
 	if err != nil {

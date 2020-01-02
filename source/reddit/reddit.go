@@ -5,12 +5,15 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
+
+	"github.com/jfk9w/hikkabot/mediator/request"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
-	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/mediator"
 	"github.com/pkg/errors"
 )
 
@@ -18,7 +21,7 @@ const ListingThingLimit = 100
 
 type Item struct {
 	Subreddit string
-	Sort      reddit.Sort
+	Sort      string
 	MinUps    int
 }
 
@@ -40,7 +43,7 @@ func (s Source) Draft(command, options string) (*feed.Draft, error) {
 	item := Item{}
 	item.Subreddit, item.Sort = groups[4], groups[6]
 	if item.Sort == "" {
-		item.Sort = reddit.Hot
+		item.Sort = "hot"
 	}
 	if options != "" {
 		var err error
@@ -76,7 +79,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 		if thing.Data.Created.Unix() <= pull.Offset || thing.Data.Ups < item.MinUps {
 			continue
 		}
-		media := make([]*media.Media, 0)
+		media := make([]*mediator.Future, 0)
 		text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil).
 			Text("#" + item.Subreddit).NewLine()
 		if thing.Data.IsSelf {
@@ -85,7 +88,11 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 				NewLine().NewLine().
 				Parse(html.UnescapeString(thing.Data.SelfTextHTML))
 		} else {
-			media = append(media, s.downloadMedia(pull.Media, thing))
+			req, err := s.mediatorRequest(thing)
+			if err != nil {
+				req = &mediator.FailedRequest{Error: err}
+			}
+			media = append(media, pull.Mediator.Submit(thing.Data.URL, req))
 			text.Text(thing.Data.Title)
 		}
 		update := feed.Update{
@@ -100,11 +107,67 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 	return nil
 }
 
-func (s Source) downloadMedia(manager *media.Manager, thing *reddit.Thing) *media.Media {
-	err := s.ResolveMedia(thing)
-	var in media.SizeAwareReadable
-	if err == nil {
-		in = &media.HTTPRequest{Request: s.NewRequest().Resource(thing.Data.ResolvedURL).GET()}
+var imagere = regexp.MustCompile(`^.*\.(.*)$`)
+
+func (s Source) mediatorRequest(thing *reddit.Thing) (mediator.Request, error) {
+	url := thing.Data.URL
+	switch thing.Data.Domain {
+	case "i.redd.it":
+		groups := imagere.FindStringSubmatch(url)
+		if len(groups) != 2 {
+			return nil, errors.New("unable to find URL")
+		} else {
+			return &mediator.HTTPRequest{
+				URL:    url,
+				Format: groups[1],
+			}, nil
+		}
+	case "v.redd.it":
+		url := getFallbackURL(thing.Data.MediaContainer)
+		if url == "" {
+			for _, mc := range thing.Data.CrosspostParentList {
+				url = getFallbackURL(mc)
+				if url != "" {
+					break
+				}
+			}
+		}
+		if url == "" {
+			return nil, errors.New("no fallback URL")
+		} else {
+			return &mediator.HTTPRequest{
+				URL:    url,
+				Format: "mp4",
+			}, nil
+		}
+	case "youtube.com", "youtu.be":
+		return &request.Youtube{
+			URL:     url,
+			MaxSize: mediator.MaxSize(telegram.Video)[1],
+		}, nil
+	case "imgur.com":
+		return &request.Imgur{URL: url}, nil
+	case "gfycat.com":
+		return &request.Gfycat{URL: url}, nil
+	case "i.imgur.com", "vidble.com":
+		url := thing.Data.URL
+		dot := strings.LastIndex(url, ".")
+		if dot < 0 {
+			return nil, errors.Errorf("unable to recognize format of %s", url)
+		} else {
+			return &mediator.HTTPRequest{
+				URL:    url,
+				Format: url[dot+1:],
+			}, nil
+		}
 	}
-	return manager.Submit(thing.Data.URL, thing.Data.Extension, in, err)
+	return nil, errors.Errorf("unknown domain: %s", thing.Data.Domain)
+}
+
+func getFallbackURL(mc reddit.MediaContainer) string {
+	url := mc.Media.RedditVideo.FallbackURL
+	if url == "" {
+		url = mc.SecureMedia.RedditVideo.FallbackURL
+	}
+	return url
 }

@@ -1,7 +1,6 @@
 package reddit
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 	"time"
@@ -56,14 +55,12 @@ func (c *Client) updateToken() error {
 	resp := new(struct {
 		AccessToken string `json:"access_token"`
 	})
-	if err := c.NewRequest().
-		POST().
-		Resource(AuthEndpoint).
+	if err := c.POST(AuthEndpoint).
 		QueryParam("grant_type", "password").
 		QueryParam("username", c.config.Username).
 		QueryParam("password", c.config.Password).
 		BasicAuth(c.config.ClientID, c.config.ClientSecret).
-		Send().
+		Execute().
 		ReadBody(flu.JSON(resp)).
 		Error; err != nil {
 		return err
@@ -82,12 +79,10 @@ func (c *Client) execute(resp interface{}, req *flu.Request) error {
 			return err
 		}
 	}
-	return req.Send().
-		ReadBody(flu.JSON(resp)).
-		Error
+	return req.Execute().ReadBody(flu.JSON(resp)).Error
 }
 
-func (c *Client) GetListing(subreddit string, sort Sort, limit int) ([]Thing, error) {
+func (c *Client) GetListing(subreddit, sort string, limit int) ([]Thing, error) {
 	if limit <= 0 {
 		limit = 25
 	}
@@ -96,9 +91,7 @@ func (c *Client) GetListing(subreddit string, sort Sort, limit int) ([]Thing, er
 			Children []Thing `json:"children"`
 		} `json:"data"`
 	})
-	err := c.execute(resp, c.NewRequest().
-		GET().
-		Resource(Host+"/r/"+subreddit+"/"+sort).
+	err := c.execute(resp, c.GET(Host+"/r/"+subreddit+"/"+sort).
 		QueryParam("limit", strconv.Itoa(limit)))
 	if err != nil {
 		return nil, errors.Wrap(err, "on request")
@@ -107,28 +100,4 @@ func (c *Client) GetListing(subreddit string, sort Sort, limit int) ([]Thing, er
 		resp.Data.Children[i].init()
 	}
 	return resp.Data.Children, nil
-}
-
-type UnsupportedMediaDomainError struct {
-	Domain string
-}
-
-func (e UnsupportedMediaDomainError) Error() string {
-	return fmt.Sprintf("unsupported media domain: %s", e.Domain)
-}
-
-func (c *Client) ResolveMedia(thing *Thing) error {
-	if resolver, ok := mediaResolvers[thing.Data.Domain]; ok {
-		if thing.Data.ResolvedURL == "" {
-			media, err := resolver.Resolve(c.Client, thing)
-			if err != nil {
-				return errors.Wrap(err, "on media scan")
-			}
-			thing.Data.ResolvedURL = media.URL
-			thing.Data.Extension = media.Container
-		}
-		return nil
-	} else {
-		return UnsupportedMediaDomainError{thing.Data.Domain}
-	}
 }
