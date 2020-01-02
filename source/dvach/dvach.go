@@ -17,7 +17,7 @@ type mediatorRequest struct {
 func (r *mediatorRequest) Metadata() (*mediator.Metadata, error) {
 	return &mediator.Metadata{
 		URL:    r.file.URL(),
-		Size:   int64(r.file.Size),
+		Size:   int64(r.file.Size) << 10,
 		Format: Formats[r.file.Type],
 	}, nil
 }
