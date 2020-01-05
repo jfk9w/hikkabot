@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jfk9w/hikkabot/mediator/request"
+
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/mediator"
@@ -300,10 +302,22 @@ func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
 	return nil
 }
 
+func (a *Aggregator) YouTube(tg telegram.Client, c *telegram.Command) error {
+	req := &request.Youtube{URL: c.Payload, MaxSize: mediator.MaxSize(telegram.Video)[1]}
+	return a.SendUpdate(c.Chat.ID, Update{
+		Text: format.Text{
+			Pages:     []string{""},
+			ParseMode: telegram.HTML,
+		},
+		Media: []*mediator.Future{a.Mediator.Submit("", req)},
+	})
+}
+
 func (a *Aggregator) CommandListener(username string) *telegram.CommandListener {
 	return telegram.NewCommandListener(username).
 		HandleFunc("/sub", a.Create).
 		HandleFunc("resume", a.Resume).
 		HandleFunc("suspend", a.Suspend).
-		HandleFunc("/status", a.Status)
+		HandleFunc("/status", a.Status).
+		HandleFunc("/youtube", a.YouTube)
 }
