@@ -304,13 +304,17 @@ func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
 
 func (a *Aggregator) YouTube(tg telegram.Client, c *telegram.Command) error {
 	req := &request.Youtube{URL: c.Payload, MaxSize: mediator.MaxSize(telegram.Video)[1]}
-	return a.SendUpdate(c.Chat.ID, Update{
+	err := a.SendUpdate(c.Chat.ID, Update{
 		Text: format.Text{
 			Pages:     []string{""},
 			ParseMode: telegram.HTML,
 		},
-		Media: []*mediator.Future{a.Mediator.Submit("", req)},
+		Media: []*mediator.Future{a.Mediator.Submit(c.Payload, req)},
 	})
+	if err != nil {
+		err = c.Reply(tg, err.Error())
+	}
+	return err
 }
 
 func (a *Aggregator) CommandListener(username string) *telegram.CommandListener {

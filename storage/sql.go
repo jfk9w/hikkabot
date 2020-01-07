@@ -1,16 +1,15 @@
 package storage
 
 import (
-	"database/sql"
+	_sql "database/sql"
 	"fmt"
 	"unicode/utf8"
-
-	"golang.org/x/exp/utf8string"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/feed"
 	_ "github.com/mattn/go-sqlite3/driver"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/utf8string"
 )
 
 type SQLConfig struct {
@@ -31,20 +30,20 @@ func (c SQLConfig) validate() {
 }
 
 type SQL struct {
-	*sql.DB
+	*_sql.DB
 	quirks SQLQuirks
 }
 
 func NewSQL(config SQLConfig) *SQL {
 	config.validate()
-	db, err := sql.Open(config.Driver, config.Datasource)
+	db, err := _sql.Open(config.Driver, config.Datasource)
 	if err != nil {
 		panic(err)
 	}
 	return (&SQL{db, KnownSQLQuirks[config.Driver]}).init()
 }
 
-func (s *SQL) query(query string, args ...interface{}) *sql.Rows {
+func (s *SQL) query(query string, args ...interface{}) *_sql.Rows {
 	rows, err := s.Query(query, args...)
 	for i := 0; i < 5; i++ {
 		if s.quirks.RetryQueryOrExec(err, i) {
@@ -59,7 +58,7 @@ func (s *SQL) query(query string, args ...interface{}) *sql.Rows {
 	return rows
 }
 
-func (s *SQL) exec(query string, args ...interface{}) sql.Result {
+func (s *SQL) exec(query string, args ...interface{}) _sql.Result {
 	res, err := s.Exec(query, args...)
 	for i := 0; i < 5; i++ {
 		if s.quirks.RetryQueryOrExec(err, i) {

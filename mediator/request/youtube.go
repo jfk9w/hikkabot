@@ -124,7 +124,7 @@ func (r *Youtube) Metadata() (*mediator.Metadata, error) {
 		}
 	}
 	if maxSize < 0 {
-		return nil, errors.Errorf("failed to find suitable video")
+		return nil, errors.Errorf("failed to find suitable video in: %+v", info.formats)
 	}
 	format, err := bestFormat.parseFormat()
 	if err != nil {
