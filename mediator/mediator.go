@@ -118,7 +118,7 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 			} else {
 				as = "URL"
 			}
-			log.Printf("Processed %s %s (%d KB) as %s via %T in %v", typ, url, csize>>10, as, conv, time.Now().Sub(start))
+			log.Printf("Processed %s %s (%d KB) as %s via %T in %v: %+v", typ, url, csize>>10, as, conv, time.Now().Sub(start), media)
 			if _, ok := conv.(FormatSupport); !ok {
 				m.metrics.Add("size", csize)
 				m.metrics.Add("files", 1)
