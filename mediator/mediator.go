@@ -101,7 +101,6 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 				return nil, errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", csize>>20, maxSize[1]>>20, typ)
 			}
 			media := &telegram.Media{Type: typ, URL: cmeta.URL}
-			var as string
 			if csize > maxSize[0] || cmeta.ForceLoad {
 				var in flu.Readable
 				if m.buffer {
@@ -114,11 +113,8 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 					in = req
 				}
 				media.Resource = in
-				as = "resource"
-			} else {
-				as = "URL"
 			}
-			log.Printf("Processed %s %s (%d KB) as %s via %T in %v: %+v", typ, url, csize>>10, as, conv, time.Now().Sub(start), media)
+			log.Printf("Processed %s %s (%d KB) via %T in %v: %+v", typ, url, csize>>10, conv, time.Now().Sub(start), media)
 			if _, ok := conv.(FormatSupport); !ok {
 				m.metrics.Add("size", csize)
 				m.metrics.Add("files", 1)
