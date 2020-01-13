@@ -1,7 +1,9 @@
 package dvach
 
 import (
+	"bytes"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -18,18 +20,19 @@ func newResponse(value interface{}) flu.ReaderFrom {
 }
 
 func (r *response) ReadFrom(body io.Reader) (err error) {
-	buf := flu.NewBuffer()
-	err = flu.Copy(flu.Xable{R: body}, buf)
+	buf, err := ioutil.ReadAll(body)
 	if err != nil {
 		return errors.Wrap(err, "read body")
 	}
-	err = flu.Read(buf, flu.JSON(r.value))
+	bufr := bytes.NewReader(buf)
+	err = flu.JSON(r.value).ReadFrom(bufr)
 	if err == nil {
 		return
 	}
 	err = new(Error)
-	if flu.Read(buf, flu.JSON(err)) != nil {
-		err = errors.Errorf("failed to decode response: %s", string(buf.Bytes()))
+	bufr.Reset(buf)
+	if flu.JSON(err).ReadFrom(bufr) != nil {
+		err = errors.Errorf("failed to decode response: %s", string(buf))
 	}
 	return
 }

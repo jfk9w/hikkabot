@@ -63,7 +63,7 @@ type youtubeVideoInfo struct {
 
 func (vi *youtubeVideoInfo) ReadFrom(r io.Reader) error {
 	resp := flu.PlainText("")
-	if err := flu.Read(flu.Xable{R: r}, resp); err != nil {
+	if err := resp.ReadFrom(r); err != nil {
 		return errors.Wrap(err, "read response")
 	}
 	info, err := _url.ParseQuery(resp.Value)
@@ -71,7 +71,7 @@ func (vi *youtubeVideoInfo) ReadFrom(r io.Reader) error {
 		return errors.Wrap(err, "parse query")
 	}
 	playerResponse := new(youtubePlayerResponse)
-	err = flu.Read(flu.Bytes([]byte(info.Get("player_response"))), flu.JSON(playerResponse))
+	err = flu.JSON(playerResponse).ReadFrom(strings.NewReader(info.Get("player_response")))
 	if err != nil {
 		return errors.Errorf("no player_response in info: %v", info)
 	}

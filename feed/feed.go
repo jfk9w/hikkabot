@@ -71,7 +71,7 @@ type Draft struct {
 	Item []byte
 }
 
-var ErrDraftFailed = errors.New("draft failed")
+var ErrDraftFailed = errors.New("Invalid syntax. Usage: `/sub` ENTITY [CHAT] [OPTIONS]")
 
 type Source interface {
 	ID() string

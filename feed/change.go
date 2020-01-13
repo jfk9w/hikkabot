@@ -56,6 +56,9 @@ func (c *changeContext) getAdminIDs(channel Channel) ([]telegram.ID, error) {
 }
 
 func (c *changeContext) checkAccess(channel Channel, userID telegram.ID) error {
+	if userID == 0 {
+		return nil
+	}
 	adminIDs, err := c.getAdminIDs(channel)
 	if err != nil {
 		return err

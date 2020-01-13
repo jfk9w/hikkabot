@@ -10,10 +10,11 @@ import (
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
-	"github.com/jfk9w/hikkabot/mediator"
+	_mediator "github.com/jfk9w/hikkabot/mediator"
 	"github.com/jfk9w/hikkabot/source"
-	"github.com/jfk9w/hikkabot/storage"
+	_storage "github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -27,7 +28,7 @@ func main() {
 		Aggregator struct {
 			AdminID telegram.ID
 			Aliases map[telegram.Username]telegram.ID
-			Storage storage.SQLConfig
+			Storage _storage.SQLConfig
 			Timeout string
 		}
 		Telegram struct {
@@ -36,7 +37,7 @@ func main() {
 			Proxy       string
 			Concurrency int
 		}
-		Media  mediator.Config
+		Media  _mediator.Config
 		Reddit *reddit.Config
 		Dvach  *struct{ Usercode string }
 	})
@@ -53,11 +54,14 @@ func main() {
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).
 		NewClient(), config.Telegram.Token)
-	mediator := mediator.New(config.Media)
+	mediator := _mediator.New(config.Media)
 	defer mediator.Shutdown()
-	storage := storage.NewSQL(config.Aggregator.Storage)
+	storage := _storage.NewSQL(config.Aggregator.Storage)
 	defer storage.Close()
-	go bot.Send(config.Aggregator.AdminID, &telegram.Text{Text: "⬆️"}, nil)
+	_, err = bot.Send(config.Aggregator.AdminID, &telegram.Text{Text: "⬆️"}, nil)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to send initial message"))
+	}
 	agg := &feed.Aggregator{
 		Channel:  feed.Telegram{Client: bot.Client},
 		Storage:  storage,
@@ -68,12 +72,12 @@ func main() {
 	}
 	if config.Dvach != nil {
 		client := dvach.NewClient(nil, config.Dvach.Usercode)
-		agg.AddSource(source.DvachCatalogSource{client}).
-			AddSource(source.DvachThreadSource{client})
+		agg.AddSource(source.DvachCatalog{client}).
+			AddSource(source.DvachThread{client})
 	}
 	if config.Reddit != nil {
 		client := reddit.NewClient(nil, *config.Reddit)
-		agg.AddSource(source.RedditSource{client})
+		agg.AddSource(source.Reddit{client})
 	}
 	bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
 }

@@ -5,6 +5,6 @@ import (
 	"github.com/jfk9w/hikkabot/source/reddit"
 )
 
-type RedditSource = reddit.Source
-type DvachThreadSource = dvach.ThreadSource
-type DvachCatalogSource = dvach.CatalogSource
+type Reddit = reddit.Source
+type DvachThread = dvach.ThreadSource
+type DvachCatalog = dvach.CatalogSource
