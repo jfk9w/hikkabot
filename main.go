@@ -3,8 +3,10 @@ package main
 import (
 	"expvar"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	_aconvert "github.com/jfk9w-go/aconvert-api"
@@ -34,7 +36,10 @@ type Config struct {
 		Concurrency int
 		LogFile     string
 	}
-	Media    _mediator.Config
+	Media struct {
+		_mediator.Config `yaml:",inline"`
+		LogFile          string
+	}
 	Aconvert *struct {
 		_aconvert.Config `yaml:",inline"`
 		LogFile          string
@@ -57,6 +62,7 @@ func init() {
 
 func main() {
 	flu.RequestLogIDLength = 3
+	requestRegistry := new(sync.Map)
 	config := new(Config)
 	err := flu.Read(flu.File(os.Args[1]), util.YAML(config))
 	if err != nil {
@@ -73,12 +79,20 @@ func main() {
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).
 		Logger(logging.Get(config.Telegram.LogFile)).
+		Registry(requestRegistry).
 		NewClient(), config.Telegram.Token)
-	mediator := _mediator.New(config.Media)
+	_mediator.CommonClient = flu.NewTransport().
+		Logger(logging.Get(config.Media.LogFile)).
+		Registry(requestRegistry).
+		NewClient().
+		AcceptResponseCodes(http.StatusOK).
+		Timeout(5 * time.Minute)
+	mediator := _mediator.New(config.Media.Config)
 	defer mediator.Shutdown()
 	if config.Aconvert != nil {
 		aconvert := _aconvert.NewClient(flu.NewTransport().
 			Logger(logging.Get(config.Aconvert.LogFile)).
+			Registry(requestRegistry).
 			NewClient(), config.Aconvert.Config)
 		mediator.AddConverter(_mediator.NewAconverter(aconvert))
 	}
@@ -89,16 +103,18 @@ func main() {
 		panic(errors.Wrap(err, "failed to send initial message"))
 	}
 	agg := &feed.Aggregator{
-		Channel:  feed.Telegram{Client: bot.Client},
-		Storage:  storage,
-		Mediator: mediator,
-		Timeout:  timeout,
-		Aliases:  config.Aggregator.Aliases,
-		AdminID:  config.Aggregator.AdminID,
+		Channel:         feed.Telegram{Client: bot.Client},
+		Storage:         storage,
+		Mediator:        mediator,
+		Timeout:         timeout,
+		Aliases:         config.Aggregator.Aliases,
+		AdminID:         config.Aggregator.AdminID,
+		RequestRegistry: requestRegistry,
 	}
 	if config.Dvach != nil {
 		client := dvach.NewClient(flu.NewTransport().
 			Logger(logging.Get(config.Dvach.LogFile)).
+			Registry(requestRegistry).
 			NewClient(), config.Dvach.Usercode)
 		agg.AddSource(source.DvachCatalog{client}).
 			AddSource(source.DvachThread{client})
@@ -106,6 +122,7 @@ func main() {
 	if config.Reddit != nil {
 		client := reddit.NewClient(flu.NewTransport().
 			Logger(logging.Get(config.Reddit.LogFile)).
+			Registry(requestRegistry).
 			NewClient(), config.Reddit.Config)
 		agg.AddSource(source.Reddit{client})
 	}

@@ -19,14 +19,15 @@ type Aggregator struct {
 	Channel
 	Subscription
 	Storage
-	Timeout  time.Duration
-	Mediator *mediator.Mediator
-	Aliases  map[telegram.Username]telegram.ID
-	AdminID  telegram.ID
-	sources  map[string]Source
-	chats    map[telegram.ID]bool
-	mu       sync.RWMutex
-	metrics  *expvar.Map
+	Timeout         time.Duration
+	Mediator        *mediator.Mediator
+	Aliases         map[telegram.Username]telegram.ID
+	AdminID         telegram.ID
+	RequestRegistry *sync.Map
+	sources         map[string]Source
+	chats           map[telegram.ID]bool
+	mu              sync.RWMutex
+	metrics         *expvar.Map
 }
 
 func (a *Aggregator) AddSource(source Source) *Aggregator {
@@ -287,6 +288,11 @@ func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
 				return
 			}
 			text.NewLine().Text(kv.Key + ": " + kv.Value.String())
+		})
+		text.NewLine().Text("Pending requests:")
+		a.RequestRegistry.Range(func(k, v interface{}) bool {
+			text.NewLine().Text(v.(string))
+			return true
 		})
 	} else {
 		text.Text("OK")
