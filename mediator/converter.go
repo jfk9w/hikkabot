@@ -52,9 +52,9 @@ type Aconverter struct {
 	formatTypes map[string][2]string
 }
 
-func NewAconverter(config aconvert.Config) Aconverter {
+func NewAconverter(client *aconvert.Client) Aconverter {
 	return Aconverter{
-		Client: aconvert.NewClient(nil, config),
+		Client: client,
 		formatTypes: map[string][2]string{
 			"webm": {"mp4", telegram.Video}},
 	}

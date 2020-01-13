@@ -2,9 +2,12 @@ package main
 
 import (
 	"expvar"
+	"log"
 	"os"
+	"path/filepath"
 	"time"
 
+	_aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
@@ -17,6 +20,35 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Config struct {
+	Aggregator struct {
+		AdminID telegram.ID
+		Aliases map[telegram.Username]telegram.ID
+		Storage _storage.SQLConfig
+		Timeout string
+	}
+	Telegram struct {
+		Username    string
+		Token       string
+		Proxy       string
+		Concurrency int
+		LogFile     string
+	}
+	Media    _mediator.Config
+	Aconvert *struct {
+		_aconvert.Config `yaml:",inline"`
+		LogFile          string
+	}
+	Reddit *struct {
+		reddit.Config `yaml:",inline"`
+		LogFile       string
+	}
+	Dvach *struct {
+		Usercode string
+		LogFile  string
+	}
+}
+
 func init() {
 	launch := time.Now()
 	expvar.NewString("launch").Set(launch.Format(time.RFC3339))
@@ -24,23 +56,8 @@ func init() {
 }
 
 func main() {
-	config := new(struct {
-		Aggregator struct {
-			AdminID telegram.ID
-			Aliases map[telegram.Username]telegram.ID
-			Storage _storage.SQLConfig
-			Timeout string
-		}
-		Telegram struct {
-			Username    string
-			Token       string
-			Proxy       string
-			Concurrency int
-		}
-		Media  _mediator.Config
-		Reddit *reddit.Config
-		Dvach  *struct{ Usercode string }
-	})
+	flu.RequestLogIDLength = 3
+	config := new(Config)
 	err := flu.Read(flu.File(os.Args[1]), util.YAML(config))
 	if err != nil {
 		panic(err)
@@ -49,13 +66,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	logging := make(Logging)
+	defer logging.Close()
 	telegram.SendDelays[telegram.PrivateChat] = time.Second
 	bot := telegram.NewBot(flu.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).
+		Logger(logging.Get(config.Telegram.LogFile)).
 		NewClient(), config.Telegram.Token)
 	mediator := _mediator.New(config.Media)
 	defer mediator.Shutdown()
+	if config.Aconvert != nil {
+		aconvert := _aconvert.NewClient(flu.NewTransport().
+			Logger(logging.Get(config.Aconvert.LogFile)).
+			NewClient(), config.Aconvert.Config)
+		mediator.AddConverter(_mediator.NewAconverter(aconvert))
+	}
 	storage := _storage.NewSQL(config.Aggregator.Storage)
 	defer storage.Close()
 	_, err = bot.Send(config.Aggregator.AdminID, &telegram.Text{Text: "⬆️"}, nil)
@@ -71,13 +97,50 @@ func main() {
 		AdminID:  config.Aggregator.AdminID,
 	}
 	if config.Dvach != nil {
-		client := dvach.NewClient(nil, config.Dvach.Usercode)
+		client := dvach.NewClient(flu.NewTransport().
+			Logger(logging.Get(config.Dvach.LogFile)).
+			NewClient(), config.Dvach.Usercode)
 		agg.AddSource(source.DvachCatalog{client}).
 			AddSource(source.DvachThread{client})
 	}
 	if config.Reddit != nil {
-		client := reddit.NewClient(nil, *config.Reddit)
+		client := reddit.NewClient(flu.NewTransport().
+			Logger(logging.Get(config.Reddit.LogFile)).
+			NewClient(), config.Reddit.Config)
 		agg.AddSource(source.Reddit{client})
 	}
 	bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
+}
+
+type Logging map[string]*os.File
+
+func (logging Logging) Get(path string) *log.Logger {
+	if path == "" {
+		return nil
+	}
+	if path == "stdout" {
+		return log.New(log.Writer(), "", log.Flags())
+	}
+	path, err := filepath.Abs(path)
+	if err != nil {
+		panic(err)
+	}
+	if _, ok := logging[path]; !ok {
+		err = os.MkdirAll(filepath.Dir(path), os.ModePerm)
+		if err != nil {
+			panic(err)
+		}
+		file, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0)
+		if err != nil {
+			panic(err)
+		}
+		logging[path] = file
+	}
+	return log.New(logging[path], "", log.Flags())
+}
+
+func (logging Logging) Close() {
+	for _, file := range logging {
+		_ = file.Close()
+	}
 }

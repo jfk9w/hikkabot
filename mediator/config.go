@@ -1,7 +1,5 @@
 package mediator
 
-import aconvert "github.com/jfk9w-go/aconvert-api"
-
 type Size struct {
 	Bytes     int64
 	Kilobytes int64
@@ -18,7 +16,6 @@ func (s *Size) Value(defaultValue int64) int64 {
 
 type Config struct {
 	Concurrency      int
-	Aconvert         *aconvert.Config
 	MinSize, MaxSize *Size
 	Buffer           bool
 }

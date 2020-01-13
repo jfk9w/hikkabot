@@ -4,7 +4,6 @@ import (
 	"io"
 
 	"github.com/jfk9w-go/flu"
-
 	yaml "gopkg.in/yaml.v2"
 )
 

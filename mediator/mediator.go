@@ -32,10 +32,6 @@ func New(config Config) *Mediator {
 		metrics: expvar.NewMap("media"),
 		buffer:  config.Buffer,
 	}
-	if config.Aconvert != nil {
-		aconverter := NewAconverter(*config.Aconvert)
-		mediator.AddConverter(aconverter)
-	}
 	mediator.minSize = config.MinSize.Value(2 << 10)
 	mediator.maxSize = config.MaxSize.Value(75 << 20)
 	for i := 0; i < config.Concurrency; i++ {
