@@ -102,7 +102,7 @@ func (r *Youtube) Metadata() (*mediator.Metadata, error) {
 		return nil, errors.New("failed to find id in URL")
 	}
 	info := new(youtubeVideoInfo)
-	err = flu.DefaultClient.
+	err = mediator.CommonClient.
 		GET("http://youtube.com/get_video_info?video_id=" + id).
 		Execute().
 		CheckStatusCode(http.StatusOK).
@@ -143,7 +143,7 @@ func (r *Youtube) Metadata() (*mediator.Metadata, error) {
 }
 
 func (r *Youtube) Reader() (io.Reader, error) {
-	return flu.DefaultClient.
+	return mediator.CommonClient.
 		GET(r.realURL).
 		Execute().
 		CheckStatusCode(http.StatusOK).

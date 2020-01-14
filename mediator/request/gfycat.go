@@ -38,7 +38,7 @@ func (r *Gfycat) Metadata() (*mediator.Metadata, error) {
 		URL:    r.realURL,
 		Format: "mp4",
 	}
-	return metadata, flu.DefaultClient.
+	return metadata, mediator.CommonClient.
 		HEAD(r.realURL).
 		Execute().
 		CheckStatusCode(http.StatusOK).
@@ -47,7 +47,7 @@ func (r *Gfycat) Metadata() (*mediator.Metadata, error) {
 }
 
 func (r *Gfycat) Reader() (io.Reader, error) {
-	return flu.DefaultClient.
+	return mediator.CommonClient.
 		GET(r.realURL).
 		Execute().
 		Reader()

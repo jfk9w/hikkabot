@@ -69,7 +69,7 @@ func (r *HTTPRequest) Metadata() (*Metadata, error) {
 }
 
 func (r *HTTPRequest) Reader() (io.Reader, error) {
-	return flu.URL(r.URL).Reader()
+	return CommonClient.GET(r.URL).Execute().Reader()
 }
 
 type DoneRequest struct {

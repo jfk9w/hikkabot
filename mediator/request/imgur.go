@@ -48,7 +48,7 @@ func (r *Imgur) Metadata() (*mediator.Metadata, error) {
 		URL:    r.realURL,
 		Format: r.format,
 	}
-	return metadata, flu.DefaultClient.
+	return metadata, mediator.CommonClient.
 		HEAD(r.realURL).
 		Execute().
 		CheckStatusCode(http.StatusOK).
@@ -57,7 +57,7 @@ func (r *Imgur) Metadata() (*mediator.Metadata, error) {
 }
 
 func (r *Imgur) Reader() (io.Reader, error) {
-	return flu.DefaultClient.
+	return mediator.CommonClient.
 		GET(r.realURL).
 		Execute().
 		CheckStatusCode(http.StatusOK).

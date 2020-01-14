@@ -82,13 +82,15 @@ func main() {
 		ProxyURL(config.Telegram.Proxy).
 		Logger(logging.Get(config.Telegram.LogFile)).
 		PendingRequests(requests).
-		NewClient(), config.Telegram.Token)
+		NewClient().
+		Timeout(2*time.Minute), config.Telegram.Token)
 	_mediator.CommonClient = flu.NewTransport().
 		Logger(logging.Get(config.Media.LogFile)).
 		PendingRequests(requests).
 		NewClient().
 		AcceptResponseCodes(http.StatusOK).
-		Timeout(5 * time.Minute)
+		Timeout(2 * time.Minute)
+	flu.DefaultClient = _mediator.CommonClient
 	mediator := _mediator.New(config.Media.Config)
 	defer mediator.Shutdown()
 	if config.Aconvert != nil {
