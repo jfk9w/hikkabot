@@ -7,6 +7,14 @@ github.com/jfk9w-go/flu v0.9.9-0.20200102105924-c168afbc4702 h1:ifX88OKsTwG52nrL
 github.com/jfk9w-go/flu v0.9.9-0.20200102105924-c168afbc4702/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
 github.com/jfk9w-go/flu v0.9.9-0.20200113211902-a4d7649e15c8 h1:GizvUY5vEjKMFeFLKbFRJg8nI905dupDaWKecQlSzzE=
 github.com/jfk9w-go/flu v0.9.9-0.20200113211902-a4d7649e15c8/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
+github.com/jfk9w-go/flu v0.9.9-0.20200113212706-4c2d5ace745f h1:hIDXcBsJFOniVkvlnpEbFKVIknAzqkdTP63KWvhQ9PI=
+github.com/jfk9w-go/flu v0.9.9-0.20200113212706-4c2d5ace745f/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
+github.com/jfk9w-go/flu v0.9.9-0.20200113214030-3fdd325a33a9 h1:7o2EivzpfAnNV+8unOjw09hPyuuVL+hNlvD7k6nBuFc=
+github.com/jfk9w-go/flu v0.9.9-0.20200113214030-3fdd325a33a9/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
+github.com/jfk9w-go/flu v0.9.9-0.20200113215401-0681849b02b8 h1:pH34KTEbGQ27qXF5lIOsWoMMnZHUfvVTbQj6e5gQxwE=
+github.com/jfk9w-go/flu v0.9.9-0.20200113215401-0681849b02b8/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
+github.com/jfk9w-go/flu v0.9.9-0.20200114095705-e184538714c0 h1:ig5vgDUxB2eJ/dYixPQCr4y2jGARGFVOj5WXLxJvBBA=
+github.com/jfk9w-go/flu v0.9.9-0.20200114095705-e184538714c0/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
 github.com/jfk9w-go/telegram-bot-api v0.9.5-0.20200102110421-8dd5a511a4f2 h1:YF5SyMyyRkm+5MGWMU41ln6Y/FUzYZvlDTgqdA6686U=
 github.com/jfk9w-go/telegram-bot-api v0.9.5-0.20200102110421-8dd5a511a4f2/go.mod h1:qAqlBpgo9ta8x2GwcJb+EFqBoWPa5MBu1v7hcczSeHI=
 github.com/mattn/go-sqlite3 v2.0.0+incompatible h1:+afSeuaczjy4ZUN55wuDe1bCaAFBu0hg5Cf2Zw2ar0s=

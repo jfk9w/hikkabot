@@ -5,8 +5,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	_signal "os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	_aconvert "github.com/jfk9w-go/aconvert-api"
@@ -61,8 +63,6 @@ func init() {
 }
 
 func main() {
-	flu.RequestLogIDLength = 3
-	requestRegistry := new(sync.Map)
 	config := new(Config)
 	err := flu.Read(flu.File(os.Args[1]), util.YAML(config))
 	if err != nil {
@@ -74,16 +74,18 @@ func main() {
 	}
 	logging := make(Logging)
 	defer logging.Close()
+	requests := new(sync.Map)
+	go func() { log.Println(http.ListenAndServe("localhost:6060", DebugHTTPHandler{requests})) }()
 	telegram.SendDelays[telegram.PrivateChat] = time.Second
 	bot := telegram.NewBot(flu.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).
 		Logger(logging.Get(config.Telegram.LogFile)).
-		Registry(requestRegistry).
+		PendingRequests(requests).
 		NewClient(), config.Telegram.Token)
 	_mediator.CommonClient = flu.NewTransport().
 		Logger(logging.Get(config.Media.LogFile)).
-		Registry(requestRegistry).
+		PendingRequests(requests).
 		NewClient().
 		AcceptResponseCodes(http.StatusOK).
 		Timeout(5 * time.Minute)
@@ -92,7 +94,7 @@ func main() {
 	if config.Aconvert != nil {
 		aconvert := _aconvert.NewClient(flu.NewTransport().
 			Logger(logging.Get(config.Aconvert.LogFile)).
-			Registry(requestRegistry).
+			PendingRequests(requests).
 			NewClient(), config.Aconvert.Config)
 		mediator.AddConverter(_mediator.NewAconverter(aconvert))
 	}
@@ -103,18 +105,17 @@ func main() {
 		panic(errors.Wrap(err, "failed to send initial message"))
 	}
 	agg := &feed.Aggregator{
-		Channel:         feed.Telegram{Client: bot.Client},
-		Storage:         storage,
-		Mediator:        mediator,
-		Timeout:         timeout,
-		Aliases:         config.Aggregator.Aliases,
-		AdminID:         config.Aggregator.AdminID,
-		RequestRegistry: requestRegistry,
+		Channel:  feed.Telegram{Client: bot.Client},
+		Storage:  storage,
+		Mediator: mediator,
+		Timeout:  timeout,
+		Aliases:  config.Aggregator.Aliases,
+		AdminID:  config.Aggregator.AdminID,
 	}
 	if config.Dvach != nil {
 		client := dvach.NewClient(flu.NewTransport().
 			Logger(logging.Get(config.Dvach.LogFile)).
-			Registry(requestRegistry).
+			PendingRequests(requests).
 			NewClient(), config.Dvach.Usercode)
 		agg.AddSource(source.DvachCatalog{client}).
 			AddSource(source.DvachThread{client})
@@ -122,11 +123,15 @@ func main() {
 	if config.Reddit != nil {
 		client := reddit.NewClient(flu.NewTransport().
 			Logger(logging.Get(config.Reddit.LogFile)).
-			Registry(requestRegistry).
+			PendingRequests(requests).
 			NewClient(), config.Reddit.Config)
 		agg.AddSource(source.Reddit{client})
 	}
-	bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
+	go bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
+	signal := make(chan os.Signal)
+	_signal.Notify(signal, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGABRT)
+	for range signal {
+	}
 }
 
 type Logging map[string]*os.File
@@ -160,4 +165,38 @@ func (logging Logging) Close() {
 	for _, file := range logging {
 		_ = file.Close()
 	}
+}
+
+type DebugHTTPHandler struct {
+	requests *sync.Map
+}
+
+func (h DebugHTTPHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		return
+	}
+	var err error
+	switch req.URL.Path {
+	case "/debug/requests":
+		err = h.handleRequests(rw)
+	default:
+		return
+	}
+	if err != nil {
+		rw.Header().Add("X-Hikkabot-Error", err.Error())
+	} else {
+		rw.Header().Add("Content-Type", "text/plain; charset=UTF-8")
+	}
+}
+
+func (h DebugHTTPHandler) handleRequests(rw http.ResponseWriter) error {
+	var err error
+	h.requests.Range(func(k, v interface{}) bool {
+		if err != nil {
+			return false
+		}
+		_, err = rw.Write([]byte(k.(string) + "\t" + v.(string) + "\n"))
+		return true
+	})
+	return err
 }
