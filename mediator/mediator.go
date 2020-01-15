@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jfk9w-go/flu"
+	"github.com/otiai10/gosseract"
 
+	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 )
@@ -97,12 +98,24 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 				return nil, errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", csize>>20, maxSize[1]>>20, typ)
 			}
 			media := &telegram.Media{Type: typ, URL: cmeta.URL}
-			if csize > maxSize[0] || cmeta.ForceLoad {
+			isOCRFiltered := cmeta.OCR.Filtered && typ == telegram.Photo
+			if csize > maxSize[0] || cmeta.ForceLoad || isOCRFiltered {
 				var in flu.Readable
-				if m.buffer {
+				if m.buffer || isOCRFiltered {
 					buf := flu.NewBuffer()
-					if err = flu.Copy(req, buf); err != nil {
+					if err := flu.Copy(req, buf); err != nil {
 						return nil, err
+					}
+					if isOCRFiltered {
+						ocr := gosseract.NewClient()
+						ocr.SetLanguage(cmeta.OCR.Languages...)
+						ocr.SetImageFromBytes(buf.Bytes())
+						text, err := ocr.Text()
+						if err == nil && cmeta.OCR.Regexp.MatchString(text) {
+							log.Printf("Filtered media %s", media.URL)
+							m.metrics.Add("ocr_filtered", 1)
+							return nil, ErrFiltered
+						}
 					}
 					in = buf
 				} else {
@@ -110,7 +123,7 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 				}
 				media.Resource = in
 			}
-			log.Printf("Processed %s %s (%d KB) via %T in %v: %+v", typ, url, csize>>10, conv, time.Now().Sub(start), media)
+			log.Printf("Processed %s %s (%d KB) via %T in %v", typ, url, csize>>10, conv, time.Now().Sub(start))
 			if _, ok := conv.(FormatSupport); !ok {
 				m.metrics.Add("size", csize)
 				m.metrics.Add("files", 1)

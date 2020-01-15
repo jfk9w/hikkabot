@@ -19,6 +19,7 @@ type Converter interface {
 }
 
 var ErrUnsupportedType = errors.New("unsupported type")
+var ErrFiltered = errors.New("filtered")
 
 type FormatSupport map[string]telegram.MediaType
 

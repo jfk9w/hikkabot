@@ -76,20 +76,26 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 			media[i] = pull.Mediator.Submit(file.URL(),
 				&mediatorRequest{s.Client.Client, file})
 		}
-		text := format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(post.Board)).
-			Text(item.Title).NewLine().
-			Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.Board), post.Num))
-		if post.IsOriginal() {
-			text.Text(" #OP")
+		text := format.Text{
+			ParseMode: telegram.HTML,
 		}
-		if !item.MediaOnly && post.Comment != "" {
-			text.NewLine().
-				Text("---").NewLine().
-				Parse(post.Comment)
+		if !item.MediaOnly {
+			b := format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(post.Board)).
+				Text(item.Title).NewLine().
+				Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.Board), post.Num))
+			if post.IsOriginal() {
+				b.Text(" #OP")
+			}
+			if post.Comment != "" {
+				b.NewLine().
+					Text("---").NewLine().
+					Parse(post.Comment)
+			}
+			text = b.Format()
 		}
 		update := feed.Update{
 			Offset: int64(post.Num),
-			Text:   text.Format(),
+			Text:   text,
 			Media:  media,
 		}
 		if !pull.Submit(update) {

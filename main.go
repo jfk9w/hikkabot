@@ -37,6 +37,7 @@ type Config struct {
 		Proxy       string
 		Concurrency int
 		LogFile     string
+		SendRetries int
 	}
 	Media struct {
 		_mediator.Config `yaml:",inline"`

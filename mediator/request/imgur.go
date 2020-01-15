@@ -15,6 +15,7 @@ var imgurre = regexp.MustCompile(`.*?(<link rel="image_src"\s+href="|<meta prope
 
 type Imgur struct {
 	URL     string
+	OCR     mediator.OCR
 	realURL string
 	format  string
 }
@@ -24,7 +25,7 @@ func (r *Imgur) Handle(resp *http.Response) error {
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
 		line := scanner.Text()
-		groups := gfycatre.FindStringSubmatch(line)
+		groups := imgurre.FindStringSubmatch(line)
 		if len(groups) == 4 {
 			r.realURL = groups[2]
 			r.format = groups[3]
@@ -47,6 +48,7 @@ func (r *Imgur) Metadata() (*mediator.Metadata, error) {
 	metadata := &mediator.Metadata{
 		URL:    r.realURL,
 		Format: r.format,
+		OCR:    r.OCR,
 	}
 	return metadata, mediator.CommonClient.
 		HEAD(r.realURL).

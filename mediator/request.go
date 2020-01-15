@@ -3,6 +3,7 @@ package mediator
 import (
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -25,11 +26,18 @@ func MaxSize(typ telegram.MediaType) [2]int64 {
 	}
 }
 
+type OCR struct {
+	Filtered  bool
+	Languages []string
+	Regexp    *regexp.Regexp
+}
+
 type Metadata struct {
 	URL       string
 	Size      int64
 	Format    string
 	ForceLoad bool
+	OCR       OCR
 }
 
 func (m *Metadata) Handle(resp *http.Response) error {
@@ -49,6 +57,7 @@ type Request interface {
 type HTTPRequest struct {
 	URL    string
 	Format string
+	OCR    OCR
 	body   io.Reader
 }
 

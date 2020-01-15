@@ -4,6 +4,8 @@ import (
 	"log"
 	"unicode/utf8"
 
+	"github.com/jfk9w/hikkabot/mediator"
+
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/format"
 	"github.com/pkg/errors"
@@ -40,7 +42,14 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 				_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
 			}
 			if err != nil {
-				log.Printf("Failed to process media %s: %s", mediaFuture.URL, err)
+				if err == mediator.ErrFiltered {
+					caption = pages[0]
+					if caption == "" {
+						return nil
+					}
+				} else {
+					log.Printf("Failed to process media %s: %s", mediaFuture.URL, err)
+				}
 				_, err = tg.Send(chatID,
 					&telegram.Text{
 						Text:      caption,
@@ -67,6 +76,9 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 	for _, mediaFuture := range update.Media {
 		url := format.PrintHTMLLink("[media]", mediaFuture.URL)
 		media, err := mediaFuture.Result()
+		if err == mediator.ErrFiltered {
+			continue
+		}
 		if err == nil {
 			media.Caption = url
 			media.ParseMode = parseMode
