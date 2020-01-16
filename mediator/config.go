@@ -18,4 +18,5 @@ type Config struct {
 	Concurrency      int
 	MinSize, MaxSize *Size
 	Buffer           bool
+	Directory        string
 }

@@ -40,6 +40,9 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 				media.Caption = caption
 				media.ParseMode = parseMode
 				_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
+				if resource, ok := media.Resource.(mediator.Buffer); ok {
+					resource.Cleanup()
+				}
 			}
 			if err != nil {
 				if err == mediator.ErrFiltered {
@@ -83,6 +86,9 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 			media.Caption = url
 			media.ParseMode = parseMode
 			_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
+			if resource, ok := media.Resource.(mediator.Buffer); ok {
+				resource.Cleanup()
+			}
 		}
 		if err != nil {
 			log.Printf("Failed to process media %s: %s", mediaFuture.URL, err)

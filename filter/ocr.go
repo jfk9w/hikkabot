@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"regexp"
 
@@ -32,6 +33,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	println(text)
-	println(regexp.MustCompile(`(?is).*?(твоя.*?ма(ть|ма).*?(умр(е|ё)т|сдохнет)|mother.*?will.*?die|проклят|curse).*`).MatchString(text))
+	log.Println(text)
+	log.Println(regexp.MustCompile(`(?is).*?(твоя.*?ма(ть|ма).*?(умр(е|ё)т|сдохнет)|mother.*?will.*?die|проклят|curse).*`).MatchString(text))
 }

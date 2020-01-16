@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-
 	"github.com/pkg/errors"
 
 	"github.com/jfk9w-go/flu"
@@ -30,7 +28,7 @@ type Config struct {
 type Client struct {
 	*flu.Client
 	tokenTime time.Time
-	restraint telegram.Restraint
+	restraint flu.Restraint
 	config    Config
 }
 
@@ -42,7 +40,7 @@ func NewClient(http *flu.Client, config Config) *Client {
 		SetHeader("User-Agent", config.UserAgent)
 	client := &Client{
 		Client:    http,
-		restraint: telegram.NewIntervalRestraint(Timeout),
+		restraint: flu.NewIntervalRestraint(Timeout),
 		config:    config,
 	}
 	if err := client.updateToken(); err != nil {

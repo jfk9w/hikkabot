@@ -4,6 +4,7 @@ import (
 	"expvar"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"sync"
@@ -90,7 +91,6 @@ func main() {
 		NewClient().
 		AcceptResponseCodes(http.StatusOK).
 		Timeout(2 * time.Minute)
-	flu.DefaultClient = _mediator.CommonClient
 	mediator := _mediator.New(config.Media.Config)
 	defer mediator.Shutdown()
 	if config.Aconvert != nil {

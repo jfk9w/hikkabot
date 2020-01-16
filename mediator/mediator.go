@@ -3,6 +3,9 @@ package mediator
 import (
 	"expvar"
 	"log"
+	"math/rand"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -20,23 +23,36 @@ type Mediator struct {
 	maxSize int64
 	metrics *expvar.Map
 	buffer  bool
+	dir     string
+	ocr     chan *gosseract.Client
 }
 
 func New(config Config) *Mediator {
 	if config.Concurrency < 1 {
 		panic("concurrency should be greater than 0")
 	}
+	if config.Directory != "" {
+		if err := os.RemoveAll(config.Directory); err != nil {
+			panic(err)
+		}
+		if err := os.MkdirAll(config.Directory, os.ModePerm); err != nil {
+			panic(err)
+		}
+	}
 	mediator := &Mediator{
 		convs:   []Converter{SupportedFormats},
 		queue:   make(chan *Future),
 		metrics: expvar.NewMap("media"),
 		buffer:  config.Buffer,
+		dir:     config.Directory,
+		ocr:     make(chan *gosseract.Client, 1),
 	}
 	mediator.minSize = config.MinSize.Value(2 << 10)
 	mediator.maxSize = config.MaxSize.Value(75 << 20)
 	for i := 0; i < config.Concurrency; i++ {
 		go mediator.runWorker()
 	}
+	mediator.ocr <- gosseract.NewClient()
 	return mediator
 }
 
@@ -58,6 +74,13 @@ func (m *Mediator) Submit(url string, req Request) *Future {
 func (m *Mediator) Shutdown() {
 	close(m.queue)
 	m.work.Wait()
+	if m.dir != "" {
+		os.RemoveAll(m.dir)
+	}
+	close(m.ocr)
+	for ocr := range m.ocr {
+		ocr.Close()
+	}
 }
 
 func (m *Mediator) runWorker() {
@@ -96,37 +119,46 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 			if csize > maxSize[1] {
 				return nil, errors.Errorf("size (%d MB) exceeds limit (%d MB) for type %s", csize>>20, maxSize[1]>>20, typ)
 			}
-			media := &telegram.Media{Type: typ, URL: cmeta.URL}
+			media := &telegram.Media{Type: typ, Resource: flu.URL(cmeta.URL)}
 			isOCRFiltered := cmeta.OCR.Filtered && typ == telegram.Photo
 			if csize > maxSize[0] || cmeta.ForceLoad || isOCRFiltered {
-				var in flu.Readable
+				media.Resource = req
 				if m.buffer || isOCRFiltered {
-					buf := flu.NewBuffer()
+					var buf Buffer
+					if m.dir != "" {
+						buf = fileBuffer{flu.File(filepath.Join(m.dir, newID()))}
+					} else {
+						buf = memoryBuffer{flu.NewBuffer()}
+					}
+
 					if err := flu.Copy(req, buf); err != nil {
 						return nil, err
 					}
+
 					if isOCRFiltered {
-						ocr := gosseract.NewClient()
-						ocr.SetLanguage(cmeta.OCR.Languages...)
-						ocr.SetImageFromBytes(buf.Bytes())
-						text, err := ocr.Text()
-						if err == nil && cmeta.OCR.Regexp.MatchString(text) {
-							log.Printf("Filtered media %s", media.URL)
-							m.metrics.Add("ocr_filtered", 1)
-							return nil, ErrFiltered
-						}
+						//ocr := <-m.ocr
+						//ocr.SetLanguage(cmeta.OCR.Languages...)
+						//buf.setOCR(ocr)
+						//text, err := ocr.Text()
+						//m.ocr <- ocr
+						//if err == nil && cmeta.OCR.Regexp.MatchString(text) {
+						//	log.Printf("Filtered media %s", cmeta.URL)
+						//	m.metrics.Add("ocr_filtered", 1)
+						//	buf.Cleanup()
+						//	return nil, ErrFiltered
+						//}
 					}
-					in = buf
-				} else {
-					in = req
+
+					media.Resource = buf
 				}
-				media.Resource = in
 			}
+
 			log.Printf("Processed %s %s (%d KB) via %T in %v", typ, url, csize>>10, conv, time.Now().Sub(start))
 			if _, ok := conv.(FormatSupport); !ok {
 				m.metrics.Add("size", csize)
 				m.metrics.Add("files", 1)
 			}
+
 			return media, nil
 		case ErrUnsupportedType:
 			continue
@@ -135,4 +167,17 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 		}
 	}
 	return nil, ErrUnsupportedType
+}
+
+var (
+	symbols  = []rune("abcdefghijklmonpqrstuvwxyz0123456789")
+	idLength = 16
+)
+
+func newID() string {
+	id := make([]rune, idLength)
+	for i := 0; i < idLength; i++ {
+		id[i] = symbols[rand.Intn(len(symbols))]
+	}
+	return string(id)
 }
