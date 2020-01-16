@@ -7,7 +7,7 @@ import (
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/feed"
-	_ "github.com/mattn/go-sqlite3/driver"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/utf8string"
 )

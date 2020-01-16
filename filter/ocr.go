@@ -5,7 +5,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/otiai10/gosseract"
+	"github.com/otiai10/gosseract/v2"
 )
 
 type OCR interface {

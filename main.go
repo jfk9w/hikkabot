@@ -5,10 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	_signal "os/signal"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 
 	_aconvert "github.com/jfk9w-go/aconvert-api"
@@ -131,10 +129,6 @@ func main() {
 		agg.AddSource(source.Reddit{client})
 	}
 	go bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
-	signal := make(chan os.Signal)
-	_signal.Notify(signal, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGABRT)
-	for range signal {
-	}
 }
 
 type Logging map[string]*os.File
