@@ -136,17 +136,17 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 					}
 
 					if isOCRFiltered {
-						//ocr := <-m.ocr
-						//ocr.SetLanguage(cmeta.OCR.Languages...)
-						//buf.setOCR(ocr)
-						//text, err := ocr.Text()
-						//m.ocr <- ocr
-						//if err == nil && cmeta.OCR.Regexp.MatchString(text) {
-						//	log.Printf("Filtered media %s", cmeta.URL)
-						//	m.metrics.Add("ocr_filtered", 1)
-						//	buf.Cleanup()
-						//	return nil, ErrFiltered
-						//}
+						ocr := <-m.ocr
+						ocr.SetLanguage(cmeta.OCR.Languages...)
+						buf.setOCR(ocr)
+						text, err := ocr.Text()
+						m.ocr <- ocr
+						if err == nil && cmeta.OCR.Regexp.MatchString(text) {
+							log.Printf("Filtered media %s", cmeta.URL)
+							m.metrics.Add("ocr_filtered", 1)
+							buf.Cleanup()
+							return nil, ErrFiltered
+						}
 					}
 
 					media.Resource = buf
