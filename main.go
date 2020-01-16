@@ -75,7 +75,8 @@ func main() {
 	logging := make(Logging)
 	defer logging.Close()
 	requests := new(sync.Map)
-	go func() { log.Println(http.ListenAndServe("localhost:6060", DebugHTTPHandler{requests})) }()
+	http.Handle("/debug/requests", DebugHTTPHandler{requests})
+	go func() { log.Println(http.ListenAndServe("localhost:6060", nil)) }()
 	telegram.SendDelays[telegram.PrivateChat] = time.Second
 	telegram.MaxSendRetries = config.Telegram.SendRetries
 	bot := telegram.NewBot(flu.NewTransport().
