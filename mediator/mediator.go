@@ -6,10 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/otiai10/gosseract"
-
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/otiai10/gosseract/v2"
 	"github.com/pkg/errors"
 )
 
