@@ -128,7 +128,7 @@ func main() {
 			NewClient(), config.Reddit.Config)
 		agg.AddSource(source.Reddit{client})
 	}
-	go bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
+	bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
 }
 
 type Logging map[string]*os.File
