@@ -171,16 +171,7 @@ type DebugHTTPHandler struct {
 }
 
 func (h DebugHTTPHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		return
-	}
-	var err error
-	switch req.URL.Path {
-	case "/debug/requests":
-		err = h.handleRequests(rw)
-	default:
-		return
-	}
+	err := h.handleRequests(rw)
 	if err != nil {
 		rw.Header().Add("X-Hikkabot-Error", err.Error())
 	} else {
