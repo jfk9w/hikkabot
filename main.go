@@ -76,6 +76,7 @@ func main() {
 	requests := new(sync.Map)
 	go func() { log.Println(http.ListenAndServe("localhost:6060", DebugHTTPHandler{requests})) }()
 	telegram.SendDelays[telegram.PrivateChat] = time.Second
+	telegram.MaxSendRetries = config.Telegram.SendRetries
 	bot := telegram.NewBot(flu.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).
