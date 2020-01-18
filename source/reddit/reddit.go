@@ -107,7 +107,15 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 	return nil
 }
 
-var imagere = regexp.MustCompile(`^.*\.(.*)$`)
+var (
+	imagere = regexp.MustCompile(`^.*\.(.*)$`)
+	ocrre   = regexp.MustCompile(`(?is).*?(cake.*?day|sort.*?by.*?new).*`)
+	ocr     = mediator.OCR{
+		Filtered:  true,
+		Languages: []string{"eng"},
+		Regexp:    ocrre,
+	}
+)
 
 func (s Source) mediatorRequest(thing *reddit.Thing) (mediator.Request, error) {
 	url := thing.Data.URL
@@ -120,6 +128,7 @@ func (s Source) mediatorRequest(thing *reddit.Thing) (mediator.Request, error) {
 			return &mediator.HTTPRequest{
 				URL:    url,
 				Format: groups[1],
+				OCR:    ocr,
 			}, nil
 		}
 	case "v.redd.it":
@@ -146,7 +155,7 @@ func (s Source) mediatorRequest(thing *reddit.Thing) (mediator.Request, error) {
 			MaxSize: mediator.MaxSize(telegram.Video)[1],
 		}, nil
 	case "imgur.com":
-		return &request.Imgur{URL: url}, nil
+		return &request.Imgur{URL: url, OCR: ocr}, nil
 	case "gfycat.com":
 		return &request.Gfycat{URL: url}, nil
 	case "i.imgur.com", "vidble.com":
@@ -158,6 +167,7 @@ func (s Source) mediatorRequest(thing *reddit.Thing) (mediator.Request, error) {
 			return &mediator.HTTPRequest{
 				URL:    url,
 				Format: url[dot+1:],
+				OCR:    ocr,
 			}, nil
 		}
 	}

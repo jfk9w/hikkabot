@@ -10,7 +10,14 @@ import (
 	"github.com/jfk9w/hikkabot/mediator"
 )
 
-var ocrre = regexp.MustCompile(`(?is).*?(твоя.*?ма(ть|ма).*?(умр(е|ё)т|сдохнет)|mother.*?will.*?die|проклят|curse).*`)
+var (
+	ocrre = regexp.MustCompile(`(?is).*?(твоя.*?ма(ть|ма).*?(умр(е|ё)т|сдохнет)|mother.*?will.*?die|проклят|curse).*`)
+	ocr   = mediator.OCR{
+		Filtered:  true,
+		Languages: []string{"rus", "eng"},
+		Regexp:    ocrre,
+	}
+)
 
 type mediatorRequest struct {
 	client *flu.Client
@@ -22,11 +29,7 @@ func (r *mediatorRequest) Metadata() (*mediator.Metadata, error) {
 		URL:    r.file.URL(),
 		Size:   int64(r.file.Size) << 10,
 		Format: Formats[r.file.Type],
-		OCR: mediator.OCR{
-			Filtered:  true,
-			Languages: []string{"rus", "eng"},
-			Regexp:    ocrre,
-		},
+		OCR:    ocr,
 	}, nil
 }
 

@@ -1,4 +1,4 @@
-package dvach
+package common
 
 import (
 	"encoding/json"

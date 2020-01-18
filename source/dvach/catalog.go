@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jfk9w/hikkabot/source/common"
+
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 
 	"github.com/jfk9w/hikkabot/api/dvach"
@@ -16,7 +18,7 @@ import (
 
 type CatalogItem struct {
 	Board string
-	Query Query
+	Query common.Query
 }
 
 type CatalogSource struct {
