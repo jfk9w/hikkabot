@@ -336,7 +336,9 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 	}
 	a.SendAlert(
 		[]telegram.ID{c.User.ID},
-		format.NewHTML(0, 0, nil, nil).Format(),
+		format.NewHTML(0, 0, nil, nil).
+			Text("Chat: ").Tag("b").Text(ctx.chat.Title).
+			Format(),
 		telegram.InlineKeyboard(keyboard...))
 	return nil
 }
