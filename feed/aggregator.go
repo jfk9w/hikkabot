@@ -335,7 +335,7 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 	}
 	title, _ := ctx.getChatTitle(a)
 	a.SendAlert(
-		[]telegram.ID{c.User.ID},
+		[]telegram.ID{c.Chat.ID},
 		format.NewHTML(0, 0, nil, nil).
 			Text("Chat: ").Text(title).
 			NewLine().
@@ -360,7 +360,7 @@ func (a *Aggregator) Clear(tg telegram.Client, c *telegram.Command) error {
 	cleared := a.Storage.Clear(ctx.chat.ID, fields[1])
 	title, _ := ctx.getChatTitle(a)
 	a.SendAlert(
-		[]telegram.ID{c.User.ID},
+		[]telegram.ID{c.Chat.ID},
 		format.NewHTML(0, 0, nil, nil).
 			Text("Chat: ").Text(title).
 			NewLine().
