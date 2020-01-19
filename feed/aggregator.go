@@ -3,6 +3,7 @@ package feed
 import (
 	"expvar"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -171,12 +172,7 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 		status = "suspended"
 	}
 
-	title := "<private>"
-	chat, _ := ctx.getChat(a)
-	if chat.Type != telegram.PrivateChat {
-		title = chat.Title
-	}
-
+	title, _ := ctx.getChatTitle(a)
 	text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil).
 		Text("Subscription " + status).NewLine().
 		Text("Chat: " + title).NewLine().
@@ -212,7 +208,7 @@ func (a *Aggregator) changeByUser(tg telegram.Client, c *telegram.Command, chang
 
 func (a *Aggregator) createChangeContext(c *telegram.Command, fields []string, chatIdx int) (*changeContext, error) {
 	ctx := new(changeContext)
-	if len(fields) > 1 && fields[1] != "." {
+	if len(fields) > chatIdx && fields[chatIdx] != "." {
 		username := telegram.Username(fields[1])
 		var chatID telegram.ChatID = username
 		if unaliased, ok := a.Aliases[username]; ok {
@@ -334,10 +330,15 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 		keyboard[3*i+1] = command
 		keyboard[3*i+2] = sub.ID.String()
 	}
+	title, _ := ctx.getChatTitle(a)
 	a.SendAlert(
 		[]telegram.ID{c.User.ID},
 		format.NewHTML(0, 0, nil, nil).
-			Text("Chat: ").Tag("b").Text(ctx.chat.Title).
+			Text("Chat: ").
+			Tag("b").Text(title).EndTag().
+			NewLine().
+			Text("Subscriptions: ").
+			Tag("b").Text(strconv.Itoa(len(subs))).EndTag().
 			Format(),
 		telegram.InlineKeyboard(keyboard...))
 	return nil

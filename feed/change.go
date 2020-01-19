@@ -28,6 +28,18 @@ func (c *changeContext) getChat(channel Channel) (*telegram.Chat, error) {
 	return chat, nil
 }
 
+func (c *changeContext) getChatTitle(channel Channel) (string, error) {
+	title := "<private>"
+	chat, err := c.getChat(channel)
+	if err != nil {
+		return "", errors.Wrap(err, "on getChat")
+	}
+	if chat.Type != telegram.PrivateChat {
+		title = chat.Title
+	}
+	return title, nil
+}
+
 func (c *changeContext) getAdminIDs(channel Channel) ([]telegram.ID, error) {
 	if c.adminIDs != nil {
 		return c.adminIDs, nil
