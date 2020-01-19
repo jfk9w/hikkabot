@@ -234,7 +234,8 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 	}
 	rawData := NewRawData()
 	for sourceID, source := range a.sources {
-		draft, err := source.Draft(cmd, options, rawData)
+		var draft *Draft
+		draft, err = source.Draft(cmd, options, rawData)
 		switch err {
 		case ErrDraftFailed:
 			continue
@@ -245,7 +246,7 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 				Source: sourceID,
 			}
 			if len(id.String()) > 62 {
-				return errors.New("too long ID")
+				return errors.New("ID too long")
 			}
 			ctx := &Subscription{
 				ID:      id,
@@ -261,17 +262,15 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 			break
 		}
 	}
-	return ErrDraftFailed
+	return err
 }
 
 func (a *Aggregator) Create(tg telegram.Client, c *telegram.Command) error {
-	err := a.doCreate(c)
-	if err != nil {
-		_, err = tg.Send(c.Chat.ID,
-			&telegram.Text{Text: err.Error()},
-			&telegram.SendOptions{ReplyToMessageID: c.Message.ID})
+	if err := a.doCreate(c); err != nil {
+		return c.Reply(tg, err.Error())
+	} else {
+		return nil
 	}
-	return err
 }
 
 func (a *Aggregator) Resume(tg telegram.Client, c *telegram.Command) error {
