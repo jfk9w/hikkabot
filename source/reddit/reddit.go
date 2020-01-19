@@ -23,6 +23,7 @@ type Item struct {
 	Subreddit string
 	Sort      string
 	MinUps    int
+	Offset    int64
 }
 
 type Source struct {
@@ -32,10 +33,14 @@ type Source struct {
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
 
 func (Source) ID() string {
+	return "r"
+}
+
+func (Source) Name() string {
 	return "Reddit"
 }
 
-func (s Source) Draft(command, options string) (*feed.Draft, error) {
+func (s Source) Draft(command, options string, rawData feed.RawData) (*feed.Draft, error) {
 	groups := re.FindStringSubmatch(command)
 	if len(groups) != 7 {
 		return nil, feed.ErrDraftFailed
@@ -59,16 +64,16 @@ func (s Source) Draft(command, options string) (*feed.Draft, error) {
 	if len(things) < 1 {
 		return nil, errors.New("no entries in /r/" + item.Subreddit)
 	}
+	rawData.Marshal(item)
 	return &feed.Draft{
 		ID:   item.Subreddit,
 		Name: "#" + item.Subreddit,
-		Item: feed.ToBytes(item),
 	}, nil
 }
 
 func (s Source) Pull(pull *feed.UpdatePull) error {
 	item := new(Item)
-	pull.FromBytes(item)
+	pull.RawData.Unmarshal(item)
 	things, err := s.GetListing(item.Subreddit, item.Sort, ListingThingLimit)
 	if err != nil {
 		return err
@@ -76,7 +81,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 	sort.Sort(listing(things))
 	for i := range things {
 		thing := &things[i]
-		if thing.Data.Created.Unix() <= pull.Offset || thing.Data.Ups < item.MinUps {
+		if thing.Data.Created.Unix() <= item.Offset || thing.Data.Ups < item.MinUps {
 			continue
 		}
 		media := make([]*mediator.Future, 0)
@@ -95,10 +100,12 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			media = append(media, pull.Mediator.Submit(thing.Data.URL, req))
 			text.Text(thing.Data.Title)
 		}
+		item.Offset = thing.Data.Created.Unix()
+		pull.RawData.Marshal(item)
 		update := feed.Update{
-			Offset: thing.Data.Created.Unix(),
-			Text:   text.Format(),
-			Media:  media,
+			RawData: pull.RawData.Bytes(),
+			Text:    text.Format(),
+			Media:   media,
 		}
 		if !pull.Submit(update) {
 			break

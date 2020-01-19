@@ -90,7 +90,6 @@ func (s *SQL) init() *SQL {
 	  source VARCHAR(20) NOT NULL,
       name VARCHAR(50) NOT NULL,
 	  item %s NOT NULL,
-	  "offset" BIGINT NOT NULL DEFAULT 0,
 	  updated %s,
 	  error VARCHAR(100)
 	)`, s.quirks.ItemType(), s.quirks.TimeType())
@@ -104,23 +103,25 @@ func (s *SQL) init() *SQL {
 
 func (s *SQL) selectQuery(query string, args ...interface{}) []feed.Subscription {
 	sql := `
-	SELECT id, chat_id, source, name, item, "offset" 
+	SELECT id, chat_id, source, name, item 
 	FROM subscription ` + query
 	rows := s.query(sql, args...)
 	defer rows.Close()
 	res := make([]feed.Subscription, 0)
 	for rows.Next() {
 		sub := feed.Subscription{}
-		sub.Item = []byte{}
+		bytes := make([]byte, 0)
 		if err := rows.Scan(
 			&sub.ID.ID,
 			&sub.ID.ChatID,
 			&sub.ID.Source,
 			&sub.Name,
-			&sub.Item,
-			&sub.Offset); err != nil {
+			&bytes); err != nil {
 			panic(err)
 		}
+		rawData := feed.NewRawData()
+		rawData.Marshal(bytes)
+		sub.RawData = rawData
 		res = append(res, sub)
 	}
 
@@ -141,7 +142,7 @@ func (s *SQL) Create(sub *feed.Subscription) bool {
 	INSERT INTO subscription (id, chat_id, source, name, item, error) 
 	VALUES ($1, $2, $3, $4, $5, '__notstarted')
 	ON CONFLICT DO NOTHING`
-	return s.update(sql, sub.ID.ID, sub.ID.ChatID, sub.ID.Source, sub.Name, sub.Item) == 1
+	return s.update(sql, sub.ID.ID, sub.ID.ChatID, sub.ID.Source, sub.Name, sub.RawData.Bytes()) == 1
 }
 
 func (s *SQL) Get(id feed.ID) *feed.Subscription {
@@ -176,9 +177,9 @@ func (s *SQL) Change(id feed.ID, change feed.Change) bool {
 	field := "error"
 	var value interface{} = nil
 	cond := "error IS NULL"
-	if change.Offset != 0 {
-		field = `"offset"`
-		value = change.Offset
+	if change.RawData != nil {
+		field = "item"
+		value = change.RawData
 	} else if change.Error == nil {
 		cond = "error IS NOT NULL"
 	} else {

@@ -17,8 +17,9 @@ import (
 )
 
 type CatalogItem struct {
-	Board string
-	Query common.Query
+	Board  string
+	Query  common.Query
+	Offset int
 }
 
 type CatalogSource struct {
@@ -28,10 +29,14 @@ type CatalogSource struct {
 var catalogre = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
 
 func (CatalogSource) ID() string {
+	return "dc"
+}
+
+func (CatalogSource) Name() string {
 	return "Dvach/Catalog"
 }
 
-func (s CatalogSource) Draft(command, options string) (*feed.Draft, error) {
+func (s CatalogSource) Draft(command, options string, rawData feed.RawData) (*feed.Draft, error) {
 	groups := catalogre.FindStringSubmatch(command)
 	if len(groups) < 6 {
 		return nil, feed.ErrDraftFailed
@@ -50,23 +55,23 @@ func (s CatalogSource) Draft(command, options string) (*feed.Draft, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "get catalog")
 	}
+	rawData.Marshal(item)
 	return &feed.Draft{
 		ID:   item.Board + "/" + item.Query.String(),
 		Name: catalog.BoardName + " /" + item.Query.String() + "/",
-		Item: feed.ToBytes(item),
 	}, nil
 }
 
 func (s CatalogSource) Pull(pull *feed.UpdatePull) error {
 	item := new(CatalogItem)
-	pull.FromBytes(item)
+	pull.RawData.Unmarshal(item)
 	catalog, err := s.GetCatalog(item.Board)
 	if err != nil {
 		return errors.Wrap(err, "get catalog")
 	}
 	results := make([]dvach.Post, 0)
 	for _, thread := range catalog.Threads {
-		matches := thread.Num > int(pull.Offset)
+		matches := thread.Num > item.Offset
 		matches = matches && item.Query.MatchString(strings.ToLower(thread.Comment))
 		if matches {
 			results = append(results, thread)
@@ -80,8 +85,10 @@ func (s CatalogSource) Pull(pull *feed.UpdatePull) error {
 				&mediatorRequest{s.Client.Client, file}))
 			break
 		}
+		item.Offset = thread.Num
+		pull.RawData.Marshal(item)
 		update := feed.Update{
-			Offset: int64(thread.Num),
+			RawData: pull.RawData.Bytes(),
 			Text: format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(thread.Board)).
 				Tag("b").Text(thread.DateString).EndTag().NewLine().
 				Link("[link]", thread.URL()).NewLine().

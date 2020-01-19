@@ -22,6 +22,7 @@ type ThreadItem struct {
 	Num       int
 	Title     string
 	MediaOnly bool
+	Offset    int
 }
 
 type ThreadSource struct {
@@ -31,10 +32,14 @@ type ThreadSource struct {
 var threadre = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)/res/([0-9]+)\.html?$`)
 
 func (ThreadSource) ID() string {
+	return "dt"
+}
+
+func (ThreadSource) Name() string {
 	return "Dvach/Thread"
 }
 
-func (s ThreadSource) Draft(command, options string) (*feed.Draft, error) {
+func (s ThreadSource) Draft(command, options string, rawData feed.RawData) (*feed.Draft, error) {
 	groups := threadre.FindStringSubmatch(command)
 	if len(groups) < 6 {
 		return nil, feed.ErrDraftFailed
@@ -50,20 +55,20 @@ func (s ThreadSource) Draft(command, options string) (*feed.Draft, error) {
 		return nil, errors.Wrap(err, "get post")
 	}
 	item.Title = title(post)
+	rawData.Marshal(item)
 	return &feed.Draft{
 		ID:   fmt.Sprintf("%s/%d", item.Board, item.Num),
 		Name: item.Title,
-		Item: feed.ToBytes(item),
 	}, nil
 }
 
 func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 	item := new(ThreadItem)
-	pull.FromBytes(item)
-	if pull.Offset > 0 {
-		pull.Offset++
+	pull.RawData.Unmarshal(item)
+	if item.Offset > 0 {
+		item.Offset++
 	}
-	posts, err := s.GetThread(item.Board, item.Num, int(pull.Offset))
+	posts, err := s.GetThread(item.Board, item.Num, item.Offset)
 	if err != nil {
 		return errors.Wrap(err, "get thread")
 	}
@@ -93,10 +98,12 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 			}
 			text = b.Format()
 		}
+		item.Offset = post.Num
+		pull.RawData.Marshal(item)
 		update := feed.Update{
-			Offset: int64(post.Num),
-			Text:   text,
-			Media:  media,
+			RawData: pull.RawData.Bytes(),
+			Text:    text,
+			Media:   media,
 		}
 		if !pull.Submit(update) {
 			break

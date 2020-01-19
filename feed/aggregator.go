@@ -50,7 +50,7 @@ func (a *Aggregator) Init() *Aggregator {
 func (a *Aggregator) runUpdater(chatID telegram.ID) {
 	sub := a.Advance(chatID)
 	if sub == nil {
-		// no next item - subscriptions exhausted, stopping the updater
+		// no next RawData - subscriptions exhausted, stopping the updater
 		a.mu.Lock()
 		delete(a.chats, chatID)
 		a.mu.Unlock()
@@ -79,7 +79,7 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub *Subscription) error {
 	if !ok {
 		return errors.Errorf("no such source: %s", sub.ID.Source)
 	}
-	pull := newUpdatePull(sub.Item, a.Mediator, sub.Offset)
+	pull := newUpdatePull(sub.RawData, a.Mediator)
 	go pull.run(source)
 	hasUpdates := false
 	for update := range pull.queue {
@@ -89,19 +89,18 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub *Subscription) error {
 			return errors.Wrapf(err, "send update: %+v", update)
 		}
 		a.metrics.Add("updates", 1)
-		err = a.change(0, sub.ID, Change{Offset: update.Offset})
+		err = a.change(0, sub.ID, Change{RawData: update.RawData})
 		if err != nil {
 			pull.cancel <- struct{}{}
 			close(pull.cancel)
 			return err
 		}
-		sub.Offset = update.Offset
 	}
 	if pull.err != nil {
 		return errors.Wrap(pull.err, "pull updates")
 	}
 	if !hasUpdates {
-		if err := a.change(0, sub.ID, Change{Offset: sub.Offset}); err != nil {
+		if err := a.change(0, sub.ID, Change{RawData: sub.RawData.Bytes()}); err != nil {
 			return err
 		}
 	}
@@ -141,9 +140,9 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 	if !ok {
 		return ErrNotFound
 	}
-	if change.Offset != 0 {
+	if change.RawData != nil {
 		// if this is an offset update we don't need to notify admins
-		log.Printf("Updated offset for %s to %d", id, change.Offset)
+		log.Printf("Updated raw data for %s to %s", id, string(change.RawData))
 		return nil
 	} else {
 		if change.Error == nil {
@@ -176,7 +175,7 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 	text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil).
 		Text("Subscription " + status).NewLine().
 		Text("Chat: " + title).NewLine().
-		Text("Service: " + id.Source).NewLine().
+		Text("Service: " + id.SourceName(a.sources)).NewLine().
 		Text("Item: " + sub.Name)
 	var button telegram.ReplyMarkup
 	if change.Error != nil {
@@ -233,20 +232,25 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 	if len(fields) > 2 {
 		options = fields[2]
 	}
+	rawData := NewRawData()
 	for sourceID, source := range a.sources {
-		draft, err := source.Draft(cmd, options)
+		draft, err := source.Draft(cmd, options, rawData)
 		switch err {
 		case ErrDraftFailed:
 			continue
 		case nil:
+			id := ID{
+				ID:     draft.ID,
+				ChatID: ctx.chat.ID,
+				Source: sourceID,
+			}
+			if len(id.String()) > 56 {
+				return errors.New("too long ID")
+			}
 			ctx := &Subscription{
-				ID: ID{
-					ID:     draft.ID,
-					ChatID: ctx.chat.ID,
-					Source: sourceID,
-				},
-				Name: draft.Name,
-				Item: draft.Item,
+				ID:      id,
+				Name:    draft.Name,
+				RawData: rawData,
 			}
 			if a.Storage.Create(ctx) {
 				return a.change(0, ctx.ID, Change{})
@@ -326,7 +330,7 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 	subs := a.Storage.List(ctx.chat.ID, active)
 	keyboard := make([]string, len(subs)*3)
 	for i, sub := range subs {
-		keyboard[3*i] = sub.Name
+		keyboard[3*i] = "[" + sub.ID.SourceName(a.sources) + "] " + sub.Name
 		keyboard[3*i+1] = command
 		keyboard[3*i+2] = sub.ID.String()
 	}

@@ -6,8 +6,8 @@ import (
 )
 
 type Change struct {
-	Offset int64
-	Error  error
+	RawData []byte
+	Error   error
 }
 
 type changeContext struct {

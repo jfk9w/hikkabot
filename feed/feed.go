@@ -20,6 +20,14 @@ func (id ID) String() string {
 	return id.ChatID.String() + ":" + id.Source + ":" + id.ID
 }
 
+func (id ID) SourceName(sources map[string]Source) string {
+	if source, ok := sources[id.Source]; ok {
+		return source.Name()
+	} else {
+		return id.Source
+	}
+}
+
 func ParseID(str string) (id ID, err error) {
 	parts := strings.Split(str, ":")
 	if len(parts) != 3 {
@@ -36,10 +44,9 @@ func ParseID(str string) (id ID, err error) {
 }
 
 type Subscription struct {
-	ID     ID
-	Name   string
-	Item   []byte
-	Offset int64
+	ID      ID
+	Name    string
+	RawData RawData
 }
 
 type Storage interface {
@@ -60,47 +67,38 @@ func ToBytes(value interface{}) []byte {
 	return data
 }
 
-func FromBytes(data []byte, value interface{}) {
-	err := json.Unmarshal(data, value)
-	if err != nil {
-		panic(err)
-	}
-}
-
 type Draft struct {
 	ID   string
 	Name string
-	Item []byte
 }
 
 var ErrDraftFailed = errors.New("Invalid syntax. Usage: `/sub` ENTITY [CHAT] [OPTIONS]")
 
 type Source interface {
 	ID() string
-	Draft(command, options string) (*Draft, error)
+	Name() string
+	Draft(command, options string, rawData RawData) (*Draft, error)
 	Pull(pull *UpdatePull) error
 }
 
 type Update struct {
-	Offset int64
-	Text   format.Text
-	Media  []*mediator.Future
+	RawData []byte
+	Text    format.Text
+	Media   []*mediator.Future
 }
 
 type UpdatePull struct {
 	Mediator *mediator.Mediator
-	Offset   int64
-	item     []byte
+	RawData  RawData
 	queue    chan Update
 	err      error
 	cancel   chan struct{}
 }
 
-func newUpdatePull(item []byte, mediator *mediator.Mediator, offset int64) *UpdatePull {
+func newUpdatePull(rawData RawData, mediator *mediator.Mediator) *UpdatePull {
 	return &UpdatePull{
 		Mediator: mediator,
-		Offset:   offset,
-		item:     item,
+		RawData:  rawData,
 		queue:    make(chan Update, 10),
 		cancel:   make(chan struct{}),
 	}
@@ -113,10 +111,6 @@ func (p *UpdatePull) Submit(update Update) bool {
 	case p.queue <- update:
 		return true
 	}
-}
-
-func (p *UpdatePull) FromBytes(value interface{}) {
-	FromBytes(p.item, value)
 }
 
 func (p *UpdatePull) run(source Source) {
