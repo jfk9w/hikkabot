@@ -348,7 +348,7 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 func (a *Aggregator) Clear(tg telegram.Client, c *telegram.Command) error {
 	space := strings.Index(c.Payload, " ")
 	if space < 0 || len(c.Payload) == space+1 {
-		return errors.New("this command requires 2 arguments")
+		return c.Reply(tg, "this command requires two arguments")
 	}
 	fields := [2]string{c.Payload[:space], c.Payload[space+1:]}
 	ctx, err := a.createChangeContext(c, fields[:], 0)
