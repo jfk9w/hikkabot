@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w/hikkabot/mediator"
 	"github.com/pkg/errors"
 )
@@ -36,7 +35,7 @@ func (r *Imgur) Handle(resp *http.Response) error {
 }
 
 func (r *Imgur) Metadata() (*mediator.Metadata, error) {
-	err := flu.DefaultClient.
+	err := mediator.CommonClient.
 		GET(r.URL).
 		Execute().
 		CheckStatusCode(http.StatusOK).

@@ -21,7 +21,7 @@ type Gfycat struct {
 
 func (r *Gfycat) Metadata() (*mediator.Metadata, error) {
 	response := flu.NewBuffer()
-	err := flu.DefaultClient.
+	err := mediator.CommonClient.
 		GET(r.URL).
 		Execute().
 		CheckStatusCode(http.StatusOK).
