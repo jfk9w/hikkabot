@@ -259,7 +259,7 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 				return errors.New("exists")
 			}
 		default:
-			break
+			return err
 		}
 	}
 	return err
