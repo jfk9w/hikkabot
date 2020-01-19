@@ -338,10 +338,9 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 	a.SendAlert(
 		[]telegram.ID{c.User.ID},
 		format.NewHTML(0, 0, nil, nil).
-			Text("Chat: ").
-			Tag("b").Text(title).EndTag().
+			Text("Chat: ").Text(title).
 			NewLine().
-			Tag("b").Text(strconv.Itoa(len(subs))).EndTag().
+			Text(strconv.Itoa(len(subs))).
 			Text(" subscriptions eligible for ").
 			Tag("b").Text(command).EndTag().
 			Format(),
@@ -364,11 +363,11 @@ func (a *Aggregator) Clear(tg telegram.Client, c *telegram.Command) error {
 	a.SendAlert(
 		[]telegram.ID{c.User.ID},
 		format.NewHTML(0, 0, nil, nil).
-			Text("Chat: ").
-			Tag("b").Text(title).EndTag().
+			Text("Chat: ").Text(title).
 			NewLine().
-			Tag("b").Text(strconv.Itoa(cleared)).EndTag().
-			Text(" subscriptions cleared").
+			Text(strconv.Itoa(cleared)).
+			Text(" subscriptions ").
+			Tag("b").Text("cleared").EndTag().
 			Format(),
 		nil)
 	return nil
