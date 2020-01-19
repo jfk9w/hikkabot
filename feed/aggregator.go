@@ -50,7 +50,7 @@ func (a *Aggregator) Init() *Aggregator {
 func (a *Aggregator) runUpdater(chatID telegram.ID) {
 	sub := a.Advance(chatID)
 	if sub == nil {
-		// no next RawData - subscriptions exhausted, stopping the updater
+		// no next item - subscriptions exhausted, stopping the updater
 		a.mu.Lock()
 		delete(a.chats, chatID)
 		a.mu.Unlock()
