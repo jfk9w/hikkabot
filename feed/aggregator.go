@@ -210,9 +210,7 @@ func (a *Aggregator) changeByUser(tg telegram.Client, c *telegram.Command, chang
 	return err
 }
 
-func (a *Aggregator) doCreate(c *telegram.Command) error {
-	fields := strings.Fields(c.Payload)
-	cmd := fields[0]
+func (a *Aggregator) createChangeContext(c *telegram.Command, fields []string, chatIdx int) (*changeContext, error) {
 	ctx := new(changeContext)
 	if len(fields) > 1 && fields[1] != "." {
 		username := telegram.Username(fields[1])
@@ -225,7 +223,14 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 		ctx.chatID = c.Chat.ID
 		ctx.chat = c.Chat
 	}
-	if err := ctx.checkAccess(a, c.User.ID); err != nil {
+	return ctx, ctx.checkAccess(a, c.User.ID)
+}
+
+func (a *Aggregator) doCreate(c *telegram.Command) error {
+	fields := strings.Fields(c.Payload)
+	cmd := fields[0]
+	ctx, err := a.createChangeContext(c, fields, 1)
+	if err != nil {
 		return err
 	}
 	options := ""
@@ -310,11 +315,38 @@ func (a *Aggregator) YouTube(tg telegram.Client, c *telegram.Command) error {
 	return err
 }
 
+func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
+	fields := strings.Fields(c.Payload)
+	ctx, err := a.createChangeContext(c, fields, 0)
+	if err != nil {
+		return err
+	}
+	active := true
+	command := "suspend"
+	if len(fields) > 1 && fields[1] == "s" {
+		active = false
+		command = "resume"
+	}
+	subs := a.Storage.List(ctx.chat.ID, active)
+	keyboard := make([]string, len(subs)*3)
+	for i, sub := range subs {
+		keyboard[3*i] = strings.Title(command) + " " + sub.Name
+		keyboard[3*i+1] = command
+		keyboard[3*i+2] = sub.ID.String()
+	}
+	a.SendAlert(
+		[]telegram.ID{c.User.ID},
+		format.NewHTML(0, 0, nil, nil).Format(),
+		telegram.InlineKeyboard(keyboard...))
+	return nil
+}
+
 func (a *Aggregator) CommandListener(username string) *telegram.CommandListener {
 	return telegram.NewCommandListener(username).
 		HandleFunc("/sub", a.Create).
 		HandleFunc("resume", a.Resume).
 		HandleFunc("suspend", a.Suspend).
 		HandleFunc("/status", a.Status).
-		HandleFunc("/youtube", a.YouTube)
+		HandleFunc("/youtube", a.YouTube).
+		HandleFunc("/list", a.List)
 }

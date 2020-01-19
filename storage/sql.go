@@ -102,27 +102,29 @@ func (s *SQL) init() *SQL {
 	return s
 }
 
-func (s *SQL) selectQuery(query string, args ...interface{}) *feed.Subscription {
+func (s *SQL) selectQuery(query string, args ...interface{}) []feed.Subscription {
 	sql := `
 	SELECT id, chat_id, source, name, item, "offset" 
-	FROM subscription ` + query + ` LIMIT 1`
+	FROM subscription ` + query
 	rows := s.query(sql, args...)
 	defer rows.Close()
-	if !rows.Next() {
-		return nil
+	res := make([]feed.Subscription, 0)
+	for rows.Next() {
+		sub := feed.Subscription{}
+		sub.Item = []byte{}
+		if err := rows.Scan(
+			&sub.ID.ID,
+			&sub.ID.ChatID,
+			&sub.ID.Source,
+			&sub.Name,
+			&sub.Item,
+			&sub.Offset); err != nil {
+			panic(err)
+		}
+		res = append(res, sub)
 	}
-	sub := new(feed.Subscription)
-	sub.Item = []byte{}
-	if err := rows.Scan(
-		&sub.ID.ID,
-		&sub.ID.ChatID,
-		&sub.ID.Source,
-		&sub.Name,
-		&sub.Item,
-		&sub.Offset); err != nil {
-		panic(err)
-	}
-	return sub
+
+	return res
 }
 
 func (s *SQL) Create(sub *feed.Subscription) bool {
@@ -143,8 +145,13 @@ func (s *SQL) Create(sub *feed.Subscription) bool {
 }
 
 func (s *SQL) Get(id feed.ID) *feed.Subscription {
-	sql := `WHERE id = $1 AND chat_id = $2 AND source = $3`
-	return s.selectQuery(sql, id.ID, id.ChatID, id.Source)
+	sql := `WHERE id = $1 AND chat_id = $2 AND source = $3 LIMIT 1`
+	res := s.selectQuery(sql, id.ID, id.ChatID, id.Source)
+	if len(res) == 0 {
+		return nil
+	} else {
+		return &res[0]
+	}
 }
 
 func (s *SQL) Advance(chatID telegram.ID) *feed.Subscription {
@@ -155,8 +162,14 @@ func (s *SQL) Advance(chatID telegram.ID) *feed.Subscription {
 	  WHEN updated IS NULL 
 		THEN 0 
 	  ELSE 1 
-	END, updated`
-	return s.selectQuery(sql, chatID)
+	END, updated
+	LIMIT 1`
+	res := s.selectQuery(sql, chatID)
+	if len(res) == 0 {
+		return nil
+	} else {
+		return &res[0]
+	}
 }
 
 func (s *SQL) Change(id feed.ID, change feed.Change) bool {
@@ -203,4 +216,8 @@ func (s *SQL) Active() []telegram.ID {
 		chatIDs = append(chatIDs, *chatID)
 	}
 	return chatIDs
+}
+
+func (s *SQL) List(chatID telegram.ID, active bool) []feed.Subscription {
+	return s.selectQuery(`WHERE chat_id = ? AND (error IS NULL) = ?`, chatID, active)
 }
