@@ -49,6 +49,7 @@ type Storage interface {
 	Change(ID, Change) bool
 	Active() []telegram.ID
 	List(telegram.ID, bool) []Subscription
+	Clear(telegram.ID, string) int
 }
 
 func ToBytes(value interface{}) []byte {

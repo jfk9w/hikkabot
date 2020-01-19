@@ -221,3 +221,12 @@ func (s *SQL) Active() []telegram.ID {
 func (s *SQL) List(chatID telegram.ID, active bool) []feed.Subscription {
 	return s.selectQuery(`WHERE chat_id = ? AND (error IS NULL) = ?`, chatID, active)
 }
+
+func (s *SQL) Clear(chatID telegram.ID, error string) int {
+	sql := `
+	DELETE FROM subscription 
+	WHERE chat_id = ? 
+	  AND error IS NOT NULL 
+      AND error LIKE ?`
+	return int(s.update(sql, chatID, error))
+}

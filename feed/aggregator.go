@@ -326,7 +326,7 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 	subs := a.Storage.List(ctx.chat.ID, active)
 	keyboard := make([]string, len(subs)*3)
 	for i, sub := range subs {
-		keyboard[3*i] = strings.Title(command) + " " + sub.Name
+		keyboard[3*i] = sub.Name
 		keyboard[3*i+1] = command
 		keyboard[3*i+2] = sub.ID.String()
 	}
@@ -337,10 +337,36 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 			Text("Chat: ").
 			Tag("b").Text(title).EndTag().
 			NewLine().
-			Text("Subscriptions: ").
 			Tag("b").Text(strconv.Itoa(len(subs))).EndTag().
+			Text(" subscriptions eligible for ").
+			Tag("b").Text(command).EndTag().
 			Format(),
 		telegram.InlineKeyboard(keyboard...))
+	return nil
+}
+
+func (a *Aggregator) Clear(tg telegram.Client, c *telegram.Command) error {
+	space := strings.Index(c.Payload, " ")
+	if space < 0 || len(c.Payload) == space+1 {
+		return errors.New("this command requires 2 arguments")
+	}
+	fields := [2]string{c.Payload[:space], c.Payload[space+1:]}
+	ctx, err := a.createChangeContext(c, fields[:], 0)
+	if err != nil {
+		return err
+	}
+	cleared := a.Storage.Clear(ctx.chat.ID, fields[1])
+	title, _ := ctx.getChatTitle(a)
+	a.SendAlert(
+		[]telegram.ID{c.User.ID},
+		format.NewHTML(0, 0, nil, nil).
+			Text("Chat: ").
+			Tag("b").Text(title).EndTag().
+			NewLine().
+			Tag("b").Text(strconv.Itoa(cleared)).EndTag().
+			Text(" subscriptions cleared").
+			Format(),
+		nil)
 	return nil
 }
 
@@ -351,5 +377,6 @@ func (a *Aggregator) CommandListener(username string) *telegram.CommandListener 
 		HandleFunc("suspend", a.Suspend).
 		HandleFunc("/status", a.Status).
 		HandleFunc("/youtube", a.YouTube).
-		HandleFunc("/list", a.List)
+		HandleFunc("/list", a.List).
+		HandleFunc("/clear", a.Clear)
 }
