@@ -179,11 +179,11 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 		Text("Item: " + sub.Name)
 	var button telegram.ReplyMarkup
 	if change.Error != nil {
-		button = telegram.InlineKeyboard("Resume", "resume", id.String())
+		button = telegram.InlineKeyboard("Resume", "r", id.String())
 		text.NewLine().
 			Text("Reason: " + change.Error.Error())
 	} else {
-		button = telegram.InlineKeyboard("Suspend", "suspend", id.String())
+		button = telegram.InlineKeyboard("Suspend", "s", id.String())
 	}
 
 	go a.SendAlert(adminIDs, text.Format(), button)
@@ -244,7 +244,7 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 				ChatID: ctx.chat.ID,
 				Source: sourceID,
 			}
-			if len(id.String()) > 56 {
+			if len(id.String()) > 62 {
 				return errors.New("too long ID")
 			}
 			ctx := &Subscription{
@@ -321,17 +321,17 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 	if err != nil {
 		return err
 	}
-	active := true
-	command := "suspend"
-	if len(fields) > 1 && fields[1] == "s" {
-		active = false
-		command = "resume"
+	active := false
+	command := "resume"
+	if len(fields) > 1 && fields[1] != "r" {
+		active = true
+		command = "suspend"
 	}
 	subs := a.Storage.List(ctx.chat.ID, active)
 	keyboard := make([]string, len(subs)*3)
 	for i, sub := range subs {
 		keyboard[3*i] = "[" + sub.ID.SourceName(a.sources) + "] " + sub.Name
-		keyboard[3*i+1] = command
+		keyboard[3*i+1] = command[:1]
 		keyboard[3*i+2] = sub.ID.String()
 	}
 	title, _ := ctx.getChatTitle(a)
@@ -377,8 +377,8 @@ func (a *Aggregator) Clear(tg telegram.Client, c *telegram.Command) error {
 func (a *Aggregator) CommandListener(username string) *telegram.CommandListener {
 	return telegram.NewCommandListener(username).
 		HandleFunc("/sub", a.Create).
-		HandleFunc("resume", a.Resume).
-		HandleFunc("suspend", a.Suspend).
+		HandleFunc("r", a.Resume).
+		HandleFunc("s", a.Suspend).
 		HandleFunc("/status", a.Status).
 		HandleFunc("/youtube", a.YouTube).
 		HandleFunc("/list", a.List).
