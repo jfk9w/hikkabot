@@ -209,7 +209,7 @@ func (a *Aggregator) changeByUser(tg telegram.Client, c *telegram.Command, chang
 func (a *Aggregator) createChangeContext(c *telegram.Command, fields []string, chatIdx int) (*changeContext, error) {
 	ctx := new(changeContext)
 	if len(fields) > chatIdx && fields[chatIdx] != "." {
-		username := telegram.Username(fields[1])
+		username := telegram.Username(fields[chatIdx])
 		var chatID telegram.ChatID = username
 		if unaliased, ok := a.Aliases[username]; ok {
 			chatID = unaliased
