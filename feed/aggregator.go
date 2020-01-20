@@ -327,6 +327,11 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 		command = "suspend"
 	}
 	subs := a.Storage.List(ctx.chat.ID, active)
+	if (len(fields) < 2 || fields[1] == "") && len(subs) == 0 {
+		active = true
+		command = "suspend"
+		subs = a.Storage.List(ctx.chat.ID, active)
+	}
 	keyboard := make([]string, len(subs)*3)
 	for i, sub := range subs {
 		keyboard[3*i] = "[" + sub.ID.SourceName(a.sources) + "] " + sub.Name
