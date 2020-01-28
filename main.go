@@ -151,7 +151,7 @@ func (logging Logging) Get(path string) *log.Logger {
 		if err != nil {
 			panic(err)
 		}
-		file, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0)
+		file, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 		if err != nil {
 			panic(err)
 		}
