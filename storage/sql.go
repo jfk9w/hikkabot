@@ -92,11 +92,20 @@ func (s *SQL) init() *SQL {
 	  item %s NOT NULL,
 	  updated %s,
 	  error VARCHAR(100)
-	)`, s.quirks.ItemType(), s.quirks.TimeType())
+	)`, s.quirks.JSONType(), s.quirks.TimeType())
 	s.exec(sql)
 	sql = `
 	CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__id 
 	ON subscription(id, chat_id, source)`
+	s.exec(sql)
+	sql = fmt.Sprintf(`
+	CREATE TABLE IF NOT EXISTS log (
+	  time %s NOT NULL,
+	  id VARCHAR(50) NOT NULL,
+	  chat_id BIGINT NOT NULL,
+	  source VARCHAR(20) NOT NULL,
+	  attrs %s NOT NULL
+	)`, s.quirks.TimeType(), s.quirks.JSONType())
 	s.exec(sql)
 	return s
 }
@@ -230,4 +239,11 @@ func (s *SQL) Clear(chatID telegram.ID, error string) int {
 	  AND error IS NOT NULL 
       AND error LIKE ?`
 	return int(s.update(sql, chatID, error))
+}
+
+func (s *SQL) Log(id feed.ID, attrs []byte) bool {
+	sql := fmt.Sprintf(`
+	INSERT INTO log (time, id, chat_id, source, attrs) 
+	VALUES (%s, $1, $2, $3, $4)`, s.quirks.Now())
+	return s.update(sql, id.ID, id.ChatID, id.Source, attrs) == 1
 }

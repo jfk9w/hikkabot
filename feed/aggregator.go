@@ -20,6 +20,7 @@ type Aggregator struct {
 	Channel
 	Subscription
 	Storage
+	LogStorage
 	Timeout  time.Duration
 	Mediator *mediator.Mediator
 	Aliases  map[telegram.Username]telegram.ID
@@ -94,6 +95,10 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub *Subscription) error {
 			pull.cancel <- struct{}{}
 			close(pull.cancel)
 			return err
+		} else if a.LogStorage != nil {
+			attrs := NewRawData()
+			attrs.Marshal(update.Attributes)
+			a.Log(sub.ID, attrs.Bytes())
 		}
 	}
 	if pull.err != nil {

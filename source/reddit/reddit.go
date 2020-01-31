@@ -33,7 +33,7 @@ type Source struct {
 	*reddit.Client
 }
 
-var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?(/\d+)?$`)
+var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?(/(\d+))?$`)
 
 func (Source) ID() string {
 	return "r"
@@ -45,7 +45,7 @@ func (Source) Name() string {
 
 func (s Source) Draft(command, options string, rawData feed.RawData) (*feed.Draft, error) {
 	groups := re.FindStringSubmatch(command)
-	if len(groups) != 8 {
+	if len(groups) != 9 {
 		return nil, feed.ErrDraftFailed
 	}
 	item := Item{}
@@ -53,9 +53,9 @@ func (s Source) Draft(command, options string, rawData feed.RawData) (*feed.Draf
 	if item.Sort == "" {
 		item.Sort = "hot"
 	}
-	if groups[7] != "" {
+	if groups[8] != "" {
 		var err error
-		item.HoursTTL, err = strconv.Atoi(groups[7])
+		item.HoursTTL, err = strconv.Atoi(groups[8])
 		if err != nil {
 			return nil, errors.Wrap(err, "parse HoursTTL")
 		}
@@ -139,6 +139,9 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			RawData: pull.RawData.Bytes(),
 			Text:    text.Format(),
 			Media:   media,
+			Attributes: map[string]interface{}{
+				"ups": thing.Data.Ups,
+			},
 		}
 		if !pull.Submit(update) {
 			break

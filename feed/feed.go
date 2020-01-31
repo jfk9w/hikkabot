@@ -59,6 +59,10 @@ type Storage interface {
 	Clear(telegram.ID, string) int
 }
 
+type LogStorage interface {
+	Log(id ID, attrs []byte) bool
+}
+
 func ToBytes(value interface{}) []byte {
 	data, err := json.Marshal(value)
 	if err != nil {
@@ -82,9 +86,10 @@ type Source interface {
 }
 
 type Update struct {
-	RawData []byte
-	Text    format.Text
-	Media   []*mediator.Future
+	RawData    []byte
+	Text       format.Text
+	Media      []*mediator.Future
+	Attributes map[string]interface{}
 }
 
 type UpdatePull struct {

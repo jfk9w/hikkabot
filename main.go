@@ -25,10 +25,11 @@ import (
 
 type Config struct {
 	Aggregator struct {
-		AdminID telegram.ID
-		Aliases map[telegram.Username]telegram.ID
-		Storage _storage.SQLConfig
-		Timeout string
+		AdminID   telegram.ID
+		Aliases   map[telegram.Username]telegram.ID
+		Storage   _storage.SQLConfig
+		Timeout   string
+		CSVReport string
 	}
 	Telegram struct {
 		Username    string
@@ -108,12 +109,13 @@ func main() {
 		panic(errors.Wrap(err, "failed to send initial message"))
 	}
 	agg := &feed.Aggregator{
-		Channel:  feed.Telegram{Client: bot.Client},
-		Storage:  storage,
-		Mediator: mediator,
-		Timeout:  timeout,
-		Aliases:  config.Aggregator.Aliases,
-		AdminID:  config.Aggregator.AdminID,
+		Channel:    feed.Telegram{Client: bot.Client},
+		Storage:    storage,
+		LogStorage: storage,
+		Mediator:   mediator,
+		Timeout:    timeout,
+		Aliases:    config.Aggregator.Aliases,
+		AdminID:    config.Aggregator.AdminID,
 	}
 	if config.Dvach != nil {
 		client := dvach.NewClient(flu.NewTransport().
