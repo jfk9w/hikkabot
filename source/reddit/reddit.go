@@ -92,6 +92,15 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 	clean := false
 	for i := range things {
 		thing := &things[i]
+		{
+			attrs := feed.NewRawData()
+			attrs.Marshal(map[string]interface{}{
+				"id":      thing.Data.Name,
+				"ups":     thing.Data.Ups,
+				"created": thing.Data.CreatedUTC,
+			})
+			pull.Log(attrs.Bytes())
+		}
 		if i == 0 && thing.Data.Created.Unix() < item.Offset || thing.Data.Created.Unix() <= item.Offset {
 			continue
 		}

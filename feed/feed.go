@@ -95,6 +95,7 @@ type Update struct {
 type UpdatePull struct {
 	Mediator *mediator.Mediator
 	RawData  RawData
+	Log      func([]byte) bool
 	queue    chan Update
 	err      error
 	cancel   chan struct{}
