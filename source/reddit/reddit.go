@@ -25,13 +25,14 @@ type Item struct {
 	Sort      string
 	MinUps    int
 	Seen      map[string]int64
+	HoursTTL  int
 }
 
 type Source struct {
 	*reddit.Client
 }
 
-var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
+var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?(/\d+)?$`)
 
 func (Source) ID() string {
 	return "r"
@@ -43,7 +44,7 @@ func (Source) Name() string {
 
 func (s Source) Draft(command, options string, rawData feed.RawData) (*feed.Draft, error) {
 	groups := re.FindStringSubmatch(command)
-	if len(groups) != 7 {
+	if len(groups) != 8 {
 		return nil, feed.ErrDraftFailed
 	}
 	item := Item{}
@@ -51,11 +52,18 @@ func (s Source) Draft(command, options string, rawData feed.RawData) (*feed.Draf
 	if item.Sort == "" {
 		item.Sort = "hot"
 	}
+	if groups[7] != "" {
+		var err error
+		item.HoursTTL, err = strconv.Atoi(groups[7])
+		if err != nil {
+			return nil, errors.Wrap(err, "parse HoursTTL")
+		}
+	}
 	if options != "" {
 		var err error
 		item.MinUps, err = strconv.Atoi(options)
 		if err != nil {
-			return nil, errors.Wrap(err, "parse minups")
+			return nil, errors.Wrap(err, "parse MinUps")
 		}
 	}
 	things, err := s.GetListing(item.Subreddit, item.Sort, 1)
@@ -105,8 +113,13 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			media = append(media, pull.Mediator.Submit(thing.Data.URL, req))
 			text.Text(thing.Data.Title)
 		}
-		item.Seen[thing.Data.Name] = thing.Data.Created.Unix()
 		if !clean {
+			if item.Seen == nil {
+				item.Seen = make(map[string]int64)
+			}
+			if item.HoursTTL == 0 {
+				item.HoursTTL = 8
+			}
 			now := time.Now()
 			for name, created := range item.Seen {
 				if now.Sub(time.Unix(created, 0)).Hours() > 24 {
@@ -115,6 +128,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			}
 			clean = true
 		}
+		item.Seen[thing.Data.Name] = thing.Data.Created.Unix()
 		pull.RawData.Marshal(item)
 		update := feed.Update{
 			RawData: pull.RawData.Bytes(),
