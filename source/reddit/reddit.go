@@ -90,10 +90,9 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 	}
 	sort.Sort(listing(things))
 	clean := false
-	offset := item.Offset
 	for i := range things {
 		thing := &things[i]
-		if thing.Data.Created.Unix() <= offset {
+		if i == 0 && thing.Data.Created.Unix() < item.Offset || thing.Data.Created.Unix() <= item.Offset {
 			continue
 		}
 		if thing.Data.Ups <= item.MinUps {
@@ -134,7 +133,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			clean = true
 		}
 		item.Seen[thing.Data.Name] = thing.Data.Created.Unix()
-		item.Offset = 0
+		item.Offset = thing.Data.Created.Unix()
 		pull.RawData.Marshal(item)
 		update := feed.Update{
 			RawData: pull.RawData.Bytes(),
