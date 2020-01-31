@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jfk9w/hikkabot/mediator/request"
 
@@ -23,7 +24,7 @@ type Item struct {
 	Subreddit string
 	Sort      string
 	MinUps    int
-	Offset    int64
+	Seen      map[string]int64
 }
 
 type Source struct {
@@ -79,9 +80,13 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 		return err
 	}
 	sort.Sort(listing(things))
+	clean := false
 	for i := range things {
 		thing := &things[i]
-		if thing.Data.Created.Unix() <= item.Offset || thing.Data.Ups < item.MinUps {
+		if thing.Data.Ups <= item.MinUps {
+			continue
+		}
+		if _, ok := item.Seen[thing.Data.Name]; ok {
 			continue
 		}
 		media := make([]*mediator.Future, 0)
@@ -100,7 +105,16 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			media = append(media, pull.Mediator.Submit(thing.Data.URL, req))
 			text.Text(thing.Data.Title)
 		}
-		item.Offset = thing.Data.Created.Unix()
+		item.Seen[thing.Data.Name] = thing.Data.Created.Unix()
+		if !clean {
+			now := time.Now()
+			for name, created := range item.Seen {
+				if now.Sub(time.Unix(created, 0)).Hours() > 24 {
+					delete(item.Seen, name)
+				}
+			}
+			clean = true
+		}
 		pull.RawData.Marshal(item)
 		update := feed.Update{
 			RawData: pull.RawData.Bytes(),
