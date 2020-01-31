@@ -147,7 +147,7 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 	}
 	if change.RawData != nil {
 		// if this is an offset update we don't need to notify admins
-		log.Printf("Updated raw data for %s to %s", id, string(change.RawData))
+		log.Printf("Updated raw data for %s to [...]", id)
 		return nil
 	} else {
 		if change.Error == nil {
