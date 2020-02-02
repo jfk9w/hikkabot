@@ -18,17 +18,15 @@ import (
 
 type Aggregator struct {
 	Channel
-	Subscription
 	Storage
-	LogStorage
-	Timeout  time.Duration
-	Mediator *mediator.Mediator
-	Aliases  map[telegram.Username]telegram.ID
-	AdminID  telegram.ID
-	sources  map[string]Source
-	chats    map[telegram.ID]bool
-	mu       sync.RWMutex
-	metrics  *expvar.Map
+	*mediator.Mediator
+	Timeout time.Duration
+	Aliases map[telegram.Username]telegram.ID
+	AdminID telegram.ID
+	sources map[string]Source
+	chats   map[telegram.ID]bool
+	mu      sync.RWMutex
+	metrics *expvar.Map
 }
 
 func (a *Aggregator) AddSource(source Source) *Aggregator {
@@ -307,7 +305,7 @@ func (a *Aggregator) YouTube(tg telegram.Client, c *telegram.Command) error {
 			Pages:     []string{""},
 			ParseMode: telegram.HTML,
 		},
-		Media: []*mediator.Future{a.Mediator.SubmitMedia(c.Payload, req)},
+		Media: []*mediator.Future{a.SubmitMedia(c.Payload, req)},
 	})
 	if err != nil {
 		err = c.Reply(tg, err.Error())
