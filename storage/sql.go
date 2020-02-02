@@ -267,25 +267,3 @@ func (s *SQL) Events(id feed.ID, period time.Duration) []feed.RawData {
 
 	return events
 }
-
-func (s *SQL) RedditSeen(id feed.ID, period time.Duration, minUps int) []string {
-	sql := fmt.Sprintf(`
-	SELECT json_extract(attrs, '$.id') as id
-	FROM log
-	WHERE id = ? AND chat_id = ? and source = ? AND time > %s
-	GROUP BY id
-	HAVING max(json_extract(attrs, '$.ups') >= ?`, s.Ago(period))
-
-	res := s.query(sql, id.ID, id.ChatID, id.Source, minUps)
-	defer res.Close()
-
-	names := make([]string, 0)
-	for res.Next() {
-		var name string
-		if err := res.Scan(&name); err != nil {
-			panic(err)
-		}
-	}
-
-	return names
-}

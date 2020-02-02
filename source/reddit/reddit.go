@@ -173,7 +173,7 @@ func (s Source) collectEvents(id feed.ID, minUps float64) (int, map[string]Event
 
 var (
 	imagere = regexp.MustCompile(`^.*\.(.*)$`)
-	ocrre   = regexp.MustCompile(`(?is).*?(cake.*?day|sort.*?by.*?new).*`)
+	ocrre   = regexp.MustCompile(`(?is).*?(cake.*?day|sort.*?by.*?new|upvote|updoot).*`)
 	ocr     = mediator.OCR{
 		Filtered:  true,
 		Languages: []string{"eng"},
