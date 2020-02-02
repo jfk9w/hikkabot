@@ -2,6 +2,7 @@ package reddit
 
 import (
 	"html"
+	"log"
 	"regexp"
 	"sort"
 	"strconv"
@@ -18,23 +19,34 @@ import (
 	"github.com/pkg/errors"
 )
 
-const ListingThingLimit = 100
+const (
+	ListingThingLimit = 100
+	TTL               = 2 * 24 * time.Hour // 2 days
+)
 
 type Item struct {
-	Sort     string
-	MinUps   int
-	Seen     map[string]int64
-	HoursTTL int
-	Offset   int64
+	Sort   string
+	MinUps float64
+}
+
+type Event struct {
+	Name string
+	Ups  int
+	Seen bool
+}
+
+type Storage interface {
+	feed.LogStorage
+	Events(id feed.ID, period time.Duration) []feed.RawData
 }
 
 type Source struct {
 	*reddit.Client
 	*mediator.Mediator
-	feed.LogStorage
+	Storage
 }
 
-var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?(/(\d+))?$`)
+var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
 
 func (Source) ID() string {
 	return "r"
@@ -46,7 +58,7 @@ func (Source) Name() string {
 
 func (s Source) Draft(command, options string, rawData feed.RawData) (*feed.Draft, error) {
 	groups := re.FindStringSubmatch(command)
-	if len(groups) != 9 {
+	if len(groups) != 7 {
 		return nil, feed.ErrDraftFailed
 	}
 	item := Item{}
@@ -54,16 +66,9 @@ func (s Source) Draft(command, options string, rawData feed.RawData) (*feed.Draf
 	if item.Sort == "" {
 		item.Sort = "hot"
 	}
-	if groups[8] != "" {
-		var err error
-		item.HoursTTL, err = strconv.Atoi(groups[8])
-		if err != nil {
-			return nil, errors.Wrap(err, "parse HoursTTL")
-		}
-	}
 	if options != "" {
 		var err error
-		item.MinUps, err = strconv.Atoi(options)
+		item.MinUps, err = strconv.ParseFloat(options, 64)
 		if err != nil {
 			return nil, errors.Wrap(err, "parse MinUps")
 		}
@@ -92,27 +97,22 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 		return err
 	}
 	sort.Sort(listing(things))
-	clean := false
+	minUps, events := s.collectEvents(pull.ID, item.MinUps)
 	for i := range things {
-		thing := &things[i]
-		{
-			attrs := feed.NewRawData()
-			attrs.Marshal(map[string]interface{}{
-				"id":      thing.Data.Name,
-				"ups":     thing.Data.Ups,
-				"created": thing.Data.CreatedUTC,
-			})
-			s.Log(pull.ID, attrs.Bytes())
-		}
-		if i == 0 && thing.Data.Created.Unix() < item.Offset || thing.Data.Created.Unix() <= item.Offset {
+		thing := things[i]
+		event := events[thing.Data.Name]
+		s.Log(pull.ID, feed.NewRawData(nil).
+			Marshal(Event{
+				Name: thing.Data.Name,
+				Ups:  thing.Data.Ups,
+				Seen: event.Seen || thing.Data.Ups >= minUps,
+			}),
+		)
+
+		if event.Seen || thing.Data.Ups < minUps {
 			continue
 		}
-		if thing.Data.Ups <= item.MinUps {
-			continue
-		}
-		if _, ok := item.Seen[thing.Data.Name]; ok {
-			continue
-		}
+
 		media := make([]*mediator.Future, 0)
 		text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil).
 			Text(pull.Name).NewLine()
@@ -129,37 +129,46 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			media = append(media, s.SubmitMedia(thing.Data.URL, req))
 			text.Text(thing.Data.Title)
 		}
-		if !clean {
-			if item.Seen == nil {
-				item.Seen = make(map[string]int64)
-			}
-			if item.HoursTTL == 0 {
-				item.HoursTTL = 8
-			}
-			now := time.Now()
-			for name, created := range item.Seen {
-				if now.Sub(time.Unix(created, 0)).Hours() > 24 {
-					delete(item.Seen, name)
-				}
-			}
-			clean = true
-		}
-		item.Seen[thing.Data.Name] = thing.Data.Created.Unix()
-		item.Offset = thing.Data.Created.Unix()
-		pull.RawData.Marshal(item)
-		update := feed.Update{
+		if !pull.Submit(feed.Update{
 			RawData: pull.RawData.Bytes(),
 			Text:    text.Format(),
 			Media:   media,
-			Attributes: map[string]interface{}{
-				"ups": thing.Data.Ups,
-			},
-		}
-		if !pull.Submit(update) {
+		}) {
 			break
 		}
 	}
 	return nil
+}
+
+func (s Source) collectEvents(id feed.ID, minUps float64) (int, map[string]Event) {
+	raw := s.Events(id, TTL)
+	events := make(map[string]Event)
+	for _, rawData := range raw {
+		var event Event
+		rawData.Unmarshal(&event)
+		prev := events[event.Name]
+		if prev.Ups > event.Ups {
+			event.Ups = prev.Ups
+		}
+		event.Seen = event.Seen || prev.Seen
+		events[event.Name] = event
+	}
+
+	log.Printf("Overall subreddit speed for %s is %.2f pph", id, float64(len(events))/TTL.Hours())
+
+	quantile := int(minUps)
+	if len(events) > 0 && minUps < 1 {
+		ups := make([]int, 0)
+		for _, v := range events {
+			ups = append(ups, v.Ups)
+		}
+
+		sort.Ints(ups)
+		quantile = ups[int(float64(len(ups))*minUps)]
+		log.Printf("Subreddit up %.2f percentile threshold for %s is %d", minUps, id, quantile)
+	}
+
+	return quantile, events
 }
 
 var (
@@ -172,7 +181,7 @@ var (
 	}
 )
 
-func (s Source) mediatorRequest(thing *reddit.Thing) (mediator.Request, error) {
+func (s Source) mediatorRequest(thing reddit.Thing) (mediator.Request, error) {
 	url := thing.Data.URL
 	switch thing.Data.Domain {
 	case "i.redd.it":

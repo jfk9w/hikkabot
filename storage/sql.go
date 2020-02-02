@@ -3,6 +3,7 @@ package storage
 import (
 	_sql "database/sql"
 	"fmt"
+	"time"
 	"unicode/utf8"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -31,7 +32,7 @@ func (c SQLConfig) validate() {
 
 type SQL struct {
 	*_sql.DB
-	quirks SQLQuirks
+	SQLQuirks
 }
 
 func NewSQL(config SQLConfig) *SQL {
@@ -46,7 +47,7 @@ func NewSQL(config SQLConfig) *SQL {
 func (s *SQL) query(query string, args ...interface{}) *_sql.Rows {
 	rows, err := s.Query(query, args...)
 	for i := 0; i < 5; i++ {
-		if s.quirks.RetryQueryOrExec(err, i) {
+		if s.RetryQueryOrExec(err, i) {
 			rows, err = s.Query(query, args...)
 		} else {
 			break
@@ -61,7 +62,7 @@ func (s *SQL) query(query string, args ...interface{}) *_sql.Rows {
 func (s *SQL) exec(query string, args ...interface{}) _sql.Result {
 	res, err := s.Exec(query, args...)
 	for i := 0; i < 5; i++ {
-		if s.quirks.RetryQueryOrExec(err, i) {
+		if s.RetryQueryOrExec(err, i) {
 			res, err = s.Exec(query, args...)
 		} else {
 			break
@@ -92,7 +93,7 @@ func (s *SQL) init() *SQL {
 	  item %s NOT NULL,
 	  updated %s,
 	  error VARCHAR(100)
-	)`, s.quirks.JSONType(), s.quirks.TimeType())
+	)`, s.JSONType(), s.TimeType())
 	s.exec(sql)
 	sql = `
 	CREATE UNIQUE INDEX IF NOT EXISTS i__subscription__id 
@@ -105,7 +106,7 @@ func (s *SQL) init() *SQL {
 	  chat_id BIGINT NOT NULL,
 	  source VARCHAR(20) NOT NULL,
 	  attrs %s NOT NULL
-	)`, s.quirks.TimeType(), s.quirks.JSONType())
+	)`, s.TimeType(), s.JSONType())
 	s.exec(sql)
 	return s
 }
@@ -128,9 +129,7 @@ func (s *SQL) selectQuery(query string, args ...interface{}) []feed.Subscription
 			&bytes); err != nil {
 			panic(err)
 		}
-		rawData := feed.NewRawData()
-		rawData.Marshal(bytes)
-		sub.RawData = rawData
+		sub.RawData = feed.NewRawData(bytes)
 		res = append(res, sub)
 	}
 
@@ -205,7 +204,7 @@ func (s *SQL) Change(id feed.ID, change feed.Change) bool {
 	WHERE id = $2 
       AND chat_id = $3 
       AND source = $4 
-      AND %s`, field, s.quirks.Now(), cond)
+      AND %s`, field, s.Now(), cond)
 	return s.update(sql, value, id.ID, id.ChatID, id.Source) == 1
 }
 
@@ -241,9 +240,52 @@ func (s *SQL) Clear(chatID telegram.ID, error string) int {
 	return int(s.update(sql, chatID, error))
 }
 
-func (s *SQL) Log(id feed.ID, attrs []byte) bool {
+func (s *SQL) Log(id feed.ID, event feed.RawData) bool {
 	sql := fmt.Sprintf(`
 	INSERT INTO log (time, id, chat_id, source, attrs) 
-	VALUES (%s, $1, $2, $3, $4)`, s.quirks.Now())
-	return s.update(sql, id.ID, id.ChatID, id.Source, attrs) == 1
+	VALUES (%s, $1, $2, $3, $4)`, s.Now())
+	return s.update(sql, id.ID, id.ChatID, id.Source, event.Bytes()) == 1
+}
+
+func (s *SQL) Events(id feed.ID, period time.Duration) []feed.RawData {
+	sql := fmt.Sprintf(`
+	SELECT attrs
+	FROM log
+	WHERE id = ? AND chat_id = ? AND source = ? AND time > %s`, s.Ago(period))
+
+	res := s.query(sql, id.ID, id.ChatID, id.Source)
+	defer res.Close()
+
+	events := make([]feed.RawData, 0)
+	for res.Next() {
+		bytes := make([]byte, 0)
+		if err := res.Scan(&bytes); err != nil {
+			panic(err)
+		}
+		events = append(events, feed.NewRawData(bytes))
+	}
+
+	return events
+}
+
+func (s *SQL) RedditSeen(id feed.ID, period time.Duration, minUps int) []string {
+	sql := fmt.Sprintf(`
+	SELECT json_extract(attrs, '$.id') as id
+	FROM log
+	WHERE id = ? AND chat_id = ? and source = ? AND time > %s
+	GROUP BY id
+	HAVING max(json_extract(attrs, '$.ups') >= ?`, s.Ago(period))
+
+	res := s.query(sql, id.ID, id.ChatID, id.Source, minUps)
+	defer res.Close()
+
+	names := make([]string, 0)
+	for res.Next() {
+		var name string
+		if err := res.Scan(&name); err != nil {
+			panic(err)
+		}
+	}
+
+	return names
 }

@@ -60,7 +60,7 @@ type Storage interface {
 }
 
 type LogStorage interface {
-	Log(id ID, attrs []byte) bool
+	Log(id ID, attrs RawData) bool
 }
 
 func ToBytes(value interface{}) []byte {

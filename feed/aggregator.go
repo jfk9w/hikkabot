@@ -231,7 +231,7 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 	if len(fields) > 2 {
 		options = fields[2]
 	}
-	rawData := NewRawData()
+	rawData := NewRawData(nil)
 	for sourceID, source := range a.sources {
 		var draft *Draft
 		draft, err = source.Draft(cmd, options, rawData)

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"time"
@@ -15,6 +16,7 @@ type SQLQuirks interface {
 	JSONType() string
 	TimeType() string
 	Now() string
+	Ago(time.Duration) string
 	RetryQueryOrExec(error, int) bool
 }
 
@@ -30,6 +32,10 @@ func (pg) TimeType() string {
 
 func (pg) Now() string {
 	return "now()"
+}
+
+func (pg) Ago(value time.Duration) string {
+	panic("unimplemented")
 }
 
 func (pg) RetryQueryOrExec(error, int) bool {
@@ -48,6 +54,10 @@ func (sqlite3) TimeType() string {
 
 func (sqlite3) Now() string {
 	return `datetime("now")`
+}
+
+func (sqlite3) Ago(value time.Duration) string {
+	return fmt.Sprintf("datetime('now', '-%3.4f seconds')", value.Seconds())
 }
 
 func (sqlite3) RetryQueryOrExec(err error, try int) bool {
