@@ -60,7 +60,7 @@ func (a *Aggregator) runUpdater(chatID telegram.ID) {
 		return
 	}
 
-	err := a.pullUpdates(chatID, sub)
+	err := a.pullUpdates(chatID, *sub)
 	if err != nil {
 		if err == ErrNotFound {
 			// the storage update has failed
@@ -75,17 +75,12 @@ func (a *Aggregator) runUpdater(chatID telegram.ID) {
 	time.AfterFunc(a.Timeout, func() { a.runUpdater(chatID) })
 }
 
-func (a *Aggregator) pullUpdates(chatID telegram.ID, sub *Subscription) error {
+func (a *Aggregator) pullUpdates(chatID telegram.ID, sub Subscription) error {
 	source, ok := a.sources[sub.ID.Source]
 	if !ok {
 		return errors.Errorf("no such source: %s", sub.ID.Source)
 	}
-	pull := newUpdatePull(sub.RawData, a.Mediator)
-	if a.LogStorage != nil {
-		pull.Log = func(attrs []byte) bool {
-			return a.Log(sub.ID, attrs)
-		}
-	}
+	pull := newUpdatePull(sub)
 	go pull.run(source)
 	hasUpdates := false
 	for update := range pull.queue {
@@ -312,7 +307,7 @@ func (a *Aggregator) YouTube(tg telegram.Client, c *telegram.Command) error {
 			Pages:     []string{""},
 			ParseMode: telegram.HTML,
 		},
-		Media: []*mediator.Future{a.Mediator.Submit(c.Payload, req)},
+		Media: []*mediator.Future{a.Mediator.SubmitMedia(c.Payload, req)},
 	})
 	if err != nil {
 		err = c.Reply(tg, err.Error())

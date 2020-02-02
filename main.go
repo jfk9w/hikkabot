@@ -122,15 +122,15 @@ func main() {
 			Logger(logging.Get(config.Dvach.LogFile)).
 			PendingRequests(requests).
 			NewClient(), config.Dvach.Usercode)
-		agg.AddSource(source.DvachCatalog{client}).
-			AddSource(source.DvachThread{client})
+		agg.AddSource(source.DvachCatalog{client, mediator}).
+			AddSource(source.DvachThread{client, mediator})
 	}
 	if config.Reddit != nil {
 		client := reddit.NewClient(flu.NewTransport().
 			Logger(logging.Get(config.Reddit.LogFile)).
 			PendingRequests(requests).
 			NewClient(), config.Reddit.Config)
-		agg.AddSource(source.Reddit{client})
+		agg.AddSource(source.Reddit{client, mediator, storage})
 	}
 	bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
 }

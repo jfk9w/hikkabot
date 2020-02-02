@@ -20,13 +20,13 @@ import (
 type ThreadItem struct {
 	Board     string
 	Num       int
-	Title     string
 	MediaOnly bool
 	Offset    int
 }
 
 type ThreadSource struct {
 	*dvach.Client
+	*mediator.Mediator
 }
 
 var threadre = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)/res/([0-9]+)\.html?$`)
@@ -54,11 +54,10 @@ func (s ThreadSource) Draft(command, options string, rawData feed.RawData) (*fee
 	if err != nil {
 		return nil, errors.Wrap(err, "get post")
 	}
-	item.Title = title(post)
 	rawData.Marshal(item)
 	return &feed.Draft{
 		ID:   fmt.Sprintf("%s/%d", item.Board, item.Num),
-		Name: item.Title,
+		Name: title(post),
 	}, nil
 }
 
@@ -78,7 +77,7 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 		}
 		media := make([]*mediator.Future, len(post.Files))
 		for i, file := range post.Files {
-			media[i] = pull.Mediator.Submit(file.URL(),
+			media[i] = s.SubmitMedia(file.URL(),
 				&mediatorRequest{s.Client.Client, file})
 		}
 		text := format.Text{
@@ -86,7 +85,7 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 		}
 		if !item.MediaOnly {
 			b := format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(post.Board)).
-				Text(item.Title).NewLine().
+				Text(pull.Name).NewLine().
 				Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.Board), post.Num))
 			if post.IsOriginal() {
 				b.Text(" #OP")

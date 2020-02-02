@@ -61,7 +61,7 @@ func (m *Mediator) AddConverter(conv Converter) *Mediator {
 	return m
 }
 
-func (m *Mediator) Submit(url string, req Request) *Future {
+func (m *Mediator) SubmitMedia(url string, req Request) *Future {
 	future := &Future{
 		URL: url,
 		req: req,

@@ -24,6 +24,7 @@ type CatalogItem struct {
 
 type CatalogSource struct {
 	*dvach.Client
+	*mediator.Mediator
 }
 
 var catalogre = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
@@ -81,7 +82,7 @@ func (s CatalogSource) Pull(pull *feed.UpdatePull) error {
 	for _, thread := range results {
 		media := make([]*mediator.Future, 0)
 		for _, file := range thread.Files {
-			media = append(media, pull.Mediator.Submit(file.URL(),
+			media = append(media, s.SubmitMedia(file.URL(),
 				&mediatorRequest{s.Client.Client, file}))
 			break
 		}

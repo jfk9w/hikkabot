@@ -25,7 +25,7 @@ func main() {
 	request := &mreq.Youtube{URL: url, MaxSize: MaxSize(telegram.Video)[1]}
 	//url := "https://2ch.hk/b/src/210545730/15778681235240.mp4"
 	//request := &HTTPRequest{URL: url, Format: "webm"}
-	future := mediator.Submit(url, request)
+	future := mediator.SubmitMedia(url, request)
 	media, err := future.Result()
 	if err != nil {
 		panic(err)

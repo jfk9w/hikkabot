@@ -93,20 +93,17 @@ type Update struct {
 }
 
 type UpdatePull struct {
-	Mediator *mediator.Mediator
-	RawData  RawData
-	Log      func([]byte) bool
-	queue    chan Update
-	err      error
-	cancel   chan struct{}
+	Subscription
+	queue  chan Update
+	err    error
+	cancel chan struct{}
 }
 
-func newUpdatePull(rawData RawData, mediator *mediator.Mediator) *UpdatePull {
+func newUpdatePull(subscription Subscription) *UpdatePull {
 	return &UpdatePull{
-		Mediator: mediator,
-		RawData:  rawData,
-		queue:    make(chan Update, 10),
-		cancel:   make(chan struct{}),
+		Subscription: subscription,
+		queue:        make(chan Update, 10),
+		cancel:       make(chan struct{}),
 	}
 }
 

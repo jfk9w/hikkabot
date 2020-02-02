@@ -21,16 +21,17 @@ import (
 const ListingThingLimit = 100
 
 type Item struct {
-	Subreddit string
-	Sort      string
-	MinUps    int
-	Seen      map[string]int64
-	HoursTTL  int
-	Offset    int64
+	Sort     string
+	MinUps   int
+	Seen     map[string]int64
+	HoursTTL int
+	Offset   int64
 }
 
 type Source struct {
 	*reddit.Client
+	*mediator.Mediator
+	feed.LogStorage
 }
 
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?(/(\d+))?$`)
@@ -49,7 +50,7 @@ func (s Source) Draft(command, options string, rawData feed.RawData) (*feed.Draf
 		return nil, feed.ErrDraftFailed
 	}
 	item := Item{}
-	item.Subreddit, item.Sort = groups[4], groups[6]
+	item.Sort = groups[6]
 	if item.Sort == "" {
 		item.Sort = "hot"
 	}
@@ -67,24 +68,26 @@ func (s Source) Draft(command, options string, rawData feed.RawData) (*feed.Draf
 			return nil, errors.Wrap(err, "parse MinUps")
 		}
 	}
-	things, err := s.GetListing(item.Subreddit, item.Sort, 1)
+	subreddit := groups[4]
+	things, err := s.GetListing(subreddit, item.Sort, 1)
 	if err != nil {
 		return nil, errors.Wrap(err, "get listing")
 	}
 	if len(things) < 1 {
-		return nil, errors.New("no entries in /r/" + item.Subreddit)
+		return nil, errors.New("no entries in /r/" + subreddit)
 	}
 	rawData.Marshal(item)
+	subreddit = things[0].Data.Subreddit
 	return &feed.Draft{
-		ID:   item.Subreddit,
-		Name: "#" + item.Subreddit,
+		ID:   subreddit,
+		Name: "#" + subreddit,
 	}, nil
 }
 
 func (s Source) Pull(pull *feed.UpdatePull) error {
 	item := new(Item)
 	pull.RawData.Unmarshal(item)
-	things, err := s.GetListing(item.Subreddit, item.Sort, ListingThingLimit)
+	things, err := s.GetListing(pull.ID.ID, item.Sort, ListingThingLimit)
 	if err != nil {
 		return err
 	}
@@ -99,7 +102,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 				"ups":     thing.Data.Ups,
 				"created": thing.Data.CreatedUTC,
 			})
-			pull.Log(attrs.Bytes())
+			s.Log(pull.ID, attrs.Bytes())
 		}
 		if i == 0 && thing.Data.Created.Unix() < item.Offset || thing.Data.Created.Unix() <= item.Offset {
 			continue
@@ -112,7 +115,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 		}
 		media := make([]*mediator.Future, 0)
 		text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil).
-			Text("#" + item.Subreddit).NewLine()
+			Text(pull.Name).NewLine()
 		if thing.Data.IsSelf {
 			text.
 				Tag("b").Text(thing.Data.Title).EndTag().
@@ -123,7 +126,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			if err != nil {
 				req = &mediator.FailedRequest{Error: err}
 			}
-			media = append(media, pull.Mediator.Submit(thing.Data.URL, req))
+			media = append(media, s.SubmitMedia(thing.Data.URL, req))
 			text.Text(thing.Data.Title)
 		}
 		if !clean {
