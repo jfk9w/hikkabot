@@ -394,7 +394,8 @@ func (a *Aggregator) Clear(tg telegram.Client, c *telegram.Command) error {
 
 func (a *Aggregator) Halt(tg telegram.Client, c *telegram.Command) error {
 	if c.User.ID == a.AdminID {
-		panic("halt")
+		time.AfterFunc(1*time.Minute, func() { panic("halt") })
+		return c.Reply(tg, "halt scheduled in 1 minute")
 	} else {
 		return c.Reply(tg, "forbidden")
 	}
