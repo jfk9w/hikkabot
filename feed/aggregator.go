@@ -178,13 +178,13 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 		Text("Item: " + sub.Name)
 	var button telegram.ReplyMarkup
 	if change.Error != nil {
-		button = telegram.InlineKeyboard("Resume", "r", id.String())
+		button = telegram.InlineKeyboard(
+			"Resume", "r", id.String(),
+			"Delete", "d", id.String())
 		text.NewLine().
 			Text("Reason: " + change.Error.Error())
 	} else {
-		button = telegram.InlineKeyboard(
-			"Suspend", "s", id.String(),
-			"Delete", "d", id.String())
+		button = telegram.InlineKeyboard("Suspend", "s", id.String())
 	}
 
 	go a.SendAlert(adminIDs, text.Format(), button)
