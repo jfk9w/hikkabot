@@ -392,6 +392,14 @@ func (a *Aggregator) Clear(tg telegram.Client, c *telegram.Command) error {
 	return nil
 }
 
+func (a *Aggregator) Halt(tg telegram.Client, c *telegram.Command) error {
+	if c.User.ID == a.AdminID {
+		panic("halt")
+	} else {
+		return c.Reply(tg, "forbidden")
+	}
+}
+
 func (a *Aggregator) CommandListener(username string) *telegram.CommandListener {
 	return telegram.NewCommandListener(username).
 		HandleFunc("/sub", a.Create).
@@ -401,5 +409,6 @@ func (a *Aggregator) CommandListener(username string) *telegram.CommandListener 
 		HandleFunc("/status", a.Status).
 		HandleFunc("/youtube", a.YouTube).
 		HandleFunc("/list", a.List).
-		HandleFunc("/clear", a.Clear)
+		HandleFunc("/clear", a.Clear).
+		HandleFunc("/halt", halt)
 }
