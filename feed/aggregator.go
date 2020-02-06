@@ -410,5 +410,5 @@ func (a *Aggregator) CommandListener(username string) *telegram.CommandListener 
 		HandleFunc("/youtube", a.YouTube).
 		HandleFunc("/list", a.List).
 		HandleFunc("/clear", a.Clear).
-		HandleFunc("/halt", halt)
+		HandleFunc("/halt", a.Halt)
 }
