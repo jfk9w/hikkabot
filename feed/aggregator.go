@@ -182,7 +182,9 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 		text.NewLine().
 			Text("Reason: " + change.Error.Error())
 	} else {
-		button = telegram.InlineKeyboard("Suspend", "s", id.String())
+		button = telegram.InlineKeyboard(
+			"Suspend", "s", id.String(),
+			"Delete", "d", id.String())
 	}
 
 	go a.SendAlert(adminIDs, text.Format(), button)
@@ -199,9 +201,7 @@ func (a *Aggregator) changeByUser(tg telegram.Client, c *telegram.Command, chang
 	} else {
 		reply = "failed to parse ID"
 	}
-	_, err = tg.AnswerCallbackQuery(c.CallbackQueryID,
-		&telegram.AnswerCallbackQueryOptions{Text: reply})
-	return err
+	return c.Reply(tg, reply)
 }
 
 func (a *Aggregator) createChangeContext(c *telegram.Command, fields []string, chatIdx int) (*changeContext, error) {
@@ -280,6 +280,22 @@ var ErrSuspendedByUser = errors.New("suspended by user")
 
 func (a *Aggregator) Suspend(tg telegram.Client, c *telegram.Command) error {
 	return a.changeByUser(tg, c, Change{Error: ErrSuspendedByUser})
+}
+
+func (a *Aggregator) Delete(tg telegram.Client, c *telegram.Command) error {
+	id, err := ParseID(c.Payload)
+	if err != nil {
+		return c.Reply(tg, "failed to parse ID")
+	}
+	ctx := &changeContext{chatID: id.ChatID}
+	if err := ctx.checkAccess(a, c.User.ID); err != nil {
+		return c.Reply(tg, err.Error())
+	}
+	if a.Storage.Delete(id) {
+		return c.Reply(tg, "OK")
+	} else {
+		return c.Reply(tg, "not found")
+	}
 }
 
 func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
@@ -381,6 +397,7 @@ func (a *Aggregator) CommandListener(username string) *telegram.CommandListener 
 		HandleFunc("/sub", a.Create).
 		HandleFunc("r", a.Resume).
 		HandleFunc("s", a.Suspend).
+		HandleFunc("d", a.Delete).
 		HandleFunc("/status", a.Status).
 		HandleFunc("/youtube", a.YouTube).
 		HandleFunc("/list", a.List).

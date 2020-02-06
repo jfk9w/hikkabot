@@ -57,6 +57,7 @@ type Storage interface {
 	Active() []telegram.ID
 	List(telegram.ID, bool) []Subscription
 	Clear(telegram.ID, string) int
+	Delete(ID) bool
 }
 
 type LogStorage interface {

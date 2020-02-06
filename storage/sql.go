@@ -264,6 +264,12 @@ func (s *SQL) Events(id feed.ID, period time.Duration) []feed.RawData {
 		}
 		events = append(events, feed.NewRawData(bytes))
 	}
-
 	return events
+}
+
+func (s *SQL) Delete(id feed.ID) bool {
+	sql := `
+	DELETE FROM subscription
+	WHERE id = ? AND chat_id = ? AND source = ? AND error IS NOT NULL`
+	return s.update(sql, id.ID, id.ChatID, id.Source) == 1
 }

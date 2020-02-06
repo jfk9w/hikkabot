@@ -3,6 +3,7 @@ package reddit
 import (
 	"html"
 	"log"
+	_url "net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -192,6 +193,19 @@ func (s Source) mediatorRequest(thing reddit.Thing) (mediator.Request, error) {
 			return &mediator.HTTPRequest{
 				URL:    url,
 				Format: groups[1],
+				OCR:    ocr,
+			}, nil
+		}
+	case "preview.redd.it":
+		purl, err := _url.Parse(url)
+		if err != nil {
+			return nil, errors.Wrap(err, "parse preview.redd.it")
+		}
+		lastDot := strings.LastIndex(purl.Path, ".")
+		if lastDot > 0 && len(purl.Path) > lastDot+1 {
+			return &mediator.HTTPRequest{
+				URL:    url,
+				Format: purl.Path[lastDot+1:],
 				OCR:    ocr,
 			}, nil
 		}
