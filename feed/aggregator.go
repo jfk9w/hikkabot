@@ -179,12 +179,19 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 	var button telegram.ReplyMarkup
 	if change.Error != nil {
 		button = telegram.InlineKeyboard(
-			"Resume", "r", id.String(),
-			"Delete", "d", id.String())
+			[][3]string{
+				{"Delete", "d", id.String()},
+				{"Resume", "r", id.String()},
+			},
+		)
 		text.NewLine().
 			Text("Reason: " + change.Error.Error())
 	} else {
-		button = telegram.InlineKeyboard("Suspend", "s", id.String())
+		button = telegram.InlineKeyboard(
+			[][3]string{
+				{"Suspend", "s", id.String()},
+			},
+		)
 	}
 
 	go a.SendAlert(adminIDs, text.Format(), button)
@@ -347,11 +354,13 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 		command = "suspend"
 		subs = a.Storage.List(ctx.chat.ID, active)
 	}
-	keyboard := make([]string, len(subs)*3)
+	keyboard := make([][][3]string, len(subs)*3)
 	for i, sub := range subs {
-		keyboard[3*i] = "[" + sub.ID.SourceName(a.sources) + "] " + sub.Name
-		keyboard[3*i+1] = command[:1]
-		keyboard[3*i+2] = sub.ID.String()
+		keyboard[i] = [][3]string{{
+			"[" + sub.ID.SourceName(a.sources) + "] " + sub.Name,
+			command[:1],
+			sub.ID.String(),
+		}}
 	}
 	title, _ := ctx.getChatTitle(a)
 	a.SendAlert(

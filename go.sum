@@ -5,8 +5,8 @@ github.com/jfk9w-go/aconvert-api v0.9.5-0.20200116113232-86200ad3dd3c h1:0yAzfHi
 github.com/jfk9w-go/aconvert-api v0.9.5-0.20200116113232-86200ad3dd3c/go.mod h1:RyKULRuwbU2LtiWc7zrUDugQPeID0N8EMRbF+CEG8Y8=
 github.com/jfk9w-go/flu v0.9.9-0.20200116112742-69dbe5d88362 h1:PHYSfmt9LaHd79i8eWKgVKPffEi1CAsE0IDXOMv4LGQ=
 github.com/jfk9w-go/flu v0.9.9-0.20200116112742-69dbe5d88362/go.mod h1:YcfNxx58rsSTdJ95aO/Ak/xMvMWjjrUmgkOumdxZUIo=
-github.com/jfk9w-go/telegram-bot-api v0.9.5-0.20200116113145-b426eb7a1195 h1:l3ufvg4VDVqi9lkuqUyZ5Rer9gnFB6UCEfbxFVst3Jg=
-github.com/jfk9w-go/telegram-bot-api v0.9.5-0.20200116113145-b426eb7a1195/go.mod h1:aCyavErOtO8nUeQqz42jg/pYUw6MkAIJyuXw/lb15zc=
+github.com/jfk9w-go/telegram-bot-api v0.9.5-0.20200209170607-b7d7559df09e h1:sCAbLaPBSvuFvrirmxYgIH8UtrP3b5ORGhXcR4h1qbk=
+github.com/jfk9w-go/telegram-bot-api v0.9.5-0.20200209170607-b7d7559df09e/go.mod h1:aCyavErOtO8nUeQqz42jg/pYUw6MkAIJyuXw/lb15zc=
 github.com/mattn/go-sqlite3 v2.0.2+incompatible h1:qzw9c2GNT8UFrgWNDhCTqRqYUSmu/Dav/9Z58LGpk7U=
 github.com/mattn/go-sqlite3 v2.0.2+incompatible/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsOqkbpncsNc=
 github.com/otiai10/curr v0.0.0-20150429015615-9b4961190c95 h1:+OLn68pqasWca0z5ryit9KGfp3sUsW4Lqg32iRMJyzs=
