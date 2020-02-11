@@ -1,8 +1,8 @@
 package reddit
 
 import (
+	"fmt"
 	"html"
-	"log"
 	_url "net/url"
 	"regexp"
 	"sort"
@@ -117,7 +117,10 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			continue
 		}
 
-		s.Counter(pull.ID, "total_posts").Inc()
+		s.Counter("posts", metrics.Labels{
+			"chat": pull.ID.ChatID.String(),
+			"sub":  pull.ID.ID,
+		}).Inc()
 
 		if thing.Data.Ups < minUps {
 			continue
@@ -146,20 +149,11 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			Media:   media,
 		}
 
-		if pull.Submit(update) {
-			s.Counter(pull.ID, "submitted_posts").Inc()
-		} else {
+		if !pull.Submit(update) {
 			break
 		}
 	}
 	return nil
-}
-
-func (s Source) Counter(id feed.ID, name string) metrics.Counter {
-	return s.Metrics.Counter(name, metrics.Labels{
-		"chat": id.ChatID.String(),
-		"sub":  id.ID,
-	})
 }
 
 func (s Source) collectEvents(id feed.ID, minUps float64) (int, map[string]Event) {
@@ -176,8 +170,6 @@ func (s Source) collectEvents(id feed.ID, minUps float64) (int, map[string]Event
 		events[event.Name] = event
 	}
 
-	log.Printf("Overall subreddit speed for %s is %.2f pph", id, float64(len(events))/TTL.Hours())
-
 	quantile := int(minUps)
 	if len(events) > 0 && minUps < 1 {
 		ups := make([]int, 0)
@@ -187,7 +179,11 @@ func (s Source) collectEvents(id feed.ID, minUps float64) (int, map[string]Event
 
 		sort.Ints(ups)
 		quantile = ups[int(float64(len(ups))*minUps)]
-		log.Printf("Subreddit up %.2f percentile threshold for %s is %d", minUps, id, quantile)
+		s.Gauge("ups", metrics.Labels{
+			"chat":     id.ChatID.String(),
+			"sub":      id.ID,
+			"quantile": fmt.Sprintf("%.2f", minUps),
+		})
 	}
 
 	return quantile, events
