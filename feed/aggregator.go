@@ -88,10 +88,13 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub Subscription) error {
 		if err != nil {
 			return errors.Wrapf(err, "send update: %+v", update)
 		}
-		a.Counter("updates", metrics.Labels{
+		metricsLabels := metrics.Labels{
 			"chat":   sub.ID.ChatID.String(),
 			"source": sub.ID.Source,
-		}).Inc()
+			"id":     sub.ID.ID,
+		}
+		a.Counter("updates", metricsLabels).Inc()
+		a.Counter("media", metricsLabels).Add(float64(len(update.Media)))
 		err = a.change(0, sub.ID, Change{RawData: update.RawData})
 		if err != nil {
 			pull.cancel <- struct{}{}
