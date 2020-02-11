@@ -1,13 +1,14 @@
 package mediator
 
 import (
-	"expvar"
 	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/jfk9w/hikkabot/metrics"
 
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -16,18 +17,18 @@ import (
 )
 
 type Mediator struct {
+	metrics.Metrics
 	convs   []Converter
 	queue   chan *Future
 	work    sync.WaitGroup
 	minSize int64
 	maxSize int64
-	metrics *expvar.Map
 	buffer  bool
 	dir     string
 	ocr     chan *gosseract.Client
 }
 
-func New(config Config) *Mediator {
+func New(config Config, metrics metrics.Metrics) *Mediator {
 	if config.Concurrency < 1 {
 		panic("concurrency should be greater than 0")
 	}
@@ -40,9 +41,9 @@ func New(config Config) *Mediator {
 		}
 	}
 	mediator := &Mediator{
+		Metrics: metrics,
 		convs:   []Converter{SupportedFormats},
 		queue:   make(chan *Future),
-		metrics: expvar.NewMap("media"),
 		buffer:  config.Buffer,
 		dir:     config.Directory,
 		ocr:     make(chan *gosseract.Client, 1),
@@ -101,12 +102,14 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 	if meta.Size > m.maxSize {
 		return nil, errors.Errorf("size (%d MB) exceeds hard limit (%d MB)", meta.Size>>20, m.maxSize>>20)
 	}
+	m.Counter("source_size", nil).Add(float64(meta.Size))
+	m.Counter("source_media", nil).Inc()
 	for _, conv := range m.convs {
 		creq, err := conv.Convert(req, meta)
 		switch err {
 		case nil:
-			m.metrics.Add("size", meta.Size)
-			m.metrics.Add("files", 1)
+			m.Counter("converted_size", nil).Add(float64(meta.Size))
+			m.Counter("converted_media", nil).Inc()
 			cmeta, err := creq.Metadata()
 			if err != nil {
 				return nil, errors.Wrap(err, "get converted metadata")
@@ -141,9 +144,10 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 						buf.setOCR(ocr)
 						text, err := ocr.Text()
 						m.ocr <- ocr
+						m.Counter("ocr_total_media", nil).Inc()
 						if err == nil && cmeta.OCR.Regexp.MatchString(text) {
 							log.Printf("Filtered media %s", cmeta.URL)
-							m.metrics.Add("ocr_filtered", 1)
+							m.Counter("ocr_filtered_media", nil).Inc()
 							buf.Cleanup()
 							return nil, ErrFiltered
 						}
@@ -154,11 +158,6 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 			}
 
 			log.Printf("Processed %s %s (%d KB) via %T in %v", typ, url, csize>>10, conv, time.Now().Sub(start))
-			if _, ok := conv.(FormatSupport); !ok {
-				m.metrics.Add("size", csize)
-				m.metrics.Add("files", 1)
-			}
-
 			return media, nil
 		case ErrUnsupportedType:
 			continue

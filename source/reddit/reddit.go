@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jfk9w/hikkabot/metrics"
+
 	"github.com/jfk9w/hikkabot/mediator/request"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -45,6 +47,7 @@ type Source struct {
 	*reddit.Client
 	*mediator.Mediator
 	Storage
+	metrics.Metrics
 }
 
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
@@ -110,7 +113,13 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			}),
 		)
 
-		if event.Seen || thing.Data.Ups < minUps {
+		if event.Seen {
+			continue
+		}
+
+		s.Counter(pull.ID, "total_posts").Inc()
+
+		if thing.Data.Ups < minUps {
 			continue
 		}
 
@@ -130,15 +139,27 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			media = append(media, s.SubmitMedia(thing.Data.URL, req))
 			text.Text(thing.Data.Title)
 		}
-		if !pull.Submit(feed.Update{
+
+		update := feed.Update{
 			RawData: pull.RawData.Bytes(),
 			Text:    text.Format(),
 			Media:   media,
-		}) {
+		}
+
+		if pull.Submit(update) {
+			s.Counter(pull.ID, "submitted_posts").Inc()
+		} else {
 			break
 		}
 	}
 	return nil
+}
+
+func (s Source) Counter(id feed.ID, name string) metrics.Counter {
+	return s.Metrics.Counter(name, metrics.Labels{
+		"chat": id.ChatID.String(),
+		"sub":  id.ID,
+	})
 }
 
 func (s Source) collectEvents(id feed.ID, minUps float64) (int, map[string]Event) {

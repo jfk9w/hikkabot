@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jfk9w/hikkabot/metrics"
+
 	"github.com/jfk9w/hikkabot/mediator/request"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -20,13 +22,13 @@ type Aggregator struct {
 	Channel
 	Storage
 	*mediator.Mediator
+	metrics.Metrics
 	Timeout time.Duration
 	Aliases map[telegram.Username]telegram.ID
 	AdminID telegram.ID
 	sources map[string]Source
 	chats   map[telegram.ID]bool
 	mu      sync.RWMutex
-	metrics *expvar.Map
 }
 
 func (a *Aggregator) AddSource(source Source) *Aggregator {
@@ -38,7 +40,6 @@ func (a *Aggregator) AddSource(source Source) *Aggregator {
 }
 
 func (a *Aggregator) Init() *Aggregator {
-	a.metrics = expvar.NewMap("aggregator")
 	a.chats = make(map[telegram.ID]bool)
 	for _, chatID := range a.Active() {
 		a.RunFeed(chatID)
@@ -54,7 +55,7 @@ func (a *Aggregator) runUpdater(chatID telegram.ID) {
 		delete(a.chats, chatID)
 		a.mu.Unlock()
 		log.Printf("Stopped updater for %v", chatID)
-		a.metrics.Add("active", -1)
+		a.Gauge("active_subscribers", nil).Dec()
 		return
 	}
 
@@ -87,7 +88,10 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub Subscription) error {
 		if err != nil {
 			return errors.Wrapf(err, "send update: %+v", update)
 		}
-		a.metrics.Add("updates", 1)
+		a.Counter("updates", metrics.Labels{
+			"chat":   sub.ID.ChatID.String(),
+			"source": sub.ID.Source,
+		}).Inc()
 		err = a.change(0, sub.ID, Change{RawData: update.RawData})
 		if err != nil {
 			pull.cancel <- struct{}{}
@@ -124,7 +128,7 @@ func (a *Aggregator) RunFeed(chatID telegram.ID) {
 	a.mu.Unlock()
 	// run updater
 	go a.runUpdater(chatID)
-	a.metrics.Add("active", 1)
+	a.Gauge("active_subscribers", nil).Inc()
 	log.Printf("Started updater for %v", chatID)
 }
 
@@ -141,7 +145,7 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 	}
 	if change.RawData != nil {
 		// if this is an offset update we don't need to notify admins
-		log.Printf("Updated raw data for %s to [...]", id)
+		log.Printf("Updated raw data for %s to %s", id, string(change.RawData))
 		return nil
 	} else {
 		if change.Error == nil {
