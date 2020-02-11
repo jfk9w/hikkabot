@@ -183,7 +183,7 @@ func (s Source) collectEvents(id feed.ID, minUps float64) (int, map[string]Event
 			"chat":     id.ChatID.String(),
 			"sub":      id.ID,
 			"quantile": fmt.Sprintf("%.2f", minUps),
-		})
+		}).Set(float64(quantile))
 	}
 
 	return quantile, events
