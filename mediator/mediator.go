@@ -102,17 +102,20 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 	if meta.Size > m.maxSize {
 		return nil, errors.Errorf("size (%d MB) exceeds hard limit (%d MB)", meta.Size>>20, m.maxSize>>20)
 	}
-	m.Counter("source_size", nil).Add(float64(meta.Size))
-	m.Counter("source_media", nil).Inc()
+	m.Counter("source_size", metrics.Labels{"format": meta.Format}).Add(float64(meta.Size))
+	m.Counter("source_files", metrics.Labels{"format": meta.Format}).Inc()
 	for _, conv := range m.convs {
 		creq, err := conv.Convert(req, meta)
 		switch err {
 		case nil:
-			m.Counter("converted_size", nil).Add(float64(meta.Size))
-			m.Counter("converted_media", nil).Inc()
 			cmeta, err := creq.Metadata()
 			if err != nil {
+				m.Counter("failed_conversions", metrics.Labels{"format": meta.Format})
 				return nil, errors.Wrap(err, "get converted metadata")
+			}
+			if _, ok := conv.(FormatSupport); !ok {
+				m.Counter("converted_size", metrics.Labels{"format": cmeta.Format}).Add(float64(meta.Size))
+				m.Counter("converted_files", metrics.Labels{"format": cmeta.Format}).Inc()
 			}
 			csize, typ := cmeta.Size, creq.MediaType
 			if csize < m.minSize {
@@ -144,10 +147,10 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 						buf.setOCR(ocr)
 						text, err := ocr.Text()
 						m.ocr <- ocr
-						m.Counter("ocr_total_media", nil).Inc()
+						m.Counter("ocr_total", nil).Inc()
 						if err == nil && cmeta.OCR.Regexp.MatchString(text) {
 							log.Printf("Filtered media %s", cmeta.URL)
-							m.Counter("ocr_filtered_media", nil).Inc()
+							m.Counter("ocr_filtered", nil).Inc()
 							buf.Cleanup()
 							return nil, ErrFiltered
 						}
@@ -162,6 +165,7 @@ func (m *Mediator) process(url string, req Request) (*telegram.Media, error) {
 		case ErrUnsupportedType:
 			continue
 		default:
+			m.Counter("failed_conversions", metrics.Labels{"format": meta.Format})
 			return nil, errors.Wrap(err, "conversion failed")
 		}
 	}
