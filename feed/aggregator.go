@@ -1,7 +1,6 @@
 package feed
 
 import (
-	"expvar"
 	"log"
 	"strconv"
 	"strings"
@@ -313,19 +312,7 @@ func (a *Aggregator) Delete(tg telegram.Client, c *telegram.Command) error {
 }
 
 func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
-	text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil)
-	if c.User.ID == a.AdminID {
-		expvar.Do(func(kv expvar.KeyValue) {
-			if kv.Key == "cmdline" || kv.Key == "memstats" {
-				return
-			}
-			text.NewLine().Text(kv.Key + ": " + kv.Value.String())
-		})
-	} else {
-		text.Text("OK")
-	}
-	a.SendAlert([]telegram.ID{c.Chat.ID}, text.Format(), nil)
-	return nil
+	return c.Reply(tg, "OK")
 }
 
 func (a *Aggregator) YouTube(tg telegram.Client, c *telegram.Command) error {
