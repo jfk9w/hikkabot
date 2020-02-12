@@ -15,29 +15,31 @@ type Key struct {
 }
 
 type Prometheus struct {
-	namespace string
-	subsystem string
-	entries   map[Key]interface{}
-	mu        *sync.RWMutex
+	prefix  string
+	entries map[Key]interface{}
+	mu      *sync.RWMutex
 }
 
-func NewPrometheus(address, namespace string) Prometheus {
+func NewPrometheus(address string) Prometheus {
 	http.Handle("/metrics", promhttp.Handler())
 	go func() { log.Fatal(http.ListenAndServe(address, nil)) }()
 	return Prometheus{
-		namespace: namespace,
-		entries:   make(map[Key]interface{}),
-		mu:        new(sync.RWMutex),
+		entries: make(map[Key]interface{}),
+		mu:      new(sync.RWMutex),
 	}
 }
 
-func (p Prometheus) Subsystem(subsystem string) Prometheus {
-	p.subsystem = subsystem
+func (p Prometheus) WithPrefix(prefix string) Metrics {
+	if p.prefix != "" {
+		p.prefix += "_" + prefix
+	} else {
+		p.prefix = prefix
+	}
 	return p
 }
 
 func (p Prometheus) Counter(name string, labels Labels) Counter {
-	key := Key{p.subsystem, name}
+	key := Key{p.prefix, name}
 	p.mu.RLock()
 	entry, ok := p.entries[key]
 	p.mu.RUnlock()
@@ -46,8 +48,7 @@ func (p Prometheus) Counter(name string, labels Labels) Counter {
 		entry, ok = p.entries[key]
 		if !ok {
 			opts := prometheus.CounterOpts{
-				Namespace: p.namespace,
-				Subsystem: p.subsystem,
+				Namespace: p.prefix,
 				Name:      name,
 			}
 			if labels == nil {
@@ -73,7 +74,7 @@ func (p Prometheus) Counter(name string, labels Labels) Counter {
 }
 
 func (p Prometheus) Gauge(name string, labels Labels) Gauge {
-	key := Key{p.subsystem, name}
+	key := Key{p.prefix, name}
 	p.mu.RLock()
 	entry, ok := p.entries[key]
 	p.mu.RUnlock()
@@ -82,8 +83,8 @@ func (p Prometheus) Gauge(name string, labels Labels) Gauge {
 		entry, ok = p.entries[key]
 		if !ok {
 			opts := prometheus.GaugeOpts{
-				Namespace: p.namespace,
-				Subsystem: p.subsystem,
+				Namespace: p.prefix,
+				Subsystem: p.prefix,
 				Name:      name,
 			}
 			if labels == nil {
@@ -106,4 +107,8 @@ func (p Prometheus) Gauge(name string, labels Labels) Gauge {
 	}
 
 	return entry.(Gauge)
+}
+
+func (p Prometheus) Close() error {
+	return nil
 }
