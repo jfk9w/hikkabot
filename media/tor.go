@@ -165,7 +165,7 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 
 	// filters
 	if media.Type == telegram.Photo {
-		if ocr := options.OCR; ocr != nil {
+		if ocr := options.OCR; ocr != nil && options.Hashable {
 			if err = tor.checkOCR(ocr, media); err != nil {
 				if err == ErrFiltered {
 					return

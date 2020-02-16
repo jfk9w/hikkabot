@@ -53,17 +53,6 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 func (tg Telegram) SendMedia(chatID telegram.ID, promise *_media.Promise, text string) error {
 	materialized, err := promise.Materialize()
 	if err == _media.ErrFiltered {
-		if text != "" {
-			_, err = tg.Send(chatID,
-				&telegram.Text{
-					Text:                  text,
-					ParseMode:             telegram.HTML,
-					DisableWebPagePreview: true,
-				},
-				DefaultSendUpdateOptions)
-			return err
-		}
-
 		return nil
 	}
 
