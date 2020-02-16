@@ -27,7 +27,7 @@ func init() {
 	}).RegisterFor("gfycat.com", "www.gfycat.com")
 	Factory(func(client *flu.Client, url *_url.URL) media.Descriptor {
 		return &Imgur{Client: client, URL: url.String()}
-	}).RegisterFor("imgur.com", "www.imgur.com", "i.imgur.com")
+	}).RegisterFor("imgur.com", "www.imgur.com")
 	Factory(func(client *flu.Client, url *_url.URL) media.Descriptor {
 		id := url.Query().Get("v")
 		return &Youtube{Client: client, ID: id}
