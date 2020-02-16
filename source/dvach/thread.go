@@ -8,11 +8,10 @@ import (
 	"strings"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
-	"github.com/jfk9w/hikkabot/mediator"
+	_media "github.com/jfk9w/hikkabot/media"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/utf8string"
 )
@@ -26,7 +25,7 @@ type ThreadItem struct {
 
 type ThreadSource struct {
 	*dvach.Client
-	*mediator.Mediator
+	*_media.Tor
 }
 
 var threadre = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)/res/([0-9]+)\.html?$`)
@@ -44,12 +43,14 @@ func (s ThreadSource) Draft(command, options string, rawData feed.RawData) (*fee
 	if len(groups) < 6 {
 		return nil, feed.ErrDraftFailed
 	}
+
 	item := ThreadItem{}
 	item.Board = groups[4]
 	item.Num, _ = strconv.Atoi(groups[5])
 	if strings.HasPrefix(options, "m") {
 		item.MediaOnly = true
 	}
+
 	post, err := s.GetPost(item.Board, item.Num)
 	if err != nil {
 		return nil, errors.Wrap(err, "get post")
@@ -67,43 +68,58 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 	if item.Offset > 0 {
 		item.Offset++
 	}
+
 	posts, err := s.GetThread(item.Board, item.Num, item.Offset)
 	if err != nil {
 		return errors.Wrap(err, "get thread")
 	}
+
 	for _, post := range posts {
 		if item.MediaOnly && len(post.Files) == 0 {
 			continue
 		}
-		media := make([]*mediator.Future, len(post.Files))
+
+		media := make([]*_media.Promise, len(post.Files))
 		for i, file := range post.Files {
-			media[i] = s.SubmitMedia(file.URL(),
-				&mediatorRequest{s.Client.Client, file})
+			media[i] = s.Submit(file.URL(),
+				&mediaDescriptor{s.Client.Client, file},
+				_media.Options{
+					Hashable: item.MediaOnly,
+					Buffer:   true,
+					OCR:      ocr,
+				})
 		}
+
 		text := format.Text{
 			ParseMode: telegram.HTML,
 		}
+
 		if !item.MediaOnly {
 			b := format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(post.Board)).
 				Text(pull.Name).NewLine().
 				Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.Board), post.Num))
+
 			if post.IsOriginal() {
 				b.Text(" #OP")
 			}
+
 			if post.Comment != "" {
 				b.NewLine().
 					Text("---").NewLine().
 					Parse(post.Comment)
 			}
+
 			text = b.Format()
 		}
+
 		item.Offset = post.Num
 		pull.RawData.Marshal(item)
 		update := feed.Update{
 			RawData: pull.RawData.Bytes(),
-			Text:    text,
+			Pages:   text.Pages,
 			Media:   media,
 		}
+
 		if !pull.Submit(update) {
 			break
 		}

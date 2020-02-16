@@ -7,20 +7,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jfk9w/hikkabot/metrics"
-
-	"github.com/jfk9w/hikkabot/mediator/request"
-
+	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/format"
-	"github.com/jfk9w/hikkabot/mediator"
+	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/media/descriptor"
+	"github.com/jfk9w/hikkabot/metrics"
 	"github.com/pkg/errors"
 )
 
 type Aggregator struct {
 	Channel
 	Storage
-	*mediator.Mediator
+	*media.Tor
 	metrics.Metrics
 	Timeout time.Duration
 	Aliases map[telegram.Username]telegram.ID
@@ -316,17 +315,17 @@ func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
 }
 
 func (a *Aggregator) YouTube(tg telegram.Client, c *telegram.Command) error {
-	req := &request.Youtube{URL: c.Payload, MaxSize: mediator.MaxSize(telegram.Video)[1]}
-	err := a.SendUpdate(c.Chat.ID, Update{
-		Text: format.Text{
-			Pages:     []string{""},
-			ParseMode: telegram.HTML,
-		},
-		Media: []*mediator.Future{a.SubmitMedia(c.Payload, req)},
-	})
+	dtor, err := descriptor.From(flu.NewClient(nil), c.Payload)
 	if err != nil {
+		return c.Reply(tg, err.Error())
+	}
+	if err = a.SendUpdate(c.Chat.ID, Update{
+		Pages: []string{""},
+		Media: []*media.Promise{a.Submit(c.Payload, dtor, media.Options{})},
+	}); err != nil {
 		err = c.Reply(tg, err.Error())
 	}
+
 	return err
 }
 

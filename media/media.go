@@ -54,7 +54,7 @@ type Promise struct {
 	work       sync.WaitGroup
 }
 
-func (p *Promise) Materialized() (Materialized, error) {
+func (p *Promise) Materialize() (Materialized, error) {
 	p.work.Wait()
 	return p.media, p.err
 }

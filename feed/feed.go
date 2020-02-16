@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/jfk9w/hikkabot/media"
+
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w/hikkabot/format"
-	"github.com/jfk9w/hikkabot/mediator"
 	"github.com/pkg/errors"
 )
 
@@ -87,11 +87,10 @@ type Source interface {
 }
 
 type Update struct {
-	RawData    []byte
-	Text       format.Text
-	Media      []*mediator.Future
-	Attributes map[string]interface{}
-	MediaOnly  bool
+	RawData   []byte
+	Pages     []string
+	Media     []*media.Promise
+	MediaOnly bool
 }
 
 type UpdatePull struct {

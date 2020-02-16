@@ -109,7 +109,7 @@ func (tor *Tor) Materialize(descriptor Descriptor, options Options) (media Mater
 func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Materialized, err error) {
 	var metadata *Metadata
 	for {
-		metadata, err = descriptor.Metadata()
+		metadata, err = descriptor.Metadata(tor.SizeBounds[1])
 		if err != nil {
 			err = errors.Wrap(err, "load metadata")
 			return
@@ -191,11 +191,9 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 	return
 }
 
-var (
-	ErrUnsupportedImage = errors.New("unsupported image")
-)
+var ErrUnsupportedImage = errors.New("unsupported image")
 
-const MinImageDiffScore = 2
+const MinImageDiffScore = 3
 
 func (tor *Tor) checkImageHash(media Materialized) error {
 	var decoder func(io.Reader) (image.Image, error)
@@ -222,10 +220,10 @@ func (tor *Tor) checkImageHash(media Materialized) error {
 
 	hash, _ := duplo.CreateHash(img)
 	for _, match := range tor.ImgHashes.Query(hash) {
-		if match.Score < MinImageDiffScore {
+		if match.DHashDistance < MinImageDiffScore && match.Score < MinImageDiffScore {
 			if tor.Debug {
-				log.Printf("Image %s is similar to image %s (distance %.2f)",
-					media.Metadata.URL, match.ID, match.Score)
+				log.Printf("Image %s is similar to image %s (match %v)",
+					media.Metadata.URL, match.ID, match)
 				return ErrFiltered
 			}
 		}

@@ -5,14 +5,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jfk9w/hikkabot/source/common"
-
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
-	"github.com/jfk9w/hikkabot/mediator"
+	_media "github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/source/common"
 	"github.com/pkg/errors"
 )
 
@@ -24,7 +22,7 @@ type CatalogItem struct {
 
 type CatalogSource struct {
 	*dvach.Client
-	*mediator.Mediator
+	*_media.Tor
 }
 
 var catalogre = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
@@ -78,29 +76,53 @@ func (s CatalogSource) Pull(pull *feed.UpdatePull) error {
 			results = append(results, thread)
 		}
 	}
+
 	sort.Sort(queryResults(results))
 	for _, thread := range results {
-		media := make([]*mediator.Future, 0)
+		media := make([]*_media.Promise, 0)
 		for _, file := range thread.Files {
-			media = append(media, s.SubmitMedia(file.URL(),
-				&mediatorRequest{s.Client.Client, file}))
+			media = append(media, s.Submit(file.URL(),
+				&mediaDescriptor{s.Client.Client, file},
+				_media.Options{
+					Hashable: false,
+					Buffer:   true,
+					OCR:      ocr,
+				},
+			))
+
 			break
 		}
+
 		item.Offset = thread.Num
 		pull.RawData.Marshal(item)
+
 		update := feed.Update{
 			RawData: pull.RawData.Bytes(),
-			Text: format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(thread.Board)).
+			Pages: format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(thread.Board)).
 				Tag("b").Text(thread.DateString).EndTag().NewLine().
 				Link("[link]", thread.URL()).NewLine().
 				Text("---").NewLine().
 				Parse(thread.Comment).
-				Format(),
+				Format().Pages,
 			Media: media,
 		}
+
 		if !pull.Submit(update) {
 			break
 		}
 	}
 	return nil
+}
+
+var catalogMediaOptions = _media.Options{
+	Hashable: true,
+	Buffer:   true,
+	OCR: &_media.OCR{
+		Languages: []string{"rus"},
+		Regex: regexp.MustCompile(`(?is).*?` +
+			`(т\s?в\s?о\s?я.*?м\s?а\s?(т\s?ь|м\s?а).*?(у\s?м\s?р\s?(е|ё)т|с\s?д\s?о\s?х\s?н\s?е\s?т)|` +
+			`m\s?o\s?t\s?h\s?e\s?r.*?w\s?i\s?l\s?l.*?d\s?i\s?e|` +
+			`п\s?р\s?о\s?к\s?л\s?я\s?т|` +
+			`c\s?u\s?r\s?s\s?e).*`),
+	},
 }

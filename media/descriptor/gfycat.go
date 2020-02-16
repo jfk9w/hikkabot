@@ -18,7 +18,7 @@ type Gfycat struct {
 	urld   media.URLDescriptor
 }
 
-func (d *Gfycat) Metadata() (*media.Metadata, error) {
+func (d *Gfycat) Metadata(maxSize int64) (*media.Metadata, error) {
 	if d.urld.URL == "" {
 		html := flu.NewBuffer()
 		if err := d.Client.GET(d.URL).Execute().
@@ -37,7 +37,7 @@ func (d *Gfycat) Metadata() (*media.Metadata, error) {
 		d.urld.Client = d.Client
 	}
 
-	return d.urld.Metadata()
+	return d.urld.Metadata(maxSize)
 }
 
 func (d *Gfycat) Reader() (io.Reader, error) {

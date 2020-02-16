@@ -69,37 +69,15 @@ func (vi *YoutubeVideoInfo) ReadFrom(r io.Reader) error {
 }
 
 type Youtube struct {
-	Client  *flu.Client
-	URL     string
-	MaxSize int64
-	urld    media.URLDescriptor
+	Client *flu.Client
+	ID     string
+	URL    string
 }
 
-func (d *Youtube) Metadata() (*media.Metadata, error) {
-	if d.urld.URL != "" {
-		return d.urld.Metadata()
-	}
-
-	url, err := _url.Parse(d.URL)
-	if err != nil {
-		return nil, errors.Wrap(err, "parse URL")
-	}
-
-	var id string
-	switch {
-	case strings.Contains(url.Host, "youtube.com"):
-		id = url.Query().Get("v")
-	case strings.Contains(url.Host, "youtu.be"):
-		id = strings.Trim(url.Path, "/")
-	}
-
-	if id == "" {
-		return nil, errors.New("failed to find id in URL")
-	}
-
+func (d *Youtube) Metadata(maxSize int64) (*media.Metadata, error) {
 	info := new(YoutubeVideoInfo)
-	if err = d.Client.
-		GET("http://youtube.com/get_video_info?video_id=" + id).
+	if err := d.Client.
+		GET("http://youtube.com/get_video_info?video_id=" + d.ID).
 		Execute().
 		CheckStatusCode(http.StatusOK).
 		Read(info).
@@ -108,7 +86,7 @@ func (d *Youtube) Metadata() (*media.Metadata, error) {
 	}
 
 	var (
-		maxSize    int64 = -1
+		bestSize   int64 = -1
 		bestFormat YoutubeStreamingDataFormat
 	)
 
@@ -118,8 +96,8 @@ func (d *Youtube) Metadata() (*media.Metadata, error) {
 			continue
 		}
 
-		if size > 0 && size > maxSize && (d.MaxSize <= 0 || size < d.MaxSize) {
-			maxSize = size
+		if size > 0 && size > bestSize && (maxSize <= 0 || size < maxSize) {
+			bestSize = size
 			bestFormat = format
 		}
 	}
@@ -128,17 +106,21 @@ func (d *Youtube) Metadata() (*media.Metadata, error) {
 		return nil, errors.Errorf("failed to find suitable video in: %+v", info.formats)
 	}
 
-	realURL, err := bestFormat.GetURL()
+	url, err := bestFormat.GetURL()
 	if err != nil {
 		return nil, errors.Wrap(err, "parse best streaming format URL")
 	}
 
-	d.urld.URL = realURL
-	d.urld.Client = d.Client
-
-	return d.urld.Metadata()
+	d.URL = url
+	return &media.Metadata{
+		URL:      url,
+		Size:     bestSize,
+		MIMEType: bestFormat.MIMEType,
+	}, nil
 }
 
 func (d *Youtube) Reader() (io.Reader, error) {
-	return d.urld.Reader()
+	return d.Client.GET(d.URL).Execute().
+		CheckStatusCode(http.StatusOK).
+		Reader()
 }

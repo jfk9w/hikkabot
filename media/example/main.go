@@ -22,13 +22,16 @@ func main() {
 	mediator.AddConverter(media.NewAconvertConverter(new(aconvert.Config)))
 	defer mediator.Initialize().Close()
 
-	md := descriptor.Gfycat{
-		Client: flu.NewClient(nil),
-		URL:    "https://gfycat.com/CompleteObedientIndianhare",
+	md, err := descriptor.From(
+		flu.NewClient(nil),
+		"https://www.youtube.com/watch?v=g-sgw9bPV4A")
+	if err != nil {
+		panic(err)
 	}
 
 	options := media.Options{
 		Hashable: true,
+		Buffer:   true,
 		//OCR: &media.OCR{
 		//	Languages: []string{"rus"},
 		//	Regex:     regexp.MustCompile(`д\s?е\s?в\s?с\s?т\s?в\s?е\s?н\s?н\s?и\s?к`),
@@ -36,7 +39,7 @@ func main() {
 	}
 
 	startTime := time.Now()
-	materialized, err := mediator.Submit("", &md, options).Materialized()
+	materialized, err := mediator.Submit("", md, options).Materialize()
 	log.Printf("Time took: %s", time.Now().Sub(startTime))
 	if err != nil {
 		log.Fatalf("Error: %v", err)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"time"
@@ -12,12 +11,14 @@ import (
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
+	_media "github.com/jfk9w/hikkabot/media"
 	_mediator "github.com/jfk9w/hikkabot/mediator"
 	_metrics "github.com/jfk9w/hikkabot/metrics"
 	_source "github.com/jfk9w/hikkabot/source"
 	_storage "github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
 	"github.com/pkg/errors"
+	"github.com/rivo/duplo"
 )
 
 type Config struct {
@@ -70,8 +71,17 @@ func main() {
 	metrics := _metrics.NewPrometheus(config.Prometheus.ListenAddress).WithPrefix("hikkabot")
 	bot := newTelegramBot(config)
 
-	mediator := newMediator(config, metrics.WithPrefix("mediator"))
-	defer mediator.Shutdown()
+	mediator := &_media.Tor{
+		Metrics:    metrics.WithPrefix("mediator"),
+		Directory:  config.Media.Directory,
+		SizeBounds: [2]int64{1 << 10, 60 << 20},
+		Buffer:     true,
+		Debug:      true,
+		ImgHashes:  duplo.New(),
+		Workers:    10,
+	}
+
+	defer mediator.Initialize().Close()
 
 	storage := _storage.NewSQL(config.Aggregator.Storage)
 	defer storage.Close()
@@ -81,13 +91,13 @@ func main() {
 	}
 
 	agg := &feed.Aggregator{
-		Channel:  channel,
-		Storage:  storage,
-		Mediator: mediator,
-		Metrics:  metrics.WithPrefix("aggregator"),
-		Timeout:  timeout,
-		Aliases:  config.Aggregator.Aliases,
-		AdminID:  config.Aggregator.AdminID,
+		Channel: channel,
+		Storage: storage,
+		Tor:     mediator,
+		Metrics: metrics.WithPrefix("aggregator"),
+		Timeout: timeout,
+		Aliases: config.Aggregator.Aliases,
+		AdminID: config.Aggregator.AdminID,
 	}
 
 	if config.Dvach != nil {
@@ -99,10 +109,10 @@ func main() {
 	if config.Reddit != nil {
 		client := reddit.NewClient(flu.NewTransport().NewClient(), config.Reddit.Config)
 		source := _source.Reddit{
-			Client:   client,
-			Mediator: mediator,
-			Storage:  storage,
-			Metrics:  metrics.WithPrefix("reddit"),
+			Client:  client,
+			Tor:     mediator,
+			Storage: storage,
+			Metrics: metrics.WithPrefix("reddit"),
 		}
 		agg.AddSource(source)
 	}
@@ -123,18 +133,4 @@ func newTelegramBot(config *Config) telegram.Bot {
 		panic(errors.Wrap(err, "failed to send initial message"))
 	}
 	return bot
-}
-
-func newMediator(config *Config, metrics _metrics.Metrics) *_mediator.Mediator {
-	_mediator.CommonClient = flu.NewTransport().
-		NewClient().
-		AcceptResponseCodes(http.StatusOK).
-		Timeout(2 * time.Minute)
-	mediator := _mediator.New(config.Media.Config, metrics)
-	if config.Aconvert != nil {
-		aconvert := _aconvert.NewClient(flu.NewTransport().
-			NewClient(), config.Aconvert.Config)
-		mediator.AddConverter(_mediator.NewAconverter(aconvert))
-	}
-	return mediator
 }

@@ -4,11 +4,9 @@ import (
 	"log"
 	"unicode/utf8"
 
-	"github.com/jfk9w/hikkabot/mediator"
-
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/format"
-	"github.com/pkg/errors"
+	_media "github.com/jfk9w/hikkabot/media"
 )
 
 type Channel interface {
@@ -25,85 +23,77 @@ type Telegram struct {
 var DefaultSendUpdateOptions = &telegram.SendOptions{DisableNotification: true}
 
 func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
-	parseMode := update.Text.ParseMode
-	pages := update.Text.Pages
-	if parseMode != telegram.HTML {
-		panic(errors.Errorf("unsupported parse mode: %s", parseMode))
-	}
-	if len(update.Media) == 1 && len(pages) == 1 {
-		mediaFuture := update.Media[0]
-		mediaURL := format.PrintHTMLLink("[media]", mediaFuture.URL)
-		caption := mediaURL + "\n" + pages[0]
-		if utf8.RuneCountInString(caption) <= telegram.MaxCaptionSize {
-			media, err := mediaFuture.Result()
-			if err == nil {
-				media.Caption = caption
-				media.ParseMode = parseMode
-				_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
-				if resource, ok := media.Resource.(mediator.Buffer); ok {
-					resource.Cleanup()
-				}
-			}
-			if err != nil {
-				if err == mediator.ErrFiltered {
-					caption = pages[0]
-					if caption == "" {
-						return nil
-					}
-				} else {
-					log.Printf("Failed to process media %s: %s", mediaFuture.URL, err)
-				}
-				_, err = tg.Send(chatID,
-					&telegram.Text{
-						Text:      caption,
-						ParseMode: parseMode},
-					DefaultSendUpdateOptions)
-			}
-			return err
-		}
+	if len(update.Media) == 1 &&
+		len(update.Pages) == 1 &&
+		utf8.RuneCountInString(update.Pages[0])+len(update.Media[0].URL)+23 <= telegram.MaxCaptionSize {
+		return tg.SendMedia(chatID, update.Media[0], update.Pages[0])
 	}
 
-	for _, page := range pages {
-		_, err := tg.Send(chatID,
+	for _, page := range update.Pages {
+		if _, err := tg.Send(chatID,
 			&telegram.Text{
 				Text:                  page,
-				ParseMode:             parseMode,
-				DisableWebPagePreview: true},
-			DefaultSendUpdateOptions)
-		if err != nil {
-			log.Printf("Failed to send message: %v. Message:\n%s", err, page)
+				ParseMode:             telegram.HTML,
+				DisableWebPagePreview: true,
+			},
+			DefaultSendUpdateOptions); err != nil {
 			return err
 		}
 	}
 
-	for _, mediaFuture := range update.Media {
-		url := format.PrintHTMLLink("[media]", mediaFuture.URL)
-		media, err := mediaFuture.Result()
-		if err == mediator.ErrFiltered {
-			continue
-		}
-		if err == nil {
-			media.Caption = url
-			media.ParseMode = parseMode
-			_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
-			if resource, ok := media.Resource.(mediator.Buffer); ok {
-				resource.Cleanup()
-			}
-		}
-		if err != nil {
-			log.Printf("Failed to process media %s: %s", mediaFuture.URL, err)
-			_, err = tg.Send(chatID,
-				&telegram.Text{
-					Text:      url,
-					ParseMode: parseMode},
-				DefaultSendUpdateOptions)
-		}
-		if err != nil {
+	for _, promise := range update.Media {
+		if err := tg.SendMedia(chatID, promise, ""); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (tg Telegram) SendMedia(chatID telegram.ID, promise *_media.Promise, text string) error {
+	materialized, err := promise.Materialize()
+	if err == _media.ErrFiltered {
+		if text != "" {
+			_, err = tg.Send(chatID,
+				&telegram.Text{
+					Text:                  text,
+					ParseMode:             telegram.HTML,
+					DisableWebPagePreview: true,
+				},
+				DefaultSendUpdateOptions)
+			return err
+		}
+
+		return nil
+	}
+
+	caption := format.PrintHTMLLink("[media]", promise.URL)
+	if text != "" {
+		caption += "\n" + text
+	}
+
+	if err == nil {
+		media := &telegram.Media{
+			Type:      materialized.Type,
+			Resource:  materialized.Resource,
+			Caption:   caption,
+			ParseMode: telegram.HTML,
+		}
+
+		_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
+		materialized.Resource.Cleanup()
+		if err == nil {
+			return nil
+		} else {
+			log.Printf("Failed to send media %s: %s", promise.URL, err.Error())
+		}
+	}
+
+	_, err = tg.Send(chatID, &telegram.Text{
+		Text:      caption,
+		ParseMode: telegram.HTML,
+	}, nil)
+	return err
 }
 
 func (tg Telegram) GetChat(chatID telegram.ChatID) (*telegram.Chat, error) {

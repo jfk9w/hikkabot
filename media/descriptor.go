@@ -11,7 +11,7 @@ import (
 
 type Descriptor interface {
 	flu.Readable
-	Metadata() (*Metadata, error)
+	Metadata(maxSize int64) (*Metadata, error)
 }
 
 type metadataHEADResponseHandler struct {
@@ -34,7 +34,7 @@ type URLDescriptor struct {
 	URL    string
 }
 
-func (d URLDescriptor) Metadata() (*Metadata, error) {
+func (d URLDescriptor) Metadata(_ int64) (*Metadata, error) {
 	h := new(metadataHEADResponseHandler)
 	h.URL = d.URL
 	return &h.Metadata, d.Client.HEAD(d.URL).
