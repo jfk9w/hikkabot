@@ -91,6 +91,7 @@ type Update struct {
 	Text       format.Text
 	Media      []*mediator.Future
 	Attributes map[string]interface{}
+	MediaOnly  bool
 }
 
 type UpdatePull struct {

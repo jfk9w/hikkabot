@@ -6,10 +6,6 @@ import (
 	"os"
 	"time"
 
-	_metrics "github.com/jfk9w/hikkabot/metrics"
-
-	"github.com/pkg/errors"
-
 	_aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -17,9 +13,11 @@ import (
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	_mediator "github.com/jfk9w/hikkabot/mediator"
+	_metrics "github.com/jfk9w/hikkabot/metrics"
 	_source "github.com/jfk9w/hikkabot/source"
 	_storage "github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
+	"github.com/pkg/errors"
 )
 
 type Config struct {
@@ -69,10 +67,10 @@ func main() {
 		panic(err)
 	}
 
-	metrics := _metrics.NewPrometheus(config.Prometheus.ListenAddress, "hikkabot")
+	metrics := _metrics.NewPrometheus(config.Prometheus.ListenAddress).WithPrefix("hikkabot")
 	bot := newTelegramBot(config)
 
-	mediator := newMediator(config, metrics.Subsystem("mediator"))
+	mediator := newMediator(config, metrics.WithPrefix("mediator"))
 	defer mediator.Shutdown()
 
 	storage := _storage.NewSQL(config.Aggregator.Storage)
@@ -86,7 +84,7 @@ func main() {
 		Channel:  channel,
 		Storage:  storage,
 		Mediator: mediator,
-		Metrics:  metrics.Subsystem("aggregator"),
+		Metrics:  metrics.WithPrefix("aggregator"),
 		Timeout:  timeout,
 		Aliases:  config.Aggregator.Aliases,
 		AdminID:  config.Aggregator.AdminID,
@@ -104,7 +102,7 @@ func main() {
 			Client:   client,
 			Mediator: mediator,
 			Storage:  storage,
-			Metrics:  metrics.Subsystem("reddit"),
+			Metrics:  metrics.WithPrefix("reddit"),
 		}
 		agg.AddSource(source)
 	}
