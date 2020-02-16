@@ -1,11 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"time"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/media/descriptor"
 	"github.com/rivo/duplo"
 )
 
@@ -14,14 +16,15 @@ func main() {
 		SizeBounds: [2]int64{1 << 10, 75 << 20},
 		Debug:      true,
 		ImgHashes:  duplo.New(),
+		Workers:    1,
 	}
 
 	mediator.AddConverter(media.NewAconvertConverter(new(aconvert.Config)))
-	mediator.Initialize()
+	defer mediator.Initialize().Close()
 
-	descriptor := media.URLDescriptor{
+	md := descriptor.Gfycat{
 		Client: flu.NewClient(nil),
-		URL:    "https://2ch.hk/b/src/213662839/15817545420432.jpg",
+		URL:    "https://gfycat.com/CompleteObedientIndianhare",
 	}
 
 	options := media.Options{
@@ -32,22 +35,13 @@ func main() {
 		//},
 	}
 
-	materialized, err := mediator.Materialize(&descriptor, options)
+	startTime := time.Now()
+	materialized, err := mediator.Submit("", &md, options).Materialized()
+	log.Printf("Time took: %s", time.Now().Sub(startTime))
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Fatalf("Error: %v", err)
 		return
 	}
 
-	fmt.Printf("Materialized:\nmetadata = %v\nmedia type = %s\n",
-		materialized.Metadata, materialized.Type)
-
-	//descriptor.URL = "https://2ch.hk/b/src/213696231/15817911669640.png"
-	materialized, err = mediator.Materialize(&descriptor, options)
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		return
-	}
-
-	fmt.Printf("Materialized:\nmetadata = %v\nmedia type = %s\n",
-		materialized.Metadata, materialized.Type)
+	log.Printf("Materialized: %v %s", materialized.Metadata, materialized.Type)
 }

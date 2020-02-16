@@ -9,7 +9,6 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w/hikkabot/media"
-	"github.com/jfk9w/hikkabot/mediator"
 	"github.com/pkg/errors"
 )
 
@@ -73,9 +72,14 @@ type Youtube struct {
 	Client  *flu.Client
 	URL     string
 	MaxSize int64
+	urld    media.URLDescriptor
 }
 
 func (d *Youtube) Metadata() (*media.Metadata, error) {
+	if d.urld.URL != "" {
+		return d.urld.Metadata()
+	}
+
 	url, err := _url.Parse(d.URL)
 	if err != nil {
 		return nil, errors.Wrap(err, "parse URL")
@@ -87,11 +91,6 @@ func (d *Youtube) Metadata() (*media.Metadata, error) {
 		id = url.Query().Get("v")
 	case strings.Contains(url.Host, "youtu.be"):
 		id = strings.Trim(url.Path, "/")
-	default:
-		return media.URLDescriptor{
-			Client: d.Client,
-			URL:    d.URL,
-		}.Metadata()
 	}
 
 	if id == "" {
@@ -99,7 +98,7 @@ func (d *Youtube) Metadata() (*media.Metadata, error) {
 	}
 
 	info := new(YoutubeVideoInfo)
-	if err = mediator.CommonClient.
+	if err = d.Client.
 		GET("http://youtube.com/get_video_info?video_id=" + id).
 		Execute().
 		CheckStatusCode(http.StatusOK).
@@ -134,16 +133,12 @@ func (d *Youtube) Metadata() (*media.Metadata, error) {
 		return nil, errors.Wrap(err, "parse best streaming format URL")
 	}
 
-	d.URL = realURL
-	return &media.Metadata{
-		URL:      realURL,
-		MIMEType: bestFormat.MIMEType,
-		Size:     maxSize,
-	}, nil
+	d.urld.URL = realURL
+	d.urld.Client = d.Client
+
+	return d.urld.Metadata()
 }
 
 func (d *Youtube) Reader() (io.Reader, error) {
-	return d.Client.GET(d.URL).Execute().
-		CheckStatusCode(http.StatusOK).
-		Reader()
+	return d.urld.Reader()
 }

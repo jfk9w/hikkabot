@@ -67,10 +67,8 @@ func (tor *Tor) Initialize() *Tor {
 		go func() {
 			defer tor.work.Done()
 			for promise := range tor.queue {
-				startTime := time.Now()
 				promise.media, promise.err = tor.Materialize(promise.descriptor, promise.options)
-				tor.Counter("materialize_time", nil).Add(time.Now().Sub(startTime).Seconds())
-				tor.Counter("materialize_items", nil).Inc()
+				promise.work.Done()
 			}
 		}()
 	}
@@ -91,12 +89,16 @@ func (tor *Tor) Submit(url string, descriptor Descriptor, options Options) *Prom
 		options:    options,
 	}
 
+	promise.work.Add(1)
 	tor.queue <- promise
 	return promise
 }
 
 func (tor *Tor) Materialize(descriptor Descriptor, options Options) (media Materialized, err error) {
+	startTime := time.Now()
 	media, err = tor.materialize0(descriptor, options)
+	tor.Counter("materialize_time", nil).Add(time.Now().Sub(startTime).Seconds())
+	tor.Counter("materialize_items", nil).Inc()
 	if err != nil && media.Resource != nil {
 		media.Resource.Cleanup()
 	}
