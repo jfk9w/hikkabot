@@ -12,13 +12,26 @@ import (
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	_media "github.com/jfk9w/hikkabot/media"
-	_mediator "github.com/jfk9w/hikkabot/mediator"
 	_metrics "github.com/jfk9w/hikkabot/metrics"
 	_source "github.com/jfk9w/hikkabot/source"
 	_storage "github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
 	"github.com/pkg/errors"
 )
+
+type Size struct {
+	Bytes     int64
+	Kilobytes int64
+	Megabytes int64
+}
+
+func (s *Size) Value(defaultValue int64) int64 {
+	if s == nil {
+		return defaultValue
+	} else {
+		return s.Megabytes<<20 + s.Kilobytes<<10 + s.Bytes
+	}
+}
 
 type Config struct {
 	Aggregator struct {
@@ -36,7 +49,10 @@ type Config struct {
 		SendRetries int
 	}
 	Media struct {
-		_mediator.Config `yaml:",inline"`
+		Concurrency      int
+		MinSize, MaxSize Size
+		Buffer           bool
+		Directory        string
 		LogFile          string
 	}
 	Aconvert *struct {
@@ -71,12 +87,15 @@ func main() {
 	bot := newTelegramBot(config)
 
 	mediator := &_media.Tor{
-		Metrics:    metrics.WithPrefix("mediator"),
-		Directory:  config.Media.Directory,
-		SizeBounds: [2]int64{1 << 10, 60 << 20},
-		Buffer:     true,
-		Debug:      true,
-		Workers:    10,
+		Metrics:   metrics.WithPrefix("mediator"),
+		Directory: config.Media.Directory,
+		SizeBounds: [2]int64{
+			config.Media.MinSize.Value(1 << 10),
+			config.Media.MaxSize.Value(75 << 20),
+		},
+		Buffer:  config.Media.Buffer,
+		Debug:   true,
+		Workers: config.Media.Concurrency,
 	}
 
 	defer mediator.Initialize().Close()

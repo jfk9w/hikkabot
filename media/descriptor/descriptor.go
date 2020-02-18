@@ -29,6 +29,16 @@ func init() {
 		return &Imgur{Client: client, URL: url.String()}
 	}).RegisterFor("imgur.com", "www.imgur.com")
 	Factory(func(client *flu.Client, url *_url.URL) media.Descriptor {
+		rawurl := url.String()
+		if strings.Contains(rawurl, ".gifv") {
+			rawurl = strings.Replace(rawurl, ".gifv", ".mp4", 1)
+		}
+		return &media.URLDescriptor{
+			Client: client,
+			URL:    rawurl,
+		}
+	}).RegisterFor("i.imgur.com")
+	Factory(func(client *flu.Client, url *_url.URL) media.Descriptor {
 		id := url.Query().Get("v")
 		return &Youtube{Client: client, ID: id}
 	}).RegisterFor("youtube.com", "www.youtube.com")
