@@ -18,7 +18,6 @@ import (
 	_storage "github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
 	"github.com/pkg/errors"
-	"github.com/rivo/duplo"
 )
 
 type Config struct {
@@ -77,7 +76,6 @@ func main() {
 		SizeBounds: [2]int64{1 << 10, 60 << 20},
 		Buffer:     true,
 		Debug:      true,
-		ImgHashes:  duplo.New(),
 		Workers:    10,
 	}
 
