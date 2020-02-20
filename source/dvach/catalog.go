@@ -1,6 +1,7 @@
 package dvach
 
 import (
+	"log"
 	"regexp"
 	"sort"
 	"strings"
@@ -66,7 +67,12 @@ func (s CatalogSource) Pull(pull *feed.UpdatePull) error {
 	pull.RawData.Unmarshal(item)
 	catalog, err := s.GetCatalog(item.Board)
 	if err != nil {
-		return errors.Wrap(err, "get catalog")
+		if strings.HasSuffix(err.Error(), "-404") {
+			return errors.Wrap(err, "get catalog")
+		} else {
+			log.Printf("Failed to load 2ch catalog for %s: %s", pull.ID, err)
+			return nil
+		}
 	}
 	results := make([]dvach.Post, 0)
 	for _, thread := range catalog.Threads {

@@ -3,6 +3,7 @@ package dvach
 import (
 	"fmt"
 	"html"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -71,7 +72,12 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 
 	posts, err := s.GetThread(item.Board, item.Num, item.Offset)
 	if err != nil {
-		return errors.Wrap(err, "get thread")
+		if strings.HasSuffix(err.Error(), "-404") {
+			return errors.Wrap(err, "get thread")
+		} else {
+			log.Printf("Failed to load 2ch thread for %s: %s", pull.ID, err)
+			return nil
+		}
 	}
 
 	for _, post := range posts {

@@ -3,6 +3,7 @@ package reddit
 import (
 	"fmt"
 	"html"
+	"log"
 	"regexp"
 	"sort"
 	"strconv"
@@ -97,7 +98,8 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 	pull.RawData.Unmarshal(item)
 	things, err := s.GetListing(pull.ID.ID, item.Sort, ListingThingLimit)
 	if err != nil {
-		return err
+		log.Printf("Failed to pull subreddit listing for %s: %s", pull.ID, err)
+		return nil
 	}
 	sort.Sort(listing(things))
 	minUps, events := s.collectEvents(pull.ID, item.MinUps)
