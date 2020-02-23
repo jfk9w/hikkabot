@@ -2,9 +2,12 @@ package dvach
 
 import (
 	"log"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/jfk9w-go/flu"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
@@ -67,7 +70,7 @@ func (s CatalogSource) Pull(pull *feed.UpdatePull) error {
 	pull.RawData.Unmarshal(item)
 	catalog, err := s.GetCatalog(item.Board)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), "-404") {
+		if err, ok := err.(flu.StatusCodeError); ok && err.Code == http.StatusNotFound {
 			return errors.Wrap(err, "get catalog")
 		} else {
 			log.Printf("Failed to load 2ch catalog for %s: %s", pull.ID, err)

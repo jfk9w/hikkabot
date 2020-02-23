@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	"log"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -72,7 +73,7 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 
 	posts, err := s.GetThread(item.Board, item.Num, item.Offset)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), "-404") {
+		if err, ok := err.(*dvach.Error); ok && err.Code == -http.StatusNotFound {
 			return errors.Wrap(err, "get thread")
 		} else {
 			log.Printf("Failed to load 2ch thread for %s: %s", pull.ID, err)
