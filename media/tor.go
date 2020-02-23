@@ -1,12 +1,16 @@
 package media
 
 import (
+	"crypto/md5"
 	"fmt"
 	"log"
 	"math/rand"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jfk9w-go/flu"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/metrics"
@@ -14,17 +18,32 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Storage interface {
+	FileHash(url, hash string) bool
+}
+
+type BufferSpace string
+
+func (bs BufferSpace) NewResource(size int64) Resource {
+	if bs == "" {
+		return NewMemoryResource(int(size))
+	} else {
+		return NewFileResource(filepath.Join(string(bs), newID()))
+	}
+}
+
 type Tor struct {
 	metrics.Metrics
-	Directory  string
-	SizeBounds [2]int64
-	Buffer     bool
-	Debug      bool
-	Workers    int
-	converters map[string]Converter
-	ocrClient  chan *gosseract.Client
-	queue      chan *Promise
-	work       sync.WaitGroup
+	Storage
+	BufferSpace BufferSpace
+	SizeBounds  [2]int64
+	Buffer      bool
+	Debug       bool
+	Workers     int
+	converters  map[string]Converter
+	ocrClient   chan *gosseract.Client
+	queue       chan *Promise
+	work        sync.WaitGroup
 }
 
 func (tor *Tor) AddConverter(converter Converter) *Tor {
@@ -113,6 +132,38 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 			return
 		}
 
+		if metadata.Size < tor.SizeBounds[0] {
+			err = errors.Errorf("size below threshold %dB (%dB)",
+				tor.SizeBounds[0], metadata.Size)
+			return
+		}
+
+		if options.Hashable {
+			media.Resource = tor.BufferSpace.NewResource(metadata.Size)
+			if err = media.Resource.Pull(descriptor); err != nil {
+				err = errors.Wrap(err, "pull to hash")
+				return
+			}
+
+			hash := md5.New()
+			if err = flu.Copy(media.Resource, flu.Xable{W: hash}); err != nil {
+				err = errors.Wrap(err, "hash")
+				return
+			}
+
+			hashstr := fmt.Sprintf("%x", hash.Sum(nil))
+			if tor.FileHash(metadata.URL, hashstr) {
+				log.Printf("Hash collision: %s (%s)", metadata.URL, hashstr)
+				err = ErrFiltered
+				return
+			}
+
+			descriptor = LocalDescriptor{
+				Metadata_: metadata,
+				Resource:  media.Resource,
+			}
+		}
+
 		if slash := strings.Index(metadata.MIMEType, ";"); slash > 0 {
 			metadata.MIMEType = metadata.MIMEType[:slash]
 		}
@@ -120,8 +171,8 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 		mimeType := metadata.MIMEType
 		if mediaType, ok := MIMEType2MediaType[mimeType]; ok {
 			if metadata.Size < tor.SizeBounds[0] {
-				err = errors.Errorf("size below threshold %dB for %s (%dB)",
-					tor.SizeBounds[0], mediaType, metadata.Size)
+				err = errors.Errorf("size below threshold %dB (%dB)",
+					tor.SizeBounds[0], metadata.Size)
 				return
 			}
 
@@ -134,7 +185,15 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 
 			media.Metadata = *metadata
 			media.Type = mediaType
-			media.Resource = tor.newResource(metadata.Size, mediaType, options)
+			if tor.Buffer || options.Buffer ||
+				mediaType == telegram.Photo && (options.OCR != nil || metadata.Size > MaxSize(telegram.Photo)[0]) ||
+				mediaType == telegram.Video && metadata.Size > MaxSize(telegram.Video)[0] ||
+				media.Resource != nil {
+				media.Resource = tor.BufferSpace.NewResource(metadata.Size)
+			} else {
+				media.Resource = new(VolatileResource)
+			}
+
 			if err = media.Resource.Pull(descriptor); err != nil {
 				err = errors.Wrap(err, "pull descriptor")
 				return
@@ -156,9 +215,9 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 	}
 
 	// filters
-	if media.Type == telegram.Photo {
-		if ocr := options.OCR; ocr != nil && options.Hashable {
-			if err = tor.checkOCR(ocr, media); err != nil {
+	if options.Hashable {
+		if media.Type == telegram.Photo && options.OCR != nil {
+			if err = tor.checkOCR(options.OCR, media); err != nil {
 				if err == ErrFiltered {
 					return
 				} else {
@@ -170,36 +229,6 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 	}
 
 	return
-}
-
-var ErrUnsupportedImage = errors.New("unsupported image")
-
-const MinImageDiffScore = 3
-
-func (tor *Tor) checkImageHash(media Materialized) error {
-	//var decoder func(io.Reader) (image.Image, error)
-	//switch media.Metadata.MIMEType {
-	//case "image/jpeg":
-	//	decoder = jpeg.Decode
-	//case "image/png":
-	//	decoder = png.Decode
-	//case "image/bmp":
-	//	decoder = bmp.Decode
-	//default:
-	//	return ErrUnsupportedImage
-	//}
-	//
-	//r, err := media.Resource.Reader()
-	//if err != nil {
-	//	return errors.Wrap(err, "read")
-	//}
-	//
-	//img, err := decoder(r)
-	//if err != nil {
-	//	return errors.Wrap(err, "decode")
-	//}
-
-	return nil
 }
 
 var ErrFiltered = errors.New("filtered")
@@ -221,21 +250,6 @@ func (tor *Tor) checkOCR(options *OCR, media Materialized) error {
 	}
 
 	return nil
-}
-
-func (tor *Tor) newResource(size int64, mediaType telegram.MediaType, options Options) Resource {
-	if tor.Buffer || options.Buffer ||
-		(mediaType == telegram.Video && size > MaxSize(telegram.Video)[0]) ||
-		(mediaType == telegram.Photo && (size > MaxSize(telegram.Photo)[0] || options.Hashable || options.OCR != nil)) {
-
-		if tor.Directory != "" {
-			return NewFileResource(tor.Directory, newID())
-		} else {
-			return NewMemoryResource(int(size))
-		}
-	} else {
-		return new(VolatileResource)
-	}
 }
 
 var (

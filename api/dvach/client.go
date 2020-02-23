@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/pkg/errors"
@@ -43,7 +44,10 @@ type Client struct {
 
 func NewClient(client *flu.Client, usercode string) *Client {
 	if client == nil {
-		client = flu.NewClient(nil)
+		client = flu.NewTransport().
+			ResponseHeaderTimeout(2 * time.Minute).
+			NewClient().
+			Timeout(4 * time.Minute)
 	}
 	return &Client{
 		Client: client.

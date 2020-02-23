@@ -1,8 +1,6 @@
 package media
 
 import (
-	"path/filepath"
-
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 )
@@ -18,16 +16,16 @@ var aconvertMIMEType2TargetFormat = map[string]string{
 
 type AconvertConverter struct {
 	*aconvert.Client
-	Directory string
+	BufferSpace BufferSpace
 }
 
 func NewAconvertConverter(config aconvert.Config, dir string) AconvertConverter {
-	return AconvertConverter{aconvert.NewClient(nil, config), dir}
+	return AconvertConverter{aconvert.NewClient(nil, config), BufferSpace(dir)}
 }
 
 func (a AconvertConverter) Convert(metadata *Metadata, in flu.Readable) (Descriptor, error) {
 	format := aconvertMIMEType2TargetFormat[metadata.MIMEType]
-	resource := a.newResource(metadata.Size)
+	resource := a.BufferSpace.NewResource(metadata.Size)
 	defer resource.Cleanup()
 	if err := resource.Pull(in); err != nil {
 		return nil, err
@@ -35,6 +33,9 @@ func (a AconvertConverter) Convert(metadata *Metadata, in flu.Readable) (Descrip
 	resp, err := a.Client.Convert(resource, make(aconvert.Opts).TargetFormat(format))
 	if err != nil {
 		return nil, err
+	}
+	if resource, ok := in.(Resource); ok {
+		resource.Cleanup()
 	}
 	return URLDescriptor{
 		Client: a.Client.Client,
@@ -44,12 +45,4 @@ func (a AconvertConverter) Convert(metadata *Metadata, in flu.Readable) (Descrip
 
 func (a AconvertConverter) MIMETypes() []string {
 	return []string{"video/webm"}
-}
-
-func (a AconvertConverter) newResource(size int64) Resource {
-	if a.Directory == "" {
-		return NewMemoryResource(int(size))
-	}
-
-	return NewFileResource(filepath.Join(a.Directory, newID()))
 }

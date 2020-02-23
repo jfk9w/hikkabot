@@ -86,9 +86,13 @@ func main() {
 	metrics := _metrics.NewPrometheus(config.Prometheus.ListenAddress).WithPrefix("hikkabot")
 	bot := newTelegramBot(config)
 
+	storage := _storage.NewSQL(config.Aggregator.Storage)
+	defer storage.Close()
+
 	mediator := &_media.Tor{
-		Metrics:   metrics.WithPrefix("mediator"),
-		Directory: config.Media.Directory,
+		Metrics:     metrics.WithPrefix("mediator"),
+		Storage:     storage,
+		BufferSpace: _media.BufferSpace(config.Media.Directory),
 		SizeBounds: [2]int64{
 			config.Media.MinSize.Value(1 << 10),
 			config.Media.MaxSize.Value(75 << 20),
@@ -103,9 +107,6 @@ func main() {
 	}
 
 	defer mediator.Initialize().Close()
-
-	storage := _storage.NewSQL(config.Aggregator.Storage)
-	defer storage.Close()
 
 	channel := feed.Telegram{
 		Client: bot.Client,

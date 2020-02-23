@@ -19,18 +19,23 @@ type FileResource struct {
 }
 
 func NewFileResource(path ...string) Resource {
-	return FileResource{flu.File(filepath.Join(path...))}
+	return &FileResource{flu.File(filepath.Join(path...))}
 }
 
-func (r FileResource) Pull(in flu.Readable) error {
+func (r *FileResource) Pull(in flu.Readable) error {
+	if file, ok := in.(*FileResource); ok {
+		r.File = file.File
+		return nil
+	}
+
 	return flu.Copy(in, r)
 }
 
-func (r FileResource) SubmitOCR(client OCRClient) error {
+func (r *FileResource) SubmitOCR(client OCRClient) error {
 	return client.SetImage(r.Path())
 }
 
-func (r FileResource) Cleanup() error {
+func (r *FileResource) Cleanup() error {
 	return os.RemoveAll(r.Path())
 }
 
@@ -44,18 +49,23 @@ func NewMemoryResource(size int) Resource {
 		buf.Grow(size)
 	}
 
-	return MemoryResource{buf}
+	return &MemoryResource{buf}
 }
 
-func (r MemoryResource) Pull(in flu.Readable) error {
+func (r *MemoryResource) Pull(in flu.Readable) error {
+	if buf, ok := in.(*MemoryResource); ok {
+		r.Buffer = buf.Buffer
+		return nil
+	}
+
 	return flu.Copy(in, r)
 }
 
-func (r MemoryResource) SubmitOCR(client OCRClient) error {
+func (r *MemoryResource) SubmitOCR(client OCRClient) error {
 	return client.SetImageFromBytes(r.Bytes())
 }
 
-func (r MemoryResource) Cleanup() error {
+func (r *MemoryResource) Cleanup() error {
 	return nil
 }
 

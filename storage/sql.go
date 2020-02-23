@@ -108,6 +108,18 @@ func (s *SQL) init() *SQL {
 	  attrs %s NOT NULL
 	)`, s.TimeType(), s.JSONType())
 	s.exec(sql)
+	sql = fmt.Sprintf(`
+	CREATE TABLE IF NOT EXISTS files (
+	  time %s NOT NULL,
+	  url TEXT NOT NULL,
+      hash CHAR(32) NOT NULL,
+      collisions INTEGER NOT NULL DEFAULT 0
+	)`, s.TimeType())
+	s.exec(sql)
+	sql = `
+	CREATE UNIQUE INDEX IF NOT EXISTS i__files__hash
+    ON files(hash)`
+	s.exec(sql)
 	return s
 }
 
@@ -272,4 +284,20 @@ func (s *SQL) Delete(id feed.ID) bool {
 	DELETE FROM subscription
 	WHERE id = ? AND chat_id = ? AND source = ? AND error IS NOT NULL`
 	return s.update(sql, id.ID, id.ChatID, id.Source) == 1
+}
+
+func (s *SQL) FileHash(url, hash string) bool {
+	sql := fmt.Sprintf(`
+	INSERT INTO files (time, url, hash) 
+	VALUES (%s, ?, ?)
+	ON CONFLICT DO NOTHING`, s.Now())
+	if s.update(sql, url, hash) == 0 {
+		sql := `UPDATE files
+		SET collisions = collisions + 1
+		WHERE hash = ?`
+		s.update(sql, hash)
+		return true
+	}
+
+	return false
 }

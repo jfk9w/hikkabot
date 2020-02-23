@@ -49,3 +49,12 @@ func (d URLDescriptor) Reader() (io.Reader, error) {
 		CheckStatusCode(http.StatusOK).
 		Reader()
 }
+
+type LocalDescriptor struct {
+	Metadata_ *Metadata
+	Resource
+}
+
+func (d LocalDescriptor) Metadata(_ int64) (*Metadata, error) {
+	return d.Metadata_, nil
+}
