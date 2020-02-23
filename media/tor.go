@@ -28,7 +28,7 @@ func NewBufferSpace(path string) BufferSpace {
 	bs := BufferSpace(path)
 	if path != "" {
 		bs.Cleanup()
-		if err := os.MkdirAll(path, 0644); err != nil {
+		if err := os.MkdirAll(path, 0755); err != nil {
 			panic(err)
 		}
 	}
