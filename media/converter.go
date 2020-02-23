@@ -21,8 +21,8 @@ type AconvertConverter struct {
 	Directory string
 }
 
-func NewAconvertConverter(config *aconvert.Config, dir string) AconvertConverter {
-	return AconvertConverter{aconvert.NewClient(nil, *config), dir}
+func NewAconvertConverter(config aconvert.Config, dir string) AconvertConverter {
+	return AconvertConverter{aconvert.NewClient(nil, config), dir}
 }
 
 func (a AconvertConverter) Convert(metadata *Metadata, in flu.Readable) (Descriptor, error) {

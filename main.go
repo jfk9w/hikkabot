@@ -98,6 +98,10 @@ func main() {
 		Workers: config.Media.Concurrency,
 	}
 
+	if config.Aconvert != nil {
+		mediator.AddConverter(_media.NewAconvertConverter(config.Aconvert.Config, config.Media.Directory))
+	}
+
 	defer mediator.Initialize().Close()
 
 	storage := _storage.NewSQL(config.Aggregator.Storage)
