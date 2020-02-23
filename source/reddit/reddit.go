@@ -31,12 +31,6 @@ type Item struct {
 	MinUps float64
 }
 
-type Event struct {
-	Name string
-	Ups  int
-	Seen bool
-}
-
 type Storage interface {
 	RedditUpPivot(id feed.ID, percentile float64, period time.Duration) int
 	RedditPost(id feed.ID, name string, ups int, sent bool, period time.Duration) bool
@@ -100,11 +94,18 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 		log.Printf("Failed to pull subreddit listing for %s: %s", pull.ID, err)
 		return nil
 	}
+
 	sort.Sort(listing(things))
 	minUps := item.MinUps
 	if minUps > 0 && minUps < 1 {
 		minUps = float64(s.RedditUpPivot(pull.ID, minUps, TTL))
+		s.Gauge("ups_threshold", metrics.Labels{
+			"chat":       pull.ID.ChatID.String(),
+			"sub":        pull.ID.ID,
+			"percentile": strconv.FormatFloat(item.MinUps, 'f', 2, 64),
+		}).Set(minUps)
 	}
+
 	for _, thing := range things {
 		sent := thing.Data.Ups > int(minUps)
 		if !s.RedditPost(pull.ID, thing.Data.Name, thing.Data.Ups, sent, TTL) {
