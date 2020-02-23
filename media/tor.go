@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/jfk9w-go/flu"
 
@@ -106,10 +105,7 @@ func (tor *Tor) Submit(url string, descriptor Descriptor, options Options) *Prom
 }
 
 func (tor *Tor) Materialize(descriptor Descriptor, options Options) (media Materialized, err error) {
-	startTime := time.Now()
 	media, err = tor.materialize0(descriptor, options)
-	tor.Counter("materialize_time", nil).Add(time.Now().Sub(startTime).Seconds())
-	tor.Counter("materialize_items", nil).Inc()
 	if err != nil && media.Resource != nil {
 		media.Resource.Cleanup()
 	}
@@ -126,6 +122,13 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 			return
 		}
 
+		tor.Counter("files_total", metrics.Labels{
+			"mimeType": metadata.MIMEType,
+		}).Inc()
+		tor.Counter("files_total_size", metrics.Labels{
+			"mimeType": metadata.MIMEType,
+		}).Add(float64(metadata.Size))
+
 		if metadata.Size > tor.SizeBounds[1] {
 			err = errors.Errorf("exceeded hard max size %dB (%dB)",
 				tor.SizeBounds[1]>>20, metadata.Size>>20)
@@ -136,6 +139,10 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 			err = errors.Errorf("size below threshold %dB (%dB)",
 				tor.SizeBounds[0], metadata.Size)
 			return
+		}
+
+		if slash := strings.Index(metadata.MIMEType, ";"); slash > 0 {
+			metadata.MIMEType = metadata.MIMEType[:slash]
 		}
 
 		if options.Hashable {
@@ -152,8 +159,14 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 			}
 
 			hashstr := fmt.Sprintf("%x", hash.Sum(nil))
+			tor.Counter("hash_checks", metrics.Labels{
+				"mimeType": metadata.MIMEType,
+			}).Inc()
 			if tor.FileHash(metadata.URL, hashstr) {
 				log.Printf("Hash collision: %s (%s)", metadata.URL, hashstr)
+				tor.Counter("hash_collisions", metrics.Labels{
+					"mimeType": metadata.MIMEType,
+				}).Inc()
 				err = ErrFiltered
 				return
 			}
@@ -162,10 +175,6 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 				Metadata_: metadata,
 				Resource:  media.Resource,
 			}
-		}
-
-		if slash := strings.Index(metadata.MIMEType, ";"); slash > 0 {
-			metadata.MIMEType = metadata.MIMEType[:slash]
 		}
 
 		mimeType := metadata.MIMEType
@@ -228,12 +237,22 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 		}
 	}
 
+	tor.Counter("files_materialized", metrics.Labels{
+		"mimeType": metadata.MIMEType,
+	}).Inc()
+	tor.Counter("files_materialized_size", metrics.Labels{
+		"mimeType": metadata.MIMEType,
+	}).Add(float64(metadata.Size))
+
 	return
 }
 
 var ErrFiltered = errors.New("filtered")
 
 func (tor *Tor) checkOCR(options *OCR, media Materialized) error {
+	tor.Counter("ocr_checks", metrics.Labels{
+		"mimeType": media.Metadata.MIMEType,
+	}).Inc()
 	client := <-tor.ocrClient
 	client.SetLanguage(options.Languages...)
 	media.Resource.SubmitOCR(client)
@@ -242,10 +261,17 @@ func (tor *Tor) checkOCR(options *OCR, media Materialized) error {
 	if tor.Debug {
 		if err == nil {
 			log.Printf("Recognized text for %s:\n%s", media.Metadata.URL, text)
+		} else {
+			tor.Counter("ocr_failed", metrics.Labels{
+				"mimeType": media.Metadata.MIMEType,
+			}).Inc()
 		}
 	}
 
 	if options.Regex.MatchString(strings.ToLower(text)) {
+		tor.Counter("ocr_filtered", metrics.Labels{
+			"mimeType": media.Metadata.MIMEType,
+		}).Inc()
 		return ErrFiltered
 	}
 
