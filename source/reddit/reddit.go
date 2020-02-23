@@ -1,7 +1,6 @@
 package reddit
 
 import (
-	"fmt"
 	"html"
 	"log"
 	"regexp"
@@ -11,7 +10,7 @@ import (
 
 	"github.com/jfk9w/hikkabot/media/descriptor"
 
-	"github.com/jfk9w/hikkabot/media"
+	_media "github.com/jfk9w/hikkabot/media"
 
 	"github.com/jfk9w/hikkabot/metrics"
 
@@ -39,13 +38,13 @@ type Event struct {
 }
 
 type Storage interface {
-	feed.LogStorage
-	Events(id feed.ID, period time.Duration) []feed.RawData
+	RedditUpPivot(id feed.ID, percentile float64, period time.Duration) int
+	RedditPost(id feed.ID, name string, ups int, sent bool, period time.Duration) bool
 }
 
 type Source struct {
 	*reddit.Client
-	*media.Tor
+	*_media.Tor
 	Storage
 	metrics.Metrics
 }
@@ -102,19 +101,13 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 		return nil
 	}
 	sort.Sort(listing(things))
-	minUps, events := s.collectEvents(pull.ID, item.MinUps)
-	for i := range things {
-		thing := things[i]
-		event := events[thing.Data.Name]
-		s.Log(pull.ID, feed.NewRawData(nil).
-			Marshal(Event{
-				Name: thing.Data.Name,
-				Ups:  thing.Data.Ups,
-				Seen: event.Seen || thing.Data.Ups >= minUps,
-			}),
-		)
-
-		if event.Seen {
+	minUps := item.MinUps
+	if minUps > 0 && minUps < 1 {
+		minUps = float64(s.RedditUpPivot(pull.ID, minUps, TTL))
+	}
+	for _, thing := range things {
+		sent := thing.Data.Ups > int(minUps)
+		if !s.RedditPost(pull.ID, thing.Data.Name, thing.Data.Ups, sent, TTL) {
 			continue
 		}
 
@@ -123,11 +116,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			"sub":  pull.ID.ID,
 		}).Inc()
 
-		if thing.Data.Ups < minUps {
-			continue
-		}
-
-		media := make([]*media.Promise, 0)
+		media := make([]*_media.Promise, 0)
 		text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil).
 			Text(pull.Name).NewLine()
 		if thing.Data.IsSelf {
@@ -157,48 +146,15 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 	return nil
 }
 
-func (s Source) collectEvents(id feed.ID, minUps float64) (int, map[string]Event) {
-	raw := s.Events(id, TTL)
-	events := make(map[string]Event)
-	for _, rawData := range raw {
-		var event Event
-		rawData.Unmarshal(&event)
-		prev := events[event.Name]
-		if prev.Ups > event.Ups {
-			event.Ups = prev.Ups
-		}
-		event.Seen = event.Seen || prev.Seen
-		events[event.Name] = event
-	}
-
-	quantile := int(minUps)
-	if len(events) > 0 && minUps < 1 {
-		ups := make([]int, 0)
-		for _, v := range events {
-			ups = append(ups, v.Ups)
-		}
-
-		sort.Ints(ups)
-		quantile = ups[int(float64(len(ups))*minUps)]
-		s.Gauge("ups", metrics.Labels{
-			"chat":     id.ChatID.String(),
-			"sub":      id.ID,
-			"quantile": fmt.Sprintf("%.2f", minUps),
-		}).Set(float64(quantile))
-	}
-
-	return quantile, events
-}
-
-var mediaOptions = media.Options{
+var mediaOptions = _media.Options{
 	Hashable: true,
-	OCR: &media.OCR{
+	OCR: &_media.OCR{
 		Languages: []string{"eng"},
 		Regex:     regexp.MustCompile(`(?is).*?(cake.*?day|sort.*?by.*?new|upvote|updoot).*`),
 	},
 }
 
-func (s Source) mediaDescriptor(thing reddit.Thing) (string, media.Descriptor, error) {
+func (s Source) mediaDescriptor(thing reddit.Thing) (string, _media.Descriptor, error) {
 	url := thing.Data.URL
 	if thing.Data.Domain == "v.redd.it" {
 		url = getFallbackURL(thing.Data.MediaContainer)

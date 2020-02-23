@@ -100,13 +100,18 @@ func (s *SQL) init() *SQL {
 	ON subscription(id, chat_id, source)`
 	s.exec(sql)
 	sql = fmt.Sprintf(`
-	CREATE TABLE IF NOT EXISTS log (
+	CREATE TABLE IF NOT EXISTS reddit_posts (
 	  time %s NOT NULL,
 	  id VARCHAR(50) NOT NULL,
 	  chat_id BIGINT NOT NULL,
-	  source VARCHAR(20) NOT NULL,
-	  attrs %s NOT NULL
-	)`, s.TimeType(), s.JSONType())
+	  name VARCHAR(20) NOT NULL,
+	  ups INTEGER NOT NULL,
+	  sent INTEGER NOT NULL
+	)`, s.TimeType())
+	s.exec(sql)
+	sql = fmt.Sprintf(`
+	CREATE UNIQUE INDEX IF NOT EXISTS i__reddit_posts__name
+	ON reddit_posts(id, chat_id, name)`)
 	s.exec(sql)
 	sql = fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS files (
@@ -252,31 +257,72 @@ func (s *SQL) Clear(chatID telegram.ID, error string) int {
 	return int(s.update(sql, chatID, error))
 }
 
-func (s *SQL) Log(id feed.ID, event feed.RawData) bool {
+func (s *SQL) RedditUpPivot(id feed.ID, percentile float64, period time.Duration) int {
 	sql := fmt.Sprintf(`
-	INSERT INTO log (time, id, chat_id, source, attrs) 
-	VALUES (%s, $1, $2, $3, $4)`, s.Now())
-	return s.update(sql, id.ID, id.ChatID, id.Source, event.Bytes()) == 1
-}
-
-func (s *SQL) Events(id feed.ID, period time.Duration) []feed.RawData {
-	sql := fmt.Sprintf(`
-	SELECT attrs
-	FROM log
-	WHERE id = ? AND chat_id = ? AND source = ? AND time > %s`, s.Ago(period))
-
-	res := s.query(sql, id.ID, id.ChatID, id.Source)
+	with t as (select name, ups
+               from reddit_posts
+			   where id = $1 AND chat_id = $2 AND time > %s),
+     u as (select name, max(ups) as ups from t group by name),
+     v as (select ups, dense_rank() over (order by ups) as rank from u),
+     w as (select ups, rank * 100 / (select count(distinct rank) from v) as percentile from v),
+     x as (select max(ups) as ups, percentile from w group by percentile)
+	select ups from x 
+    where percentile >= $3
+    order by percentile 
+    limit 1`, s.Ago(period))
+	res := s.query(sql, id.ID, id.ChatID, int(percentile*100))
 	defer res.Close()
-
-	events := make([]feed.RawData, 0)
-	for res.Next() {
-		bytes := make([]byte, 0)
-		if err := res.Scan(&bytes); err != nil {
+	var threshold int
+	if res.Next() {
+		if err := res.Scan(&threshold); err != nil {
 			panic(err)
 		}
-		events = append(events, feed.NewRawData(bytes))
 	}
-	return events
+
+	return threshold
+}
+
+func (s *SQL) RedditPost(id feed.ID, name string, ups int, sent bool, period time.Duration) bool {
+	sql := fmt.Sprintf(`
+	SELECT sent
+	FROM reddit_posts
+	WHERE id = ? AND chat_id = ? AND name = ? AND time > %s
+	LIMIT 1`, s.Ago(period))
+	res := s.query(sql, id.ID, id.ChatID, name)
+	state := -1
+	if res.Next() {
+		if err := res.Scan(&state); err != nil {
+			res.Close()
+			panic(err)
+		}
+	}
+	res.Close()
+
+	switch state {
+	case 1:
+		// post has already been sent
+		sql := fmt.Sprintf(`
+		UPDATE reddit_posts
+		SET time = %s, ups = $1, sent = sent OR $2
+		WHERE id = $3 AND chat_id = $4 AND name = $5`, s.Now())
+		s.update(sql, ups, sent, id.ID, id.ChatID, name)
+		return false
+	case 0:
+		// post has not been sent
+		sql := fmt.Sprintf(`
+		UPDATE reddit_posts
+		SET time = %s, ups = $1, sent = sent OR $2
+		WHERE id = $3 AND chat_id = $4 AND name = $5`, s.Now())
+		s.update(sql, ups, sent, id.ID, id.ChatID, name)
+		return sent
+	default:
+		// post has not been seen
+		sql := fmt.Sprintf(`
+		INSERT INTO reddit_posts (time, id, chat_id, name, ups, sent)
+		VALUES (%s, $1, $2, $3, $4, $5)`, s.Now())
+		s.update(sql, id.ID, id.ChatID, name, ups, sent)
+		return sent
+	}
 }
 
 func (s *SQL) Delete(id feed.ID) bool {
