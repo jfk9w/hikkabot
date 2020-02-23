@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -23,11 +24,29 @@ type Storage interface {
 
 type BufferSpace string
 
+func NewBufferSpace(path string) BufferSpace {
+	bs := BufferSpace(path)
+	if path != "" {
+		bs.Cleanup()
+		if err := os.MkdirAll(path, 0644); err != nil {
+			panic(err)
+		}
+	}
+
+	return bs
+}
+
 func (bs BufferSpace) NewResource(size int64) Resource {
-	if bs == "" {
-		return NewMemoryResource(int(size))
-	} else {
+	if bs != "" {
 		return NewFileResource(filepath.Join(string(bs), newID()))
+	} else {
+		return NewMemoryResource(int(size))
+	}
+}
+
+func (bs BufferSpace) Cleanup() {
+	if bs != "" {
+		os.RemoveAll(string(bs))
 	}
 }
 

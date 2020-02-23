@@ -19,8 +19,8 @@ type AconvertConverter struct {
 	BufferSpace BufferSpace
 }
 
-func NewAconvertConverter(config aconvert.Config, dir string) AconvertConverter {
-	return AconvertConverter{aconvert.NewClient(nil, config), BufferSpace(dir)}
+func NewAconvertConverter(config aconvert.Config, bufferSpace BufferSpace) AconvertConverter {
+	return AconvertConverter{aconvert.NewClient(nil, config), bufferSpace}
 }
 
 func (a AconvertConverter) Convert(metadata *Metadata, in flu.Readable) (Descriptor, error) {

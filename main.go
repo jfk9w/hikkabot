@@ -89,10 +89,13 @@ func main() {
 	storage := _storage.NewSQL(config.Aggregator.Storage)
 	defer storage.Close()
 
+	bufferSpace := _media.NewBufferSpace(config.Media.Directory)
+	defer bufferSpace.Cleanup()
+
 	mediator := &_media.Tor{
 		Metrics:     metrics.WithPrefix("mediator"),
 		Storage:     storage,
-		BufferSpace: _media.BufferSpace(config.Media.Directory),
+		BufferSpace: bufferSpace,
 		SizeBounds: [2]int64{
 			config.Media.MinSize.Value(1 << 10),
 			config.Media.MaxSize.Value(75 << 20),
@@ -103,7 +106,7 @@ func main() {
 	}
 
 	if config.Aconvert != nil {
-		mediator.AddConverter(_media.NewAconvertConverter(config.Aconvert.Config, config.Media.Directory))
+		mediator.AddConverter(_media.NewAconvertConverter(config.Aconvert.Config, bufferSpace))
 	}
 
 	defer mediator.Initialize().Close()
