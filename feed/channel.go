@@ -73,9 +73,11 @@ func (tg Telegram) SendMedia(chatID telegram.ID, promise *_media.Promise, text s
 		materialized.Resource.Cleanup()
 		if err == nil {
 			return nil
-		} else {
-			log.Printf("Failed to send media %s: %s", promise.URL, err.Error())
 		}
+	}
+
+	if err != nil {
+		log.Printf("Failed to send media %s as resource: %s", promise.URL, err)
 	}
 
 	_, err = tg.Send(chatID, &telegram.Text{
