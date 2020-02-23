@@ -2,23 +2,16 @@ package media
 
 import (
 	"fmt"
-	"image"
-	"image/jpeg"
-	"image/png"
-	"io"
 	"log"
 	"math/rand"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/rivo/duplo"
-
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/metrics"
 	"github.com/otiai10/gosseract/v2"
 	"github.com/pkg/errors"
-	"golang.org/x/image/bmp"
 )
 
 type Tor struct {
@@ -27,7 +20,6 @@ type Tor struct {
 	SizeBounds [2]int64
 	Buffer     bool
 	Debug      bool
-	ImgHashes  *duplo.Store
 	Workers    int
 	converters map[string]Converter
 	ocrClient  chan *gosseract.Client
@@ -152,7 +144,7 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 		}
 
 		if converter, ok := tor.converters[mimeType]; ok {
-			descriptor, err = converter.Convert(mimeType, descriptor)
+			descriptor, err = converter.Convert(metadata, descriptor)
 			if err != nil {
 				err = errors.Wrapf(err, "convert via %T", converter)
 				return
@@ -175,17 +167,6 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 				}
 			}
 		}
-
-		if options.Hashable && tor.ImgHashes != nil {
-			if err = tor.checkImageHash(media); err != nil {
-				if err == ErrFiltered {
-					return
-				} else {
-					log.Printf("Failed to hash check image %s: %s", media.Metadata.URL, err)
-					err = nil
-				}
-			}
-		}
 	}
 
 	return
@@ -196,40 +177,28 @@ var ErrUnsupportedImage = errors.New("unsupported image")
 const MinImageDiffScore = 3
 
 func (tor *Tor) checkImageHash(media Materialized) error {
-	var decoder func(io.Reader) (image.Image, error)
-	switch media.Metadata.MIMEType {
-	case "image/jpeg":
-		decoder = jpeg.Decode
-	case "image/png":
-		decoder = png.Decode
-	case "image/bmp":
-		decoder = bmp.Decode
-	default:
-		return ErrUnsupportedImage
-	}
+	//var decoder func(io.Reader) (image.Image, error)
+	//switch media.Metadata.MIMEType {
+	//case "image/jpeg":
+	//	decoder = jpeg.Decode
+	//case "image/png":
+	//	decoder = png.Decode
+	//case "image/bmp":
+	//	decoder = bmp.Decode
+	//default:
+	//	return ErrUnsupportedImage
+	//}
+	//
+	//r, err := media.Resource.Reader()
+	//if err != nil {
+	//	return errors.Wrap(err, "read")
+	//}
+	//
+	//img, err := decoder(r)
+	//if err != nil {
+	//	return errors.Wrap(err, "decode")
+	//}
 
-	r, err := media.Resource.Reader()
-	if err != nil {
-		return errors.Wrap(err, "read")
-	}
-
-	img, err := decoder(r)
-	if err != nil {
-		return errors.Wrap(err, "decode")
-	}
-
-	hash, _ := duplo.CreateHash(img)
-	for _, match := range tor.ImgHashes.Query(hash) {
-		if match.DHashDistance < MinImageDiffScore && match.Score < MinImageDiffScore {
-			if tor.Debug {
-				log.Printf("Image %s is similar to image %s (match %v)",
-					media.Metadata.URL, match.ID, match)
-				return ErrFiltered
-			}
-		}
-	}
-
-	tor.ImgHashes.Add(media.Metadata.URL, hash)
 	return nil
 }
 
