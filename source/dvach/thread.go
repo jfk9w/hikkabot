@@ -93,7 +93,7 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 				_media.Options{
 					Hashable: item.MediaOnly,
 					Buffer:   true,
-					OCR:      ocr,
+					//OCR:      ocr,
 				})
 		}
 

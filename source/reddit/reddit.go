@@ -149,10 +149,10 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 
 var mediaOptions = _media.Options{
 	Hashable: true,
-	OCR: &_media.OCR{
-		Languages: []string{"eng"},
-		Regex:     regexp.MustCompile(`(?is).*?(cake.*?day|sort.*?by.*?new|upvote|updoot).*`),
-	},
+	//OCR: &_media.OCR{
+	//	Languages: []string{"eng"},
+	//	Regex:     regexp.MustCompile(`(?is).*?(cake.*?day|sort.*?by.*?new|upvote|updoot).*`),
+	//},
 }
 
 func (s Source) mediaDescriptor(thing reddit.Thing) (string, _media.Descriptor, error) {
