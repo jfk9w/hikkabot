@@ -319,7 +319,8 @@ func (s *SQL) RedditPost(id feed.ID, name string, ups int, sent bool, period tim
 		// post has not been seen
 		sql := fmt.Sprintf(`
 		INSERT INTO reddit_posts (time, id, chat_id, name, ups, sent)
-		VALUES (%s, $1, $2, $3, $4, $5)`, s.Now())
+		VALUES (%s, $1, $2, $3, $4, $5)
+		ON CONFLICT DO NOTHING`, s.Now())
 		s.update(sql, id.ID, id.ChatID, name, ups, sent)
 		return sent
 	}
