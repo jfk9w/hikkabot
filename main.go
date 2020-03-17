@@ -1,18 +1,20 @@
 package main
 
 import (
+	"context"
 	_ "net/http/pprof"
 	"os"
 	"time"
 
 	_aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
+	fluhttp "github.com/jfk9w-go/flu/http"
+	_metrics "github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	_media "github.com/jfk9w/hikkabot/media"
-	_metrics "github.com/jfk9w/hikkabot/metrics"
 	_source "github.com/jfk9w/hikkabot/source"
 	_storage "github.com/jfk9w/hikkabot/storage"
 	"github.com/jfk9w/hikkabot/util"
@@ -55,11 +57,8 @@ type Config struct {
 		Directory        string
 		LogFile          string
 	}
-	Aconvert *struct {
-		_aconvert.Config `yaml:",inline"`
-		LogFile          string
-	}
-	Reddit *struct {
+	Aconvert *_aconvert.Client
+	Reddit   *struct {
 		reddit.Config `yaml:",inline"`
 		LogFile       string
 	}
@@ -74,7 +73,7 @@ type Config struct {
 
 func main() {
 	config := new(Config)
-	if err := flu.Read(flu.File(os.Args[1]), util.YAML(config)); err != nil {
+	if err := flu.DecodeFrom(flu.File(os.Args[1]), util.YAML{config}); err != nil {
 		panic(err)
 	}
 
@@ -83,7 +82,7 @@ func main() {
 		panic(err)
 	}
 
-	metrics := _metrics.NewPrometheus(config.Prometheus.ListenAddress).WithPrefix("hikkabot")
+	metrics := _metrics.NewPrometheusClient(config.Prometheus.ListenAddress).WithPrefix("hikkabot")
 	bot := newTelegramBot(config)
 
 	storage := _storage.NewSQL(config.Aggregator.Storage)
@@ -106,7 +105,7 @@ func main() {
 	}
 
 	if config.Aconvert != nil {
-		mediator.AddConverter(_media.NewAconvertConverter(config.Aconvert.Config, bufferSpace))
+		mediator.AddConverter(_media.NewAconvertConverter(config.Aconvert.Init(), bufferSpace))
 	}
 
 	defer mediator.Initialize().Close()
@@ -126,13 +125,16 @@ func main() {
 	}
 
 	if config.Dvach != nil {
-		client := dvach.NewClient(flu.NewTransport().NewClient(), config.Dvach.Usercode)
+		client := dvach.NewClient(fluhttp.NewTransport().
+			ResponseHeaderTimeout(2*time.Minute).
+			NewClient().
+			Timeout(4*time.Minute), config.Dvach.Usercode)
 		agg.AddSource(_source.DvachCatalog{client, mediator}).
 			AddSource(_source.DvachThread{client, mediator})
 	}
 
 	if config.Reddit != nil {
-		client := reddit.NewClient(flu.NewTransport().NewClient(), config.Reddit.Config)
+		client := reddit.NewClient(fluhttp.NewClient(nil), config.Reddit.Config)
 		source := _source.Reddit{
 			Client:  client,
 			Tor:     mediator,
@@ -142,18 +144,17 @@ func main() {
 		agg.AddSource(source)
 	}
 
-	bot.Listen(config.Telegram.Concurrency, agg.Init().CommandListener(config.Telegram.Username))
+	bot.Listen(context.Background(), nil, agg.Init().CommandListener(config.Telegram.Username))
 }
 
-func newTelegramBot(config *Config) telegram.Bot {
+func newTelegramBot(config *Config) *telegram.Bot {
 	telegram.SendDelays[telegram.PrivateChat] = time.Second
-	telegram.MaxSendRetries = config.Telegram.SendRetries
-	bot := telegram.NewBot(flu.NewTransport().
+	bot := telegram.NewBot(fluhttp.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		ProxyURL(config.Telegram.Proxy).
 		NewClient().
-		Timeout(2*time.Minute), config.Telegram.Token)
-	_, err := bot.Send(config.Aggregator.AdminID, &telegram.Text{Text: "⬆️"}, nil)
+		Timeout(2*time.Minute), config.Telegram.Token, config.Telegram.SendRetries)
+	_, err := bot.Send(context.Background(), config.Aggregator.AdminID, &telegram.Text{Text: "⬆️"}, nil)
 	if err != nil {
 		panic(errors.Wrap(err, "failed to send initial message"))
 	}

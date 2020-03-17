@@ -11,9 +11,8 @@ import (
 	"sync"
 
 	"github.com/jfk9w-go/flu"
-
+	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w/hikkabot/metrics"
 	"github.com/otiai10/gosseract/v2"
 	"github.com/pkg/errors"
 )
@@ -51,7 +50,7 @@ func (bs BufferSpace) Cleanup() {
 }
 
 type Tor struct {
-	metrics.Metrics
+	Metrics metrics.Client
 	Storage
 	BufferSpace BufferSpace
 	SizeBounds  [2]int64
@@ -82,10 +81,6 @@ func (tor *Tor) AddConverter(converter Converter) *Tor {
 }
 
 func (tor *Tor) Initialize() *Tor {
-	if tor.Metrics == nil {
-		tor.Metrics = metrics.Dummy
-	}
-
 	tor.ocrClient = make(chan *gosseract.Client, 1)
 	client := gosseract.NewClient()
 	tor.ocrClient <- client
@@ -134,6 +129,7 @@ func (tor *Tor) Materialize(descriptor Descriptor, options Options) (media Mater
 
 func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Materialized, err error) {
 	var metadata *Metadata
+loop:
 	for {
 		metadata, err = descriptor.Metadata(tor.SizeBounds[1])
 		if err != nil {
@@ -141,10 +137,10 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 			return
 		}
 
-		tor.Counter("files_total", metrics.Labels{
+		tor.Metrics.Counter("files_total", metrics.Labels{
 			"mimeType": metadata.MIMEType,
 		}).Inc()
-		tor.Counter("files_total_size", metrics.Labels{
+		tor.Metrics.Counter("files_total_size", metrics.Labels{
 			"mimeType": metadata.MIMEType,
 		}).Add(float64(metadata.Size))
 
@@ -172,18 +168,18 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 			}
 
 			hash := md5.New()
-			if err = flu.Copy(media.Resource, flu.Xable{W: hash}); err != nil {
+			if err = flu.Copy(media.Resource, flu.IO{W: hash}); err != nil {
 				err = errors.Wrap(err, "hash")
 				return
 			}
 
 			hashstr := fmt.Sprintf("%x", hash.Sum(nil))
-			tor.Counter("hash_checks", metrics.Labels{
+			tor.Metrics.Counter("hash_checks", metrics.Labels{
 				"mimeType": metadata.MIMEType,
 			}).Inc()
 			if tor.FileHash(metadata.URL, hashstr) {
 				log.Printf("Hash collision: %s (%s)", metadata.URL, hashstr)
-				tor.Counter("hash_collisions", metrics.Labels{
+				tor.Metrics.Counter("hash_collisions", metrics.Labels{
 					"mimeType": metadata.MIMEType,
 				}).Inc()
 				err = ErrFiltered
@@ -197,49 +193,47 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 		}
 
 		mimeType := metadata.MIMEType
-		if mediaType, ok := MIMEType2MediaType[mimeType]; ok {
-			if metadata.Size < tor.SizeBounds[0] {
-				err = errors.Errorf("size below threshold %dB (%dB)",
-					tor.SizeBounds[0], metadata.Size)
-				return
-			}
-
-			maxSize := MaxSize(mediaType)
-			if metadata.Size > maxSize[1] {
-				err = errors.Errorf("exceeded max size %dMB for %s (%dMB)",
-					maxSize[1]>>20, mediaType, metadata.Size>>20)
-				return
-			}
-
-			media.Metadata = *metadata
-			media.Type = mediaType
-			if tor.Buffer || options.Buffer ||
-				mediaType == telegram.Photo && (options.OCR != nil || metadata.Size > MaxSize(telegram.Photo)[0]) ||
-				mediaType == telegram.Video && metadata.Size > MaxSize(telegram.Video)[0] ||
-				media.Resource != nil {
-				media.Resource = tor.BufferSpace.NewResource(metadata.Size)
-			} else {
-				media.Resource = new(VolatileResource)
-			}
-
-			if err = media.Resource.Pull(descriptor); err != nil {
-				err = errors.Wrap(err, "pull descriptor")
-				return
-			}
-
-			break
-		}
-
 		if converter, ok := tor.converters[mimeType]; ok {
 			descriptor, err = converter.Convert(metadata, descriptor)
 			if err != nil {
 				err = errors.Wrapf(err, "convert via %T", converter)
 				return
+			} else {
+				continue loop
 			}
-		} else {
-			err = errors.Errorf("MIME type %s is not supported", mimeType)
+		}
+
+		mediaType := telegram.MediaTypeByMIMEType(mimeType)
+		if metadata.Size < tor.SizeBounds[0] {
+			err = errors.Errorf("size below threshold %dB (%dB)",
+				tor.SizeBounds[0], metadata.Size)
 			return
 		}
+
+		maxSize := MaxSize(mediaType)
+		if metadata.Size > maxSize[1] {
+			err = errors.Errorf("exceeded max size %dMB for %s (%dMB)",
+				maxSize[1]>>20, mediaType, metadata.Size>>20)
+			return
+		}
+
+		media.Metadata = *metadata
+		media.Type = mediaType
+		if tor.Buffer || options.Buffer ||
+			mediaType == telegram.Photo && (options.OCR != nil || metadata.Size > MaxSize(telegram.Photo)[0]) ||
+			mediaType == telegram.Video && metadata.Size > MaxSize(telegram.Video)[0] ||
+			media.Resource != nil {
+			media.Resource = tor.BufferSpace.NewResource(metadata.Size)
+		} else {
+			media.Resource = new(VolatileResource)
+		}
+
+		if err = media.Resource.Pull(descriptor); err != nil {
+			err = errors.Wrap(err, "pull descriptor")
+			return
+		}
+
+		break
 	}
 
 	// filters
@@ -256,10 +250,10 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 		}
 	}
 
-	tor.Counter("files_materialized", metrics.Labels{
+	tor.Metrics.Counter("files_materialized", metrics.Labels{
 		"mimeType": metadata.MIMEType,
 	}).Inc()
-	tor.Counter("files_materialized_size", metrics.Labels{
+	tor.Metrics.Counter("files_materialized_size", metrics.Labels{
 		"mimeType": metadata.MIMEType,
 	}).Add(float64(metadata.Size))
 
@@ -269,7 +263,7 @@ func (tor *Tor) materialize0(descriptor Descriptor, options Options) (media Mate
 var ErrFiltered = errors.New("filtered")
 
 func (tor *Tor) checkOCR(options *OCR, media Materialized) error {
-	tor.Counter("ocr_checks", metrics.Labels{
+	tor.Metrics.Counter("ocr_checks", metrics.Labels{
 		"mimeType": media.Metadata.MIMEType,
 	}).Inc()
 	client := <-tor.ocrClient
@@ -281,14 +275,14 @@ func (tor *Tor) checkOCR(options *OCR, media Materialized) error {
 		if err == nil {
 			log.Printf("Recognized text for %s:\n%s", media.Metadata.URL, text)
 		} else {
-			tor.Counter("ocr_failed", metrics.Labels{
+			tor.Metrics.Counter("ocr_failed", metrics.Labels{
 				"mimeType": media.Metadata.MIMEType,
 			}).Inc()
 		}
 	}
 
 	if options.Regex.MatchString(strings.ToLower(text)) {
-		tor.Counter("ocr_filtered", metrics.Labels{
+		tor.Metrics.Counter("ocr_filtered", metrics.Labels{
 			"mimeType": media.Metadata.MIMEType,
 		}).Inc()
 		return ErrFiltered

@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	fluhttp "github.com/jfk9w-go/flu/http"
+
 	"github.com/jfk9w/hikkabot/util"
 
 	"github.com/jfk9w-go/flu"
@@ -16,11 +18,11 @@ func main() {
 			Usercode string `json:"usercode"`
 		} `json:"dvach"`
 	})
-	err := flu.Read(flu.File("bin/config.yml"), util.YAML(config))
+	err := flu.DecodeFrom(flu.File("config/config_dev.yml"), util.YAML{config})
 	if err != nil {
 		panic(err)
 	}
-	c := dvach.NewClient(nil, config.Dvach.Usercode)
+	c := dvach.NewClient(fluhttp.NewClient(nil), config.Dvach.Usercode)
 	catalog, err := c.GetCatalog("e")
 	if err != nil {
 		panic(err)

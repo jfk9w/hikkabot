@@ -1,13 +1,15 @@
 package reddit
 
 import (
+	"context"
 	"log"
+	_http "net/http"
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/jfk9w-go/flu"
+	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -26,22 +28,19 @@ type Config struct {
 }
 
 type Client struct {
-	*flu.Client
-	tokenTime time.Time
-	restraint flu.Restraint
-	config    Config
+	fluhttp.Client
+	tokenTime   time.Time
+	rateLimiter flu.RateLimiter
+	config      Config
 }
 
-func NewClient(http *flu.Client, config Config) *Client {
-	if http == nil {
-		http = flu.NewClient(nil)
-	}
-	http.AcceptResponseCodes(200).
+func NewClient(http fluhttp.Client, config Config) *Client {
+	http.AcceptStatus(_http.StatusOK).
 		SetHeader("User-Agent", config.UserAgent)
 	client := &Client{
-		Client:    http,
-		restraint: flu.NewIntervalRestraint(Timeout),
-		config:    config,
+		Client:      http,
+		rateLimiter: flu.IntervalRateLimiter(Timeout),
+		config:      config,
 	}
 	if err := client.updateToken(); err != nil {
 		panic(err)
@@ -57,9 +56,9 @@ func (c *Client) updateToken() error {
 		QueryParam("grant_type", "password").
 		QueryParam("username", c.config.Username).
 		QueryParam("password", c.config.Password).
-		BasicAuth(c.config.ClientID, c.config.ClientSecret).
+		Auth(fluhttp.Basic(c.config.ClientID, c.config.ClientSecret)).
 		Execute().
-		ReadBody(flu.JSON(resp)).
+		DecodeBody(flu.JSON{resp}).
 		Error; err != nil {
 		return err
 	}
@@ -69,15 +68,15 @@ func (c *Client) updateToken() error {
 	return nil
 }
 
-func (c *Client) execute(resp interface{}, req *flu.Request) error {
-	c.restraint.Start()
-	defer c.restraint.Complete()
+func (c *Client) execute(resp interface{}, req fluhttp.Request) error {
+	c.rateLimiter.Start(context.Background())
+	defer c.rateLimiter.Complete()
 	if time.Now().Sub(c.tokenTime).Minutes() > 58 {
 		if err := c.updateToken(); err != nil {
 			return err
 		}
 	}
-	return req.Execute().ReadBody(flu.JSON(resp)).Error
+	return req.Execute().DecodeBody(flu.JSON{resp}).Error
 }
 
 func (c *Client) GetListing(subreddit, sort string, limit int) ([]Thing, error) {

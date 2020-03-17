@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"regexp"
 
+	fluhttp "github.com/jfk9w-go/flu/http"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/pkg/errors"
@@ -13,7 +15,7 @@ import (
 var gfycatre = regexp.MustCompile(`(?i)https://[a-z]+.gfycat.com/[a-z0-9]+?\.mp4`)
 
 type Gfycat struct {
-	Client *flu.Client
+	Client fluhttp.Client
 	URL    string
 	urld   media.URLDescriptor
 }
@@ -22,8 +24,8 @@ func (d *Gfycat) Metadata(maxSize int64) (*media.Metadata, error) {
 	if d.urld.URL == "" {
 		html := flu.NewBuffer()
 		if err := d.Client.GET(d.URL).Execute().
-			CheckStatusCode(http.StatusOK).
-			ReadBodyTo(html).
+			AcceptStatus(http.StatusOK).
+			DecodeBodyTo(html).
 			Error; err != nil {
 			return nil, errors.New("get html")
 		}

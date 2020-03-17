@@ -6,11 +6,12 @@ import (
 	"strconv"
 
 	"github.com/jfk9w-go/flu"
+	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/pkg/errors"
 )
 
 type Descriptor interface {
-	flu.Readable
+	flu.Input
 	Metadata(maxSize int64) (*Metadata, error)
 }
 
@@ -30,7 +31,7 @@ func (m *metadataHEADResponseHandler) Handle(resp *http.Response) error {
 }
 
 type URLDescriptor struct {
-	Client *flu.Client
+	Client fluhttp.Client
 	URL    string
 }
 
@@ -39,14 +40,14 @@ func (d URLDescriptor) Metadata(_ int64) (*Metadata, error) {
 	h.URL = d.URL
 	return &h.Metadata, d.Client.HEAD(d.URL).
 		Execute().
-		CheckStatusCode(http.StatusOK).
+		AcceptStatus(http.StatusOK).
 		HandleResponse(h).
 		Error
 }
 
 func (d URLDescriptor) Reader() (io.Reader, error) {
 	return d.Client.GET(d.URL).Execute().
-		CheckStatusCode(http.StatusOK).
+		AcceptStatus(http.StatusOK).
 		Reader()
 }
 

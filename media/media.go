@@ -6,14 +6,6 @@ import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 )
 
-var MIMEType2MediaType = map[string]string{
-	"image/jpeg": telegram.Photo,
-	"image/png":  telegram.Photo,
-	"image/bmp":  telegram.Photo,
-	"image/gif":  telegram.Video,
-	"video/mp4":  telegram.Video,
-}
-
 type Metadata struct {
 	URL      string
 	Size     int64

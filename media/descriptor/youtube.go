@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	fluhttp "github.com/jfk9w-go/flu/http"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/pkg/errors"
@@ -47,9 +49,9 @@ type YoutubeVideoInfo struct {
 	formats []YoutubeStreamingDataFormat
 }
 
-func (vi *YoutubeVideoInfo) ReadFrom(r io.Reader) error {
-	resp := flu.PlainText("")
-	if err := resp.ReadFrom(r); err != nil {
+func (vi *YoutubeVideoInfo) DecodeFrom(r io.Reader) error {
+	resp := &flu.PlainText{""}
+	if err := resp.DecodeFrom(r); err != nil {
 		return errors.Wrap(err, "read response")
 	}
 
@@ -59,7 +61,7 @@ func (vi *YoutubeVideoInfo) ReadFrom(r io.Reader) error {
 	}
 
 	playerResponse := new(YoutubePlayerResponse)
-	err = flu.JSON(playerResponse).ReadFrom(strings.NewReader(info.Get("player_response")))
+	err = flu.JSON{playerResponse}.DecodeFrom(strings.NewReader(info.Get("player_response")))
 	if err != nil {
 		return errors.Errorf("no player_response in info: %v", info)
 	}
@@ -69,7 +71,7 @@ func (vi *YoutubeVideoInfo) ReadFrom(r io.Reader) error {
 }
 
 type Youtube struct {
-	Client *flu.Client
+	Client fluhttp.Client
 	ID     string
 	URL    string
 }
@@ -79,8 +81,8 @@ func (d *Youtube) Metadata(maxSize int64) (*media.Metadata, error) {
 	if err := d.Client.
 		GET("http://youtube.com/get_video_info?video_id=" + d.ID).
 		Execute().
-		CheckStatusCode(http.StatusOK).
-		Read(info).
+		AcceptStatus(http.StatusOK).
+		DecodeBody(info).
 		Error; err != nil {
 		return nil, errors.Wrap(err, "get_video_info")
 	}
@@ -121,6 +123,6 @@ func (d *Youtube) Metadata(maxSize int64) (*media.Metadata, error) {
 
 func (d *Youtube) Reader() (io.Reader, error) {
 	return d.Client.GET(d.URL).Execute().
-		CheckStatusCode(http.StatusOK).
+		AcceptStatus(http.StatusOK).
 		Reader()
 }

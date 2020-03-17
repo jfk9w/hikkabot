@@ -6,7 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"time"
+
+	fluhttp "github.com/jfk9w-go/flu/http"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/pkg/errors"
@@ -16,44 +17,37 @@ type response struct {
 	value interface{}
 }
 
-func newResponse(value interface{}) flu.ReaderFrom {
+func newResponse(value interface{}) flu.DecoderFrom {
 	return &response{value: value}
 }
 
-func (r *response) ReadFrom(body io.Reader) (err error) {
+func (r *response) DecodeFrom(body io.Reader) (err error) {
 	buf, err := ioutil.ReadAll(body)
 	if err != nil {
 		return errors.Wrap(err, "read body")
 	}
 	bufr := bytes.NewReader(buf)
-	err = flu.JSON(r.value).ReadFrom(bufr)
-	if err == nil {
+	if err = flu.DecodeFrom(flu.IO{R: bufr}, flu.JSON{r.value}); err == nil {
 		return
 	}
 	err = new(Error)
 	bufr.Reset(buf)
-	if flu.JSON(err).ReadFrom(bufr) != nil {
+	if flu.DecodeFrom(flu.IO{R: bufr}, flu.JSON{err}) != nil {
 		err = errors.Errorf("failed to decode response: %s", string(buf))
 	}
 	return
 }
 
 type Client struct {
-	*flu.Client
+	fluhttp.Client
 }
 
-func NewClient(client *flu.Client, usercode string) *Client {
-	if client == nil {
-		client = flu.NewTransport().
-			ResponseHeaderTimeout(2 * time.Minute).
-			NewClient().
-			Timeout(4 * time.Minute)
-	}
+func NewClient(client fluhttp.Client, usercode string) *Client {
 	return &Client{
 		Client: client.
 			SetCookies(Host, cookies(usercode, "/")...).
 			SetCookies(Host, cookies(usercode, "/makaba")...).
-			AcceptResponseCodes(http.StatusOK),
+			AcceptStatus(http.StatusOK),
 	}
 }
 
@@ -61,7 +55,7 @@ func (c *Client) GetCatalog(board string) (*Catalog, error) {
 	catalog := new(Catalog)
 	err := c.GET(Host + "/" + board + "/catalog_num.json").
 		Execute().
-		Read(newResponse(catalog)).
+		DecodeBody(newResponse(catalog)).
 		Error
 	if err != nil {
 		return nil, err
@@ -80,7 +74,7 @@ func (c *Client) GetThread(board string, num int, offset int) ([]Post, error) {
 		QueryParam("thread", strconv.Itoa(num)).
 		QueryParam("num", strconv.Itoa(offset)).
 		Execute().
-		Read(newResponse(&thread)).
+		DecodeBody(newResponse(&thread)).
 		Error
 	if err != nil {
 		return nil, err
@@ -97,7 +91,7 @@ func (c *Client) GetPost(board string, num int) (*Post, error) {
 		QueryParam("board", board).
 		QueryParam("post", strconv.Itoa(num)).
 		Execute().
-		Read(newResponse(&posts)).
+		DecodeBody(newResponse(&posts)).
 		Error
 	if err != nil {
 		return nil, err
@@ -108,10 +102,10 @@ func (c *Client) GetPost(board string, num int) (*Post, error) {
 	return nil, ErrPostNotFound
 }
 
-func (c *Client) DownloadFile(file *File, out flu.Writable) error {
+func (c *Client) DownloadFile(file *File, out flu.Output) error {
 	return c.GET(Host + file.Path).
 		Execute().
-		ReadBodyTo(out).
+		DecodeBodyTo(out).
 		Error
 }
 
@@ -120,7 +114,7 @@ func (c *Client) GetBoards() ([]Board, error) {
 	err := c.GET(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_boards").
 		Execute().
-		Read(newResponse(&boardMap)).
+		DecodeBody(newResponse(&boardMap)).
 		Error
 	if err != nil {
 		return nil, err

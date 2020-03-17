@@ -1,6 +1,7 @@
 package feed
 
 import (
+	"context"
 	"log"
 	"unicode/utf8"
 
@@ -10,10 +11,10 @@ import (
 )
 
 type Channel interface {
-	SendUpdate(telegram.ID, Update) error
-	GetChat(telegram.ChatID) (*telegram.Chat, error)
-	GetChatAdministrators(telegram.ChatID) ([]telegram.ChatMember, error)
-	SendAlert([]telegram.ID, format.Text, telegram.ReplyMarkup)
+	SendUpdate(context.Context, telegram.ID, Update) error
+	GetChat(context.Context, telegram.ChatID) (*telegram.Chat, error)
+	GetChatAdministrators(context.Context, telegram.ChatID) ([]telegram.ChatMember, error)
+	SendAlert(context.Context, []telegram.ID, format.Text, telegram.ReplyMarkup)
 }
 
 type Telegram struct {
@@ -22,15 +23,15 @@ type Telegram struct {
 
 var DefaultSendUpdateOptions = &telegram.SendOptions{DisableNotification: true}
 
-func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
+func (tg Telegram) SendUpdate(ctx context.Context, chatID telegram.ID, update Update) error {
 	if len(update.Media) == 1 &&
 		len(update.Pages) == 1 &&
 		utf8.RuneCountInString(update.Pages[0])+len(update.Media[0].URL)+23 <= telegram.MaxCaptionSize {
-		return tg.SendMedia(chatID, update.Media[0], update.Pages[0])
+		return tg.SendMedia(ctx, chatID, update.Media[0], update.Pages[0])
 	}
 
 	for _, page := range update.Pages {
-		if _, err := tg.Send(chatID,
+		if _, err := tg.Send(ctx, chatID,
 			&telegram.Text{
 				Text:                  page,
 				ParseMode:             telegram.HTML,
@@ -42,7 +43,7 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 	}
 
 	for _, promise := range update.Media {
-		if err := tg.SendMedia(chatID, promise, ""); err != nil {
+		if err := tg.SendMedia(ctx, chatID, promise, ""); err != nil {
 			return err
 		}
 	}
@@ -50,7 +51,7 @@ func (tg Telegram) SendUpdate(chatID telegram.ID, update Update) error {
 	return nil
 }
 
-func (tg Telegram) SendMedia(chatID telegram.ID, promise *_media.Promise, text string) error {
+func (tg Telegram) SendMedia(ctx context.Context, chatID telegram.ID, promise *_media.Promise, text string) error {
 	materialized, err := promise.Materialize()
 	if err == _media.ErrFiltered {
 		return nil
@@ -64,12 +65,12 @@ func (tg Telegram) SendMedia(chatID telegram.ID, promise *_media.Promise, text s
 	if err == nil {
 		media := &telegram.Media{
 			Type:      materialized.Type,
-			Resource:  materialized.Resource,
+			Input:     materialized.Resource,
 			Caption:   caption,
 			ParseMode: telegram.HTML,
 		}
 
-		_, err = tg.Send(chatID, media, DefaultSendUpdateOptions)
+		_, err = tg.Send(ctx, chatID, media, DefaultSendUpdateOptions)
 		materialized.Resource.Cleanup()
 		if err == nil {
 			return nil
@@ -80,26 +81,26 @@ func (tg Telegram) SendMedia(chatID telegram.ID, promise *_media.Promise, text s
 		log.Printf("Failed to send media %s as resource: %s", promise.URL, err)
 	}
 
-	_, err = tg.Send(chatID, &telegram.Text{
+	_, err = tg.Send(ctx, chatID, &telegram.Text{
 		Text:      caption,
 		ParseMode: telegram.HTML,
 	}, nil)
 	return err
 }
 
-func (tg Telegram) GetChat(chatID telegram.ChatID) (*telegram.Chat, error) {
-	return tg.Client.GetChat(chatID)
+func (tg Telegram) GetChat(ctx context.Context, chatID telegram.ChatID) (*telegram.Chat, error) {
+	return tg.Client.GetChat(ctx, chatID)
 }
 
-func (tg Telegram) GetChatAdministrators(chatID telegram.ChatID) ([]telegram.ChatMember, error) {
-	return tg.Client.GetChatAdministrators(chatID)
+func (tg Telegram) GetChatAdministrators(ctx context.Context, chatID telegram.ChatID) ([]telegram.ChatMember, error) {
+	return tg.Client.GetChatAdministrators(ctx, chatID)
 }
 
-func (tg Telegram) SendAlert(chatIDs []telegram.ID, text format.Text, replyMarkup telegram.ReplyMarkup) {
+func (tg Telegram) SendAlert(ctx context.Context, chatIDs []telegram.ID, text format.Text, replyMarkup telegram.ReplyMarkup) {
 	sendable := &telegram.Text{Text: text.Pages[0], ParseMode: text.ParseMode}
 	options := &telegram.SendOptions{ReplyMarkup: replyMarkup}
 	for _, chatID := range chatIDs {
-		_, err := tg.Send(chatID, sendable, options)
+		_, err := tg.Send(ctx, chatID, sendable, options)
 		if err != nil {
 			log.Printf("Failed to send alert to %d: %s", chatID, err)
 		}

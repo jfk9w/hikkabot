@@ -1,18 +1,19 @@
 package feed
 
 import (
+	"context"
 	"log"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/jfk9w-go/flu"
+	fluhttp "github.com/jfk9w-go/flu/http"
+	metrics "github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/format"
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/jfk9w/hikkabot/media/descriptor"
-	"github.com/jfk9w/hikkabot/metrics"
 	"github.com/pkg/errors"
 )
 
@@ -20,7 +21,7 @@ type Aggregator struct {
 	Channel
 	Storage
 	*media.Tor
-	metrics.Metrics
+	Metrics metrics.Client
 	Timeout time.Duration
 	Aliases map[telegram.Username]telegram.ID
 	AdminID telegram.ID
@@ -53,7 +54,7 @@ func (a *Aggregator) runUpdater(chatID telegram.ID) {
 		delete(a.chats, chatID)
 		a.mu.Unlock()
 		log.Printf("Stopped updater for %v", chatID)
-		a.Gauge("active_subscribers", nil).Dec()
+		a.Metrics.Gauge("active_subscribers", nil).Dec()
 		return
 	}
 
@@ -64,7 +65,7 @@ func (a *Aggregator) runUpdater(chatID telegram.ID) {
 			// meaning the subscription was suspended by external source
 			// we don't need to do anything else
 		} else {
-			a.change(0, sub.ID, Change{Error: err})
+			a.change(context.Background(), 0, sub.ID, Change{Error: err})
 		}
 	}
 
@@ -81,8 +82,9 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub Subscription) error {
 	go pull.run(source)
 	hasUpdates := false
 	for update := range pull.queue {
+		ctx := context.Background()
 		hasUpdates = true
-		err := a.SendUpdate(chatID, update)
+		err := a.SendUpdate(context.Background(), chatID, update)
 		if err != nil {
 			return errors.Wrapf(err, "send update: %+v", update)
 		}
@@ -91,9 +93,9 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub Subscription) error {
 			"source": sub.ID.Source,
 			"id":     sub.ID.ID,
 		}
-		a.Counter("updates", metricsLabels).Inc()
-		a.Counter("media", metricsLabels).Add(float64(len(update.Media)))
-		err = a.change(0, sub.ID, Change{RawData: update.RawData})
+		a.Metrics.Counter("updates", metricsLabels).Inc()
+		a.Metrics.Counter("media", metricsLabels).Add(float64(len(update.Media)))
+		err = a.change(ctx, 0, sub.ID, Change{RawData: update.RawData})
 		if err != nil {
 			pull.cancel <- struct{}{}
 			close(pull.cancel)
@@ -104,7 +106,7 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub Subscription) error {
 		return errors.Wrap(pull.err, "pull updates")
 	}
 	if !hasUpdates {
-		if err := a.change(0, sub.ID, Change{RawData: sub.RawData.Bytes()}); err != nil {
+		if err := a.change(context.Background(), 0, sub.ID, Change{RawData: sub.RawData.Bytes()}); err != nil {
 			return err
 		}
 	}
@@ -129,15 +131,15 @@ func (a *Aggregator) RunFeed(chatID telegram.ID) {
 	a.mu.Unlock()
 	// run updater
 	go a.runUpdater(chatID)
-	a.Gauge("active_subscribers", nil).Inc()
+	a.Metrics.Gauge("active_subscribers", nil).Inc()
 	log.Printf("Started updater for %v", chatID)
 }
 
 var ErrNotFound = errors.New("not found")
 
-func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
-	ctx := &changeContext{chatID: id.ChatID}
-	if err := ctx.checkAccess(a, userID); err != nil {
+func (a *Aggregator) change(ctx context.Context, userID telegram.ID, id ID, change Change) error {
+	changeContext := &changeContext{chatID: id.ChatID}
+	if err := changeContext.checkAccess(ctx, a, userID); err != nil {
 		return err
 	}
 	ok := a.Storage.Change(id, change)
@@ -166,7 +168,7 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 	}
 
 	// notifications
-	adminIDs, err := ctx.getAdminIDs(a)
+	adminIDs, err := changeContext.getAdminIDs(ctx, a)
 	if err != nil {
 		return err
 	}
@@ -175,7 +177,7 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 		status = "suspended"
 	}
 
-	title, _ := ctx.getChatTitle(a)
+	title, _ := changeContext.getChatTitle(ctx, a)
 	text := format.NewHTML(telegram.MaxMessageSize, 0, nil, nil).
 		Text("Subscription " + status).NewLine().
 		Text("Chat: " + title).NewLine().
@@ -199,43 +201,43 @@ func (a *Aggregator) change(userID telegram.ID, id ID, change Change) error {
 		)
 	}
 
-	go a.SendAlert(adminIDs, text.Format(), button)
+	a.SendAlert(ctx, adminIDs, text.Format(), button)
 	return nil
 }
 
-func (a *Aggregator) changeByUser(tg telegram.Client, c *telegram.Command, change Change) error {
+func (a *Aggregator) changeByUser(ctx context.Context, tg telegram.Client, c *telegram.Command, change Change) error {
 	reply := "OK"
 	id, err := ParseID(c.Payload)
 	if err == nil {
-		if err = a.change(c.User.ID, id, change); err != nil {
+		if err = a.change(ctx, c.User.ID, id, change); err != nil {
 			reply = err.Error()
 		}
 	} else {
 		reply = "failed to parse ID"
 	}
-	return c.Reply(tg, reply)
+	return c.Reply(ctx, tg, reply)
 }
 
-func (a *Aggregator) createChangeContext(c *telegram.Command, fields []string, chatIdx int) (*changeContext, error) {
-	ctx := new(changeContext)
+func (a *Aggregator) createChangeContext(ctx context.Context, c *telegram.Command, fields []string, chatIdx int) (*changeContext, error) {
+	changeContext := new(changeContext)
 	if len(fields) > chatIdx && fields[chatIdx] != "." {
 		username := telegram.Username(fields[chatIdx])
 		var chatID telegram.ChatID = username
 		if unaliased, ok := a.Aliases[username]; ok {
 			chatID = unaliased
 		}
-		ctx.chatID = chatID
+		changeContext.chatID = chatID
 	} else {
-		ctx.chatID = c.Chat.ID
-		ctx.chat = c.Chat
+		changeContext.chatID = c.Chat.ID
+		changeContext.chat = c.Chat
 	}
-	return ctx, ctx.checkAccess(a, c.User.ID)
+	return changeContext, changeContext.checkAccess(ctx, a, c.User.ID)
 }
 
-func (a *Aggregator) doCreate(c *telegram.Command) error {
+func (a *Aggregator) doCreate(ctx context.Context, c *telegram.Command) error {
 	fields := strings.Fields(c.Payload)
 	cmd := fields[0]
-	ctx, err := a.createChangeContext(c, fields, 1)
+	changeContext, err := a.createChangeContext(ctx, c, fields, 1)
 	if err != nil {
 		return err
 	}
@@ -253,19 +255,19 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 		case nil:
 			id := ID{
 				ID:     draft.ID,
-				ChatID: ctx.chat.ID,
+				ChatID: changeContext.chat.ID,
 				Source: sourceID,
 			}
 			if len(id.String()) > 62 {
 				return errors.New("ID too long")
 			}
-			ctx := &Subscription{
+			sub := &Subscription{
 				ID:      id,
 				Name:    draft.Name,
 				RawData: rawData,
 			}
-			if a.Storage.Create(ctx) {
-				return a.change(0, ctx.ID, Change{})
+			if a.Storage.Create(sub) {
+				return a.change(ctx, 0, sub.ID, Change{})
 			} else {
 				return errors.New("exists")
 			}
@@ -276,62 +278,62 @@ func (a *Aggregator) doCreate(c *telegram.Command) error {
 	return err
 }
 
-func (a *Aggregator) Create(tg telegram.Client, c *telegram.Command) error {
-	if err := a.doCreate(c); err != nil {
-		return c.Reply(tg, err.Error())
+func (a *Aggregator) Create(ctx context.Context, tg telegram.Client, c *telegram.Command) error {
+	if err := a.doCreate(ctx, c); err != nil {
+		return c.Reply(ctx, tg, err.Error())
 	} else {
 		return nil
 	}
 }
 
-func (a *Aggregator) Resume(tg telegram.Client, c *telegram.Command) error {
-	return a.changeByUser(tg, c, Change{})
+func (a *Aggregator) Resume(ctx context.Context, tg telegram.Client, c *telegram.Command) error {
+	return a.changeByUser(ctx, tg, c, Change{})
 }
 
 var ErrSuspendedByUser = errors.New("suspended by user")
 
-func (a *Aggregator) Suspend(tg telegram.Client, c *telegram.Command) error {
-	return a.changeByUser(tg, c, Change{Error: ErrSuspendedByUser})
+func (a *Aggregator) Suspend(ctx context.Context, tg telegram.Client, c *telegram.Command) error {
+	return a.changeByUser(ctx, tg, c, Change{Error: ErrSuspendedByUser})
 }
 
-func (a *Aggregator) Delete(tg telegram.Client, c *telegram.Command) error {
+func (a *Aggregator) Delete(ctx context.Context, tg telegram.Client, c *telegram.Command) error {
 	id, err := ParseID(c.Payload)
 	if err != nil {
-		return c.Reply(tg, "failed to parse ID")
+		return c.Reply(ctx, tg, "failed to parse ID")
 	}
-	ctx := &changeContext{chatID: id.ChatID}
-	if err := ctx.checkAccess(a, c.User.ID); err != nil {
-		return c.Reply(tg, err.Error())
+	changeContext := &changeContext{chatID: id.ChatID}
+	if err := changeContext.checkAccess(ctx, a, c.User.ID); err != nil {
+		return c.Reply(ctx, tg, err.Error())
 	}
 	if a.Storage.Delete(id) {
-		return c.Reply(tg, "OK")
+		return c.Reply(ctx, tg, "OK")
 	} else {
-		return c.Reply(tg, "not found")
+		return c.Reply(ctx, tg, "not found")
 	}
 }
 
-func (a *Aggregator) Status(tg telegram.Client, c *telegram.Command) error {
-	return c.Reply(tg, "OK")
+func (a *Aggregator) Status(ctx context.Context, tg telegram.Client, c *telegram.Command) error {
+	return c.Reply(ctx, tg, "OK")
 }
 
-func (a *Aggregator) YouTube(tg telegram.Client, c *telegram.Command) error {
-	dtor, err := descriptor.From(flu.NewClient(nil), c.Payload)
+func (a *Aggregator) YouTube(ctx context.Context, tg telegram.Client, c *telegram.Command) error {
+	dtor, err := descriptor.From(fluhttp.NewClient(nil), c.Payload)
 	if err != nil {
-		return c.Reply(tg, err.Error())
+		return c.Reply(ctx, tg, err.Error())
 	}
-	if err = a.SendUpdate(c.Chat.ID, Update{
+	if err = a.SendUpdate(ctx, c.Chat.ID, Update{
 		Pages: []string{""},
 		Media: []*media.Promise{a.Submit(c.Payload, dtor, media.Options{})},
 	}); err != nil {
-		err = c.Reply(tg, err.Error())
+		err = c.Reply(ctx, tg, err.Error())
 	}
 
 	return err
 }
 
-func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
+func (a *Aggregator) List(ctx context.Context, tg telegram.Client, c *telegram.Command) error {
 	fields := strings.Fields(c.Payload)
-	ctx, err := a.createChangeContext(c, fields, 0)
+	changeContext, err := a.createChangeContext(ctx, c, fields, 0)
 	if err != nil {
 		return err
 	}
@@ -341,11 +343,11 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 		active = true
 		command = "suspend"
 	}
-	subs := a.Storage.List(ctx.chat.ID, active)
+	subs := a.Storage.List(changeContext.chat.ID, active)
 	if (len(fields) < 2 || fields[1] == "") && len(subs) == 0 {
 		active = true
 		command = "suspend"
-		subs = a.Storage.List(ctx.chat.ID, active)
+		subs = a.Storage.List(changeContext.chat.ID, active)
 	}
 	keyboard := make([][][3]string, len(subs)*3)
 	for i, sub := range subs {
@@ -355,8 +357,8 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 			sub.ID.String(),
 		}}
 	}
-	title, _ := ctx.getChatTitle(a)
-	a.SendAlert(
+	title, _ := changeContext.getChatTitle(ctx, a)
+	a.SendAlert(ctx,
 		[]telegram.ID{c.Chat.ID},
 		format.NewHTML(0, 0, nil, nil).
 			Text("Chat: ").Text(title).
@@ -369,19 +371,19 @@ func (a *Aggregator) List(tg telegram.Client, c *telegram.Command) error {
 	return nil
 }
 
-func (a *Aggregator) Clear(tg telegram.Client, c *telegram.Command) error {
+func (a *Aggregator) Clear(ctx context.Context, tg telegram.Client, c *telegram.Command) error {
 	space := strings.Index(c.Payload, " ")
 	if space < 0 || len(c.Payload) == space+1 {
-		return c.Reply(tg, "this command requires two arguments")
+		return c.Reply(ctx, tg, "this command requires two arguments")
 	}
 	fields := [2]string{c.Payload[:space], c.Payload[space+1:]}
-	ctx, err := a.createChangeContext(c, fields[:], 0)
+	changeContext, err := a.createChangeContext(ctx, c, fields[:], 0)
 	if err != nil {
 		return err
 	}
-	cleared := a.Storage.Clear(ctx.chat.ID, fields[1])
-	title, _ := ctx.getChatTitle(a)
-	a.SendAlert(
+	cleared := a.Storage.Clear(changeContext.chat.ID, fields[1])
+	title, _ := changeContext.getChatTitle(ctx, a)
+	a.SendAlert(ctx,
 		[]telegram.ID{c.Chat.ID},
 		format.NewHTML(0, 0, nil, nil).
 			Text("Chat: ").Text(title).
@@ -394,12 +396,12 @@ func (a *Aggregator) Clear(tg telegram.Client, c *telegram.Command) error {
 	return nil
 }
 
-func (a *Aggregator) Halt(tg telegram.Client, c *telegram.Command) error {
+func (a *Aggregator) Halt(ctx context.Context, tg telegram.Client, c *telegram.Command) error {
 	if c.User.ID == a.AdminID {
 		time.AfterFunc(1*time.Minute, func() { panic("halt") })
-		return c.Reply(tg, "halt scheduled in 1 minute")
+		return c.Reply(ctx, tg, "halt scheduled in 1 minute")
 	} else {
-		return c.Reply(tg, "forbidden")
+		return c.Reply(ctx, tg, "forbidden")
 	}
 }
 

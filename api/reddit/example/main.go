@@ -3,6 +3,10 @@ package main
 import (
 	"log"
 
+	"github.com/jfk9w/hikkabot/util"
+
+	fluhttp "github.com/jfk9w-go/flu/http"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w/hikkabot/api/reddit"
 )
@@ -11,11 +15,11 @@ func main() {
 	config := new(struct {
 		Reddit reddit.Config
 	})
-	err := flu.Read(flu.File("bin/config.json"), flu.JSON(config))
+	err := flu.DecodeFrom(flu.File("config/config_dev.yml"), util.YAML{config})
 	if err != nil {
 		panic(err)
 	}
-	c := reddit.NewClient(nil, config.Reddit)
+	c := reddit.NewClient(fluhttp.NewClient(nil), config.Reddit)
 	listing, err := c.GetListing("me_irl", "top", 100)
 	if err != nil {
 		panic(err)

@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/jfk9w-go/flu"
+	fluhttp "github.com/jfk9w-go/flu/http"
+
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/pkg/errors"
 )
@@ -14,7 +15,7 @@ import (
 var imgurre = regexp.MustCompile(`.*?(<link rel="image_src"\s+href="|<meta property="og:video"\s+content=")(.*?)".*`)
 
 type Imgur struct {
-	Client *flu.Client
+	Client fluhttp.Client
 	URL    string
 	urld   media.URLDescriptor
 }
@@ -23,7 +24,7 @@ func (d *Imgur) Metadata(maxSize int64) (*media.Metadata, error) {
 	if d.urld.URL == "" {
 		h := new(imgurHTMLHandler)
 		if err := d.Client.GET(d.URL).Execute().
-			CheckStatusCode(http.StatusOK).
+			AcceptStatus(http.StatusOK).
 			HandleResponse(h).
 			Error; err != nil {
 			return nil, errors.Wrap(err, "get html")

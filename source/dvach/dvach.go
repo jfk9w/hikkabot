@@ -4,9 +4,9 @@ import (
 	"io"
 	"regexp"
 
-	"github.com/jfk9w/hikkabot/media"
+	fluhttp "github.com/jfk9w-go/flu/http"
 
-	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w/hikkabot/media"
 
 	"github.com/jfk9w/hikkabot/api/dvach"
 )
@@ -21,7 +21,7 @@ var ocr = &media.OCR{
 }
 
 type mediaDescriptor struct {
-	client *flu.Client
+	client fluhttp.Client
 	file   dvach.File
 }
 

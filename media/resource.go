@@ -8,8 +8,8 @@ import (
 )
 
 type Resource interface {
-	flu.Readable
-	Pull(flu.Readable) error
+	flu.Input
+	Pull(flu.Input) error
 	SubmitOCR(OCRClient) error
 	Cleanup() error
 }
@@ -22,7 +22,7 @@ func NewFileResource(path ...string) Resource {
 	return &FileResource{flu.File(filepath.Join(path...))}
 }
 
-func (r *FileResource) Pull(in flu.Readable) error {
+func (r *FileResource) Pull(in flu.Input) error {
 	if file, ok := in.(*FileResource); ok {
 		r.File = file.File
 		return nil
@@ -52,7 +52,7 @@ func NewMemoryResource(size int) Resource {
 	return &MemoryResource{buf}
 }
 
-func (r *MemoryResource) Pull(in flu.Readable) error {
+func (r *MemoryResource) Pull(in flu.Input) error {
 	if buf, ok := in.(*MemoryResource); ok {
 		r.Buffer = buf.Buffer
 		return nil
@@ -70,11 +70,11 @@ func (r *MemoryResource) Cleanup() error {
 }
 
 type VolatileResource struct {
-	flu.Readable
+	flu.Input
 }
 
-func (r *VolatileResource) Pull(in flu.Readable) error {
-	r.Readable = in
+func (r *VolatileResource) Pull(in flu.Input) error {
+	r.Input = in
 	return nil
 }
 

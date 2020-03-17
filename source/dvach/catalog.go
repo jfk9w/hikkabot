@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jfk9w-go/flu"
+	fluhttp "github.com/jfk9w-go/flu/http"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/dvach"
@@ -70,7 +70,7 @@ func (s CatalogSource) Pull(pull *feed.UpdatePull) error {
 	pull.RawData.Unmarshal(item)
 	catalog, err := s.GetCatalog(item.Board)
 	if err != nil {
-		if err, ok := err.(flu.StatusCodeError); ok && err.Code == http.StatusNotFound {
+		if err, ok := err.(fluhttp.StatusCodeError); ok && err.Code == http.StatusNotFound {
 			return errors.Wrap(err, "get catalog")
 		} else {
 			log.Printf("Failed to load 2ch catalog for %s: %s", pull.ID, err)

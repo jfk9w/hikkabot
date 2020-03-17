@@ -8,16 +8,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jfk9w/hikkabot/media/descriptor"
-
-	_media "github.com/jfk9w/hikkabot/media"
-
-	"github.com/jfk9w/hikkabot/metrics"
-
+	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/api/reddit"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/format"
+	_media "github.com/jfk9w/hikkabot/media"
+	"github.com/jfk9w/hikkabot/media/descriptor"
 	"github.com/pkg/errors"
 )
 
@@ -40,7 +37,7 @@ type Source struct {
 	*reddit.Client
 	*_media.Tor
 	Storage
-	metrics.Metrics
+	Metrics metrics.Client
 }
 
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
@@ -99,7 +96,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 	minUps := item.MinUps
 	if minUps > 0 && minUps < 1 {
 		minUps = float64(s.RedditUpPivot(pull.ID, minUps, TTL))
-		s.Gauge("ups_threshold", metrics.Labels{
+		s.Metrics.Gauge("ups_threshold", metrics.Labels{
 			"chat":       pull.ID.ChatID.String(),
 			"sub":        pull.ID.ID,
 			"percentile": strconv.FormatFloat(item.MinUps, 'f', 2, 64),
@@ -112,7 +109,7 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 			continue
 		}
 
-		s.Counter("posts", metrics.Labels{
+		s.Metrics.Counter("posts", metrics.Labels{
 			"chat": pull.ID.ChatID.String(),
 			"sub":  pull.ID.ID,
 		}).Inc()

@@ -21,14 +21,14 @@ func NewRawData(bytes []byte) RawData {
 }
 
 func (j JSON) Marshal(value interface{}) RawData {
-	if err := flu.Write(flu.JSON(value), flu.Buffer(j)); err != nil {
+	if err := flu.EncodeTo(flu.JSON{value}, flu.Buffer(j)); err != nil {
 		panic(err)
 	}
 	return j
 }
 
 func (j JSON) Unmarshal(value interface{}) {
-	if err := flu.Read(flu.Buffer(j), flu.JSON(value)); err != nil {
+	if err := flu.DecodeFrom(flu.Buffer(j), flu.JSON{value}); err != nil {
 		panic(err)
 	}
 }

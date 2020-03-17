@@ -5,11 +5,12 @@ import (
 	_url "net/url"
 	"strings"
 
-	"github.com/jfk9w-go/flu"
+	fluhttp "github.com/jfk9w-go/flu/http"
+
 	"github.com/jfk9w/hikkabot/media"
 )
 
-type Factory func(*flu.Client, *_url.URL) media.Descriptor
+type Factory func(fluhttp.Client, *_url.URL) media.Descriptor
 
 func (f Factory) RegisterFor(domains ...string) {
 	for _, domain := range domains {
@@ -22,13 +23,13 @@ func (f Factory) RegisterFor(domains ...string) {
 }
 
 func init() {
-	Factory(func(client *flu.Client, url *_url.URL) media.Descriptor {
+	Factory(func(client fluhttp.Client, url *_url.URL) media.Descriptor {
 		return &Gfycat{Client: client, URL: url.String()}
 	}).RegisterFor("gfycat.com", "www.gfycat.com")
-	Factory(func(client *flu.Client, url *_url.URL) media.Descriptor {
+	Factory(func(client fluhttp.Client, url *_url.URL) media.Descriptor {
 		return &Imgur{Client: client, URL: url.String()}
 	}).RegisterFor("imgur.com", "www.imgur.com")
-	Factory(func(client *flu.Client, url *_url.URL) media.Descriptor {
+	Factory(func(client fluhttp.Client, url *_url.URL) media.Descriptor {
 		rawurl := url.String()
 		if strings.Contains(rawurl, ".gifv") {
 			rawurl = strings.Replace(rawurl, ".gifv", ".mp4", 1)
@@ -38,11 +39,11 @@ func init() {
 			URL:    rawurl,
 		}
 	}).RegisterFor("i.imgur.com")
-	Factory(func(client *flu.Client, url *_url.URL) media.Descriptor {
+	Factory(func(client fluhttp.Client, url *_url.URL) media.Descriptor {
 		id := url.Query().Get("v")
 		return &Youtube{Client: client, ID: id}
 	}).RegisterFor("youtube.com", "www.youtube.com")
-	Factory(func(client *flu.Client, url *_url.URL) media.Descriptor {
+	Factory(func(client fluhttp.Client, url *_url.URL) media.Descriptor {
 		id := strings.Trim(url.Path, "/")
 		return &Youtube{Client: client, ID: id}
 	}).RegisterFor("youtu.be")
@@ -50,7 +51,7 @@ func init() {
 
 var SupportedDomains = make(map[string]Factory)
 
-func From(client *flu.Client, rawurl string) (media.Descriptor, error) {
+func From(client fluhttp.Client, rawurl string) (media.Descriptor, error) {
 	url, err := _url.Parse(rawurl)
 	if err != nil {
 		return nil, err
