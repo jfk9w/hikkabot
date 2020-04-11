@@ -40,14 +40,14 @@ func (d URLDescriptor) Metadata(_ int64) (*Metadata, error) {
 	h.URL = d.URL
 	return &h.Metadata, d.Client.HEAD(d.URL).
 		Execute().
-		AcceptStatus(http.StatusOK).
+		CheckStatus(http.StatusOK).
 		HandleResponse(h).
 		Error
 }
 
 func (d URLDescriptor) Reader() (io.Reader, error) {
 	return d.Client.GET(d.URL).Execute().
-		AcceptStatus(http.StatusOK).
+		CheckStatus(http.StatusOK).
 		Reader()
 }
 

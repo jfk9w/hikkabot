@@ -81,7 +81,7 @@ func (d *Youtube) Metadata(maxSize int64) (*media.Metadata, error) {
 	if err := d.Client.
 		GET("http://youtube.com/get_video_info?video_id=" + d.ID).
 		Execute().
-		AcceptStatus(http.StatusOK).
+		CheckStatus(http.StatusOK).
 		DecodeBody(info).
 		Error; err != nil {
 		return nil, errors.Wrap(err, "get_video_info")
@@ -123,6 +123,6 @@ func (d *Youtube) Metadata(maxSize int64) (*media.Metadata, error) {
 
 func (d *Youtube) Reader() (io.Reader, error) {
 	return d.Client.GET(d.URL).Execute().
-		AcceptStatus(http.StatusOK).
+		CheckStatus(http.StatusOK).
 		Reader()
 }

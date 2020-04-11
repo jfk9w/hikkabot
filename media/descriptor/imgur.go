@@ -24,7 +24,7 @@ func (d *Imgur) Metadata(maxSize int64) (*media.Metadata, error) {
 	if d.urld.URL == "" {
 		h := new(imgurHTMLHandler)
 		if err := d.Client.GET(d.URL).Execute().
-			AcceptStatus(http.StatusOK).
+			CheckStatus(http.StatusOK).
 			HandleResponse(h).
 			Error; err != nil {
 			return nil, errors.Wrap(err, "get html")

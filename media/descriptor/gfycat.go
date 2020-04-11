@@ -24,7 +24,7 @@ func (d *Gfycat) Metadata(maxSize int64) (*media.Metadata, error) {
 	if d.urld.URL == "" {
 		html := flu.NewBuffer()
 		if err := d.Client.GET(d.URL).Execute().
-			AcceptStatus(http.StatusOK).
+			CheckStatus(http.StatusOK).
 			DecodeBodyTo(html).
 			Error; err != nil {
 			return nil, errors.New("get html")
