@@ -13,7 +13,6 @@ import (
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/otiai10/gosseract/v2"
 	"github.com/pkg/errors"
 )
 
@@ -58,7 +57,6 @@ type Tor struct {
 	Debug       bool
 	Workers     int
 	converters  map[string]Converter
-	ocrClient   chan *gosseract.Client
 	queue       chan *Promise
 	work        sync.WaitGroup
 }
@@ -81,10 +79,6 @@ func (tor *Tor) AddConverter(converter Converter) *Tor {
 }
 
 func (tor *Tor) Initialize() *Tor {
-	tor.ocrClient = make(chan *gosseract.Client, 1)
-	client := gosseract.NewClient()
-	tor.ocrClient <- client
-
 	tor.queue = make(chan *Promise, tor.Workers)
 	tor.work.Add(tor.Workers)
 	for i := 0; i < tor.Workers; i++ {
@@ -210,18 +204,17 @@ loop:
 			return
 		}
 
-		maxSize := MaxSize(mediaType)
-		if metadata.Size > maxSize[1] {
+		if metadata.Size > mediaType.AttachMaxSize() {
 			err = errors.Errorf("exceeded max size %dMB for %s (%dMB)",
-				maxSize[1]>>20, mediaType, metadata.Size>>20)
+				mediaType.AttachMaxSize()>>20, mediaType, metadata.Size>>20)
 			return
 		}
 
 		media.Metadata = *metadata
 		media.Type = mediaType
 		if tor.Buffer || options.Buffer ||
-			mediaType == telegram.Photo && (options.OCR != nil || metadata.Size > MaxSize(telegram.Photo)[0]) ||
-			mediaType == telegram.Video && metadata.Size > MaxSize(telegram.Video)[0] ||
+			mediaType == telegram.Photo && metadata.Size > telegram.Photo.RemoteMaxSize() ||
+			mediaType == telegram.Video && metadata.Size > telegram.Video.RemoteMaxSize() ||
 			media.Resource != nil {
 			media.Resource = tor.BufferSpace.NewResource(metadata.Size)
 		} else {
@@ -236,20 +229,6 @@ loop:
 		break
 	}
 
-	// filters
-	if options.Hashable {
-		if media.Type == telegram.Photo && options.OCR != nil {
-			if err = tor.checkOCR(options.OCR, media); err != nil {
-				if err == ErrFiltered {
-					return
-				} else {
-					log.Printf("Failed to run OCR on image %s: %s", media.Metadata.URL, err)
-					err = nil
-				}
-			}
-		}
-	}
-
 	tor.Metrics.Counter("files_materialized", metrics.Labels{
 		"mimeType": metadata.MIMEType,
 	}).Inc()
@@ -261,35 +240,6 @@ loop:
 }
 
 var ErrFiltered = errors.New("filtered")
-
-func (tor *Tor) checkOCR(options *OCR, media Materialized) error {
-	tor.Metrics.Counter("ocr_checks", metrics.Labels{
-		"mimeType": media.Metadata.MIMEType,
-	}).Inc()
-	client := <-tor.ocrClient
-	client.SetLanguage(options.Languages...)
-	media.Resource.SubmitOCR(client)
-	text, err := client.Text()
-	tor.ocrClient <- client
-	if tor.Debug {
-		if err == nil {
-			log.Printf("Recognized text for %s:\n%s", media.Metadata.URL, text)
-		} else {
-			tor.Metrics.Counter("ocr_failed", metrics.Labels{
-				"mimeType": media.Metadata.MIMEType,
-			}).Inc()
-		}
-	}
-
-	if options.Regex.MatchString(strings.ToLower(text)) {
-		tor.Metrics.Counter("ocr_filtered", metrics.Labels{
-			"mimeType": media.Metadata.MIMEType,
-		}).Inc()
-		return ErrFiltered
-	}
-
-	return nil
-}
 
 var (
 	symbols  = []rune("abcdefghijklmonpqrstuvwxyz0123456789")

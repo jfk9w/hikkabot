@@ -3,12 +3,8 @@ package main
 import (
 	"log"
 
-	fluhttp "github.com/jfk9w-go/flu/http"
-
-	"github.com/jfk9w/hikkabot/util"
-
 	"github.com/jfk9w-go/flu"
-
+	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w/hikkabot/api/dvach"
 )
 
@@ -18,7 +14,7 @@ func main() {
 			Usercode string `json:"usercode"`
 		} `json:"dvach"`
 	})
-	err := flu.DecodeFrom(flu.File("config/config_dev.yml"), util.YAML{config})
+	err := flu.DecodeFrom(flu.File("config/config_dev.yml"), flu.YAML{config})
 	if err != nil {
 		panic(err)
 	}

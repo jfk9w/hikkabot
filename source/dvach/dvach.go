@@ -2,7 +2,6 @@ package dvach
 
 import (
 	"io"
-	"regexp"
 
 	fluhttp "github.com/jfk9w-go/flu/http"
 
@@ -10,15 +9,6 @@ import (
 
 	"github.com/jfk9w/hikkabot/api/dvach"
 )
-
-var ocr = &media.OCR{
-	Languages: []string{"rus"},
-	Regex: regexp.MustCompile(`(?is).*?` +
-		`(т\s?в\s?о\s?я.*?м\s?а\s?(т\s?ь|м\s?а).*?(у\s?м\s?р\s?(е|ё)т|с\s?д\s?о\s?х\s?н\s?е\s?т)|` +
-		`m\s?o\s?t\s?h\s?e\s?r.*?w\s?i\s?l\s?l.*?d\s?i\s?e|` +
-		`п\s?р\s?о\s?к\s?л\s?я\s?т|` +
-		`c\s?u\s?r\s?s\s?e).*`),
-}
 
 type mediaDescriptor struct {
 	client fluhttp.Client

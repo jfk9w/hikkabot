@@ -17,7 +17,6 @@ import (
 	_media "github.com/jfk9w/hikkabot/media"
 	_source "github.com/jfk9w/hikkabot/source"
 	_storage "github.com/jfk9w/hikkabot/storage"
-	"github.com/jfk9w/hikkabot/util"
 	"github.com/pkg/errors"
 )
 
@@ -73,7 +72,7 @@ type Config struct {
 
 func main() {
 	config := new(Config)
-	if err := flu.DecodeFrom(flu.File(os.Args[1]), util.YAML{config}); err != nil {
+	if err := flu.DecodeFrom(flu.File(os.Args[1]), flu.YAML{config}); err != nil {
 		panic(err)
 	}
 

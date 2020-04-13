@@ -14,7 +14,6 @@ type Metadata struct {
 
 type Options struct {
 	Hashable bool
-	OCR      *OCR
 	Buffer   bool
 }
 
@@ -22,19 +21,6 @@ type Materialized struct {
 	Metadata Metadata
 	Resource Resource
 	Type     telegram.MediaType
-}
-
-var (
-	maxPhotoSize = [2]int64{5 << 20, 10 << 20}
-	maxMediaSize = [2]int64{20 << 20, 50 << 20}
-)
-
-func MaxSize(mediaType telegram.MediaType) [2]int64 {
-	if mediaType == telegram.Photo {
-		return maxPhotoSize
-	} else {
-		return maxMediaSize
-	}
 }
 
 type Promise struct {

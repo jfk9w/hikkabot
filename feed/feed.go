@@ -1,6 +1,7 @@
 package feed
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 
@@ -95,22 +96,22 @@ type Update struct {
 
 type UpdatePull struct {
 	Subscription
-	queue  chan Update
-	err    error
-	cancel chan struct{}
+	queue chan Update
+	err   error
+	ctx   context.Context
 }
 
-func newUpdatePull(subscription Subscription) *UpdatePull {
+func newUpdatePull(ctx context.Context, subscription Subscription) *UpdatePull {
 	return &UpdatePull{
 		Subscription: subscription,
 		queue:        make(chan Update, 10),
-		cancel:       make(chan struct{}),
+		ctx:          ctx,
 	}
 }
 
 func (p *UpdatePull) Submit(update Update) bool {
 	select {
-	case <-p.cancel:
+	case <-p.ctx.Done():
 		return false
 	case p.queue <- update:
 		return true

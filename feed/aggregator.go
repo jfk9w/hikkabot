@@ -78,7 +78,8 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub Subscription) error {
 	if !ok {
 		return errors.Errorf("no such source: %s", sub.ID.Source)
 	}
-	pull := newUpdatePull(sub)
+	ctx, cancel := context.WithCancel(context.Background())
+	pull := newUpdatePull(ctx, sub)
 	go pull.run(source)
 	hasUpdates := false
 	for update := range pull.queue {
@@ -97,8 +98,7 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub Subscription) error {
 		a.Metrics.Counter("media", metricsLabels).Add(float64(len(update.Media)))
 		err = a.change(ctx, 0, sub.ID, Change{RawData: update.RawData})
 		if err != nil {
-			pull.cancel <- struct{}{}
-			close(pull.cancel)
+			cancel()
 			return err
 		}
 	}

@@ -10,7 +10,6 @@ import (
 type Resource interface {
 	flu.Input
 	Pull(flu.Input) error
-	SubmitOCR(OCRClient) error
 	Cleanup() error
 }
 
@@ -29,10 +28,6 @@ func (r *FileResource) Pull(in flu.Input) error {
 	}
 
 	return flu.Copy(in, r)
-}
-
-func (r *FileResource) SubmitOCR(client OCRClient) error {
-	return client.SetImage(r.Path())
 }
 
 func (r *FileResource) Cleanup() error {
@@ -61,10 +56,6 @@ func (r *MemoryResource) Pull(in flu.Input) error {
 	return flu.Copy(in, r)
 }
 
-func (r *MemoryResource) SubmitOCR(client OCRClient) error {
-	return client.SetImageFromBytes(r.Bytes())
-}
-
 func (r *MemoryResource) Cleanup() error {
 	return nil
 }
@@ -76,10 +67,6 @@ type VolatileResource struct {
 func (r *VolatileResource) Pull(in flu.Input) error {
 	r.Input = in
 	return nil
-}
-
-func (r *VolatileResource) SubmitOCR(client OCRClient) error {
-	panic("not implemented")
 }
 
 func (r *VolatileResource) Cleanup() error {
