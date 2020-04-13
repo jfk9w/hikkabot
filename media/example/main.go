@@ -4,9 +4,13 @@ import (
 	"log"
 	"time"
 
+	"github.com/jfk9w-go/flu/metrics"
+
+	"github.com/jfk9w-go/flu"
+
 	fluhttp "github.com/jfk9w-go/flu/http"
 
-	aconvert "github.com/jfk9w-go/aconvert-api"
+	_aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w/hikkabot/media"
 	"github.com/jfk9w/hikkabot/media/descriptor"
 )
@@ -16,9 +20,14 @@ func main() {
 		SizeBounds: [2]int64{1 << 10, 75 << 20},
 		Debug:      true,
 		Workers:    1,
+		Metrics:    metrics.DummyClient{},
 	}
 
-	mediator.AddConverter(media.NewAconvertConverter(aconvert.Client{}.Init(), media.NewBufferSpace("")))
+	config := new(struct{ Aconvert *_aconvert.Client })
+	if err := flu.DecodeFrom(flu.File("config/config_dev.yml"), flu.YAML{config}); err != nil {
+		panic(err)
+	}
+	mediator.AddConverter(media.NewAconvertConverter(config.Aconvert.Init(), media.NewBufferSpace("")))
 	defer mediator.Initialize().Close()
 
 	md, err := descriptor.From(
