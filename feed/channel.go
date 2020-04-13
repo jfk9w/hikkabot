@@ -3,6 +3,7 @@ package feed
 import (
 	"context"
 	"log"
+	"time"
 	"unicode/utf8"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -100,9 +101,20 @@ func (tg Telegram) SendAlert(ctx context.Context, chatIDs []telegram.ID, text fo
 	sendable := &telegram.Text{Text: text.Pages[0], ParseMode: text.ParseMode}
 	options := &telegram.SendOptions{ReplyMarkup: replyMarkup}
 	for _, chatID := range chatIDs {
-		_, err := tg.Send(ctx, chatID, sendable, options)
-		if err != nil {
-			log.Printf("Failed to send alert to %d: %s", chatID, err)
+		for retry := 0; true; retry++ {
+			if retry > 0 {
+				time.Sleep(time.Duration(retry*retry) * time.Second)
+			}
+			if _, err := tg.Send(ctx, chatID, sendable, options); err != nil {
+				if _, ok := err.(telegram.Error); !ok {
+					log.Printf("Failed to send alert to %d, retrying: %s", chatID, err)
+				} else {
+					log.Printf("Failed to send alert to %d: %s", chatID, err)
+					break
+				}
+			} else {
+				break
+			}
 		}
 	}
 }
