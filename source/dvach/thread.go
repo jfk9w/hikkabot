@@ -23,6 +23,7 @@ type ThreadItem struct {
 	Num       int
 	MediaOnly bool
 	Offset    int
+	Tag       string
 }
 
 type ThreadSource struct {
@@ -51,6 +52,8 @@ func (s ThreadSource) Draft(command, options string, rawData feed.RawData) (*fee
 	item.Num, _ = strconv.Atoi(groups[5])
 	if strings.HasPrefix(options, "m") {
 		item.MediaOnly = true
+	} else if strings.HasPrefix(options, "#") {
+		item.Tag = options
 	}
 
 	post, err := s.GetPost(item.Board, item.Num)
@@ -93,7 +96,6 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 				_media.Options{
 					Hashable: item.MediaOnly,
 					Buffer:   true,
-					//OCR:      ocr,
 				})
 		}
 
@@ -102,20 +104,21 @@ func (s ThreadSource) Pull(pull *feed.UpdatePull) error {
 		}
 
 		if !item.MediaOnly {
-			b := format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(post.Board)).
-				Text(pull.Name).NewLine().
-				Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.Board), post.Num))
-
+			b := format.NewHTML(telegram.MaxMessageSize, 0, DefaultSupportedTags, Board(post.Board))
+			if item.Tag != "" {
+				b.Text(item.Tag)
+			} else {
+				b.Text(pull.Name)
+			}
+			b.NewLine().Text(fmt.Sprintf(`#%s%d`, strings.ToUpper(post.Board), post.Num))
 			if post.IsOriginal() {
 				b.Text(" #OP")
 			}
-
 			if post.Comment != "" {
 				b.NewLine().
 					Text("---").NewLine().
 					Parse(post.Comment)
 			}
-
 			text = b.Format()
 		}
 
