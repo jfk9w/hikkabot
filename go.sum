@@ -29,12 +29,10 @@ github.com/google/go-querystring v1.0.0/go.mod h1:odCYkC5MyYFN7vkCjXpyrEuKhc/BUO
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/jfk9w-go/aconvert-api v0.9.10-0.20200413135913-298c9e9364dc h1:rAQjC/n5ErH7O/+kGVfgRBFsIPvvawIYAzZCjMNmaec=
 github.com/jfk9w-go/aconvert-api v0.9.10-0.20200413135913-298c9e9364dc/go.mod h1:1cLyWJBQA8Qlklj7ZWSN6sekvujOAzzw1kNFCRus25Y=
-github.com/jfk9w-go/flu v0.9.9 h1:r2wihPCS8XtRnVoBqFJjt6M3lFKXAiC14VnOEhuDcC4=
-github.com/jfk9w-go/flu v0.9.9/go.mod h1:xUB0n2PJ2GWLFqyoO3vuqNvnAqhfvmUUiEpMaozTkcY=
 github.com/jfk9w-go/flu v0.9.10-0.20200412095318-8830952a6788 h1:P7GwIi3puR8alutnEGRsqqHCPWBhb4SDqdcnl3vAFFc=
 github.com/jfk9w-go/flu v0.9.10-0.20200412095318-8830952a6788/go.mod h1:ZqsPgBk2Sun35uwcMW3bP8HKc3X7vnGCfsyMvCXO0sg=
-github.com/jfk9w-go/telegram-bot-api v0.9.5 h1:Vd8auqpnI2fxwyT8H8BB5MyowSeiuLC1NCdVleJ5pRw=
-github.com/jfk9w-go/telegram-bot-api v0.9.5/go.mod h1:EHEVbpdYZ5OJPyyPBLOxlz+q1n5p/J5F9MViDxABHlk=
+github.com/jfk9w-go/telegram-bot-api v0.9.6-0.20200416124511-d420ef53b452 h1:DRvQ48vJ+bD7sgBxJTWrwY3yu2Zg7MMGpFptAa7wN/4=
+github.com/jfk9w-go/telegram-bot-api v0.9.6-0.20200416124511-d420ef53b452/go.mod h1:ShBXus5dOWmsgm/XydIeI5RQv+WYBMC/3pNefvDzm5U=
 github.com/json-iterator/go v1.1.6/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/json-iterator/go v1.1.9/go.mod h1:KdQUCv79m/52Kvf8AW2vK1V8akMuk1QjK/uOdHXbAo4=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=

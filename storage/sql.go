@@ -3,6 +3,7 @@ package storage
 import (
 	_sql "database/sql"
 	"fmt"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -33,6 +34,7 @@ func (c SQLConfig) validate() {
 type SQL struct {
 	*_sql.DB
 	SQLQuirks
+	sync.RWMutex
 }
 
 func NewSQL(config SQLConfig) *SQL {
@@ -41,10 +43,15 @@ func NewSQL(config SQLConfig) *SQL {
 	if err != nil {
 		panic(err)
 	}
-	return (&SQL{db, KnownSQLQuirks[config.Driver]}).init()
+	return (&SQL{
+		DB:        db,
+		SQLQuirks: KnownSQLQuirks[config.Driver],
+	}).init()
 }
 
 func (s *SQL) query(query string, args ...interface{}) *_sql.Rows {
+	s.RLock()
+	defer s.RUnlock()
 	rows, err := s.Query(query, args...)
 	for i := 0; i < 5; i++ {
 		if s.RetryQueryOrExec(err, i) {
@@ -60,6 +67,8 @@ func (s *SQL) query(query string, args ...interface{}) *_sql.Rows {
 }
 
 func (s *SQL) exec(query string, args ...interface{}) _sql.Result {
+	s.Lock()
+	defer s.Unlock()
 	res, err := s.Exec(query, args...)
 	for i := 0; i < 5; i++ {
 		if s.RetryQueryOrExec(err, i) {
