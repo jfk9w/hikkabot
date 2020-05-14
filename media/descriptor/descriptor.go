@@ -25,7 +25,7 @@ func (f Factory) RegisterFor(domains ...string) {
 func init() {
 	Factory(func(client fluhttp.Client, url *_url.URL) media.Descriptor {
 		return &Gfycat{Client: client, URL: url.String()}
-	}).RegisterFor("gfycat.com", "www.gfycat.com")
+	}).RegisterFor("gfycat.com", "www.gfycat.com", "redgifs.com", "www.redgifs.com")
 	Factory(func(client fluhttp.Client, url *_url.URL) media.Descriptor {
 		return &Imgur{Client: client, URL: url.String()}
 	}).RegisterFor("imgur.com", "www.imgur.com")
