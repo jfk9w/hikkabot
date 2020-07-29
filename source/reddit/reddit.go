@@ -37,7 +37,7 @@ type Source struct {
 	*reddit.Client
 	*_media.Tor
 	Storage
-	Metrics metrics.Client
+	Metrics metrics.Registry
 }
 
 var re = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)(/(hot|new|top))?$`)
@@ -97,9 +97,9 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 	if minUps > 0 && minUps < 1 {
 		minUps = float64(s.RedditUpPivot(pull.ID, minUps, TTL))
 		s.Metrics.Gauge("ups_threshold", metrics.Labels{
-			"chat":       pull.ID.ChatID.String(),
-			"sub":        pull.ID.ID,
-			"percentile": strconv.FormatFloat(item.MinUps, 'f', 2, 64),
+			"chat", pull.ID.ChatID.String(),
+			"sub", pull.ID.ID,
+			"percentile", strconv.FormatFloat(item.MinUps, 'f', 2, 64),
 		}).Set(minUps)
 	}
 
@@ -110,8 +110,8 @@ func (s Source) Pull(pull *feed.UpdatePull) error {
 		}
 
 		s.Metrics.Counter("posts", metrics.Labels{
-			"chat": pull.ID.ChatID.String(),
-			"sub":  pull.ID.ID,
+			"chat", pull.ID.ChatID.String(),
+			"sub", pull.ID.ID,
 		}).Inc()
 
 		media := make([]*_media.Promise, 0)

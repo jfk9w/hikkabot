@@ -21,7 +21,7 @@ type Aggregator struct {
 	Channel
 	Storage
 	*media.Tor
-	Metrics metrics.Client
+	Metrics metrics.Registry
 	Timeout time.Duration
 	Aliases map[telegram.Username]telegram.ID
 	AdminID telegram.ID
@@ -90,9 +90,9 @@ func (a *Aggregator) pullUpdates(chatID telegram.ID, sub Subscription) error {
 			return errors.Wrapf(err, "send update: %+v", update)
 		}
 		metricsLabels := metrics.Labels{
-			"chat":   sub.ID.ChatID.String(),
-			"source": sub.ID.Source,
-			"id":     sub.ID.ID,
+			"chat", sub.ID.ChatID.String(),
+			"source", sub.ID.Source,
+			"id", sub.ID.ID,
 		}
 		a.Metrics.Counter("updates", metricsLabels).Inc()
 		a.Metrics.Counter("media", metricsLabels).Add(float64(len(update.Media)))

@@ -49,7 +49,7 @@ func (bs BufferSpace) Cleanup() {
 }
 
 type Tor struct {
-	Metrics metrics.Client
+	Metrics metrics.Registry
 	Storage
 	BufferSpace BufferSpace
 	SizeBounds  [2]int64
@@ -132,10 +132,10 @@ loop:
 		}
 
 		tor.Metrics.Counter("files_total", metrics.Labels{
-			"mimeType": metadata.MIMEType,
+			"mimeType", metadata.MIMEType,
 		}).Inc()
 		tor.Metrics.Counter("files_total_size", metrics.Labels{
-			"mimeType": metadata.MIMEType,
+			"mimeType", metadata.MIMEType,
 		}).Add(float64(metadata.Size))
 
 		if metadata.Size > tor.SizeBounds[1] {
@@ -169,12 +169,12 @@ loop:
 
 			hashstr := fmt.Sprintf("%x", hash.Sum(nil))
 			tor.Metrics.Counter("hash_checks", metrics.Labels{
-				"mimeType": metadata.MIMEType,
+				"mimeType", metadata.MIMEType,
 			}).Inc()
 			if tor.FileHash(metadata.URL, hashstr) {
 				log.Printf("Hash collision: %s (%s)", metadata.URL, hashstr)
 				tor.Metrics.Counter("hash_collisions", metrics.Labels{
-					"mimeType": metadata.MIMEType,
+					"mimeType", metadata.MIMEType,
 				}).Inc()
 				err = ErrFiltered
 				return
@@ -230,10 +230,10 @@ loop:
 	}
 
 	tor.Metrics.Counter("files_materialized", metrics.Labels{
-		"mimeType": metadata.MIMEType,
+		"mimeType", metadata.MIMEType,
 	}).Inc()
 	tor.Metrics.Counter("files_materialized_size", metrics.Labels{
-		"mimeType": metadata.MIMEType,
+		"mimeType", metadata.MIMEType,
 	}).Add(float64(metadata.Size))
 
 	return

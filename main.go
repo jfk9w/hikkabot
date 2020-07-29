@@ -81,7 +81,7 @@ func main() {
 		panic(err)
 	}
 
-	metrics := _metrics.NewPrometheusClient(config.Prometheus.ListenAddress).WithPrefix("hikkabot")
+	metrics := _metrics.NewPrometheusListener(config.Prometheus.ListenAddress).WithPrefix("hikkabot")
 	bot := newTelegramBot(config)
 
 	storage := _storage.NewSQL(config.Aggregator.Storage)
