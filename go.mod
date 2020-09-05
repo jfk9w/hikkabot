@@ -3,7 +3,7 @@ module github.com/jfk9w/hikkabot
 require (
 	github.com/doug-martin/goqu/v9 v9.9.0
 	github.com/jfk9w-go/flu v0.9.16
-	github.com/jfk9w-go/telegram-bot-api v0.9.10
+	github.com/jfk9w-go/telegram-bot-api v0.9.11
 	github.com/martinlindhe/base36 v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
@@ -14,4 +14,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )
 
-go 1.13
+go 1.15
