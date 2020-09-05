@@ -2,160 +2,152 @@ package main
 
 import (
 	"context"
-	_ "net/http/pprof"
 	"os"
+	"strconv"
+	"syscall"
 	"time"
 
-	_aconvert "github.com/jfk9w-go/aconvert-api"
+	yaml "gopkg.in/yaml.v3"
+
+	"github.com/jfk9w-go/telegram-bot-api/format"
+
+	"github.com/pkg/errors"
+
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
-	_metrics "github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w/hikkabot/api/dvach"
-	"github.com/jfk9w/hikkabot/api/reddit"
-	"github.com/jfk9w/hikkabot/feed"
-	_media "github.com/jfk9w/hikkabot/media"
-	_source "github.com/jfk9w/hikkabot/source"
-	_storage "github.com/jfk9w/hikkabot/storage"
-	"github.com/pkg/errors"
+	"github.com/jfk9w-go/telegram-bot-api/feed"
+	"github.com/jfk9w/hikkabot/vendors/dvach"
+	"github.com/jfk9w/hikkabot/vendors/reddit"
 )
 
-type Size struct {
-	Bytes     int64
-	Kilobytes int64
-	Megabytes int64
+type Duration struct {
+	time.Duration
 }
 
-func (s *Size) Value(defaultValue int64) int64 {
-	if s == nil {
-		return defaultValue
-	} else {
-		return s.Megabytes<<20 + s.Kilobytes<<10 + s.Bytes
+func (d *Duration) UnmarshalYAML(node *yaml.Node) error {
+	unitrune := node.Value[len(node.Value)-1]
+	var unit time.Duration
+	switch unitrune {
+	case 's':
+		unit = time.Second
+	case 'm':
+		unit = time.Minute
+	case 'h':
+		unit = time.Hour
+	default:
+		return errors.Errorf("unknown time unit: %s", unitrune)
 	}
+
+	amountstr := node.Value[:len(node.Value)-1]
+	amount, err := strconv.ParseInt(amountstr, 10, 64)
+	if err != nil {
+		return errors.Wrapf(err, "parse amount %s", amountstr)
+	}
+
+	d.Duration = time.Duration(amount) * unit
+	return nil
 }
 
 type Config struct {
-	Aggregator struct {
-		AdminID telegram.ID
-		Aliases map[telegram.Username]telegram.ID
-		Storage _storage.SQLConfig
-		Timeout string
-	}
-	Telegram struct {
-		Username    string
-		Token       string
-		Proxy       string
-		Concurrency int
-		LogFile     string
-		SendRetries int
-	}
-	Media struct {
-		Concurrency      int
-		MinSize, MaxSize Size
-		Buffer           bool
-		Directory        string
-		LogFile          string
-	}
-	Aconvert *_aconvert.Client
-	Reddit   *struct {
-		reddit.Config `yaml:",inline"`
-		LogFile       string
-	}
-	Dvach *struct {
-		Usercode string
-		LogFile  string
-	}
-	Prometheus struct {
-		ListenAddress string
-	}
+	Supervisor telegram.ID
+	Datasource string
+	Interval   Duration
+	Media      struct{ Directory string }
+	Aliases    map[string]telegram.ID
+	Telegram   struct{ Token string }
+	Reddit     reddit.Config
+	Dvach      struct{ Usercode string }
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	config := new(Config)
-	if err := flu.DecodeFrom(flu.File(os.Args[1]), flu.YAML{config}); err != nil {
-		panic(err)
-	}
+	check(flu.DecodeFrom(flu.File(os.Args[1]), flu.YAML{Value: config}))
 
-	timeout, err := time.ParseDuration(config.Aggregator.Timeout)
-	if err != nil {
-		panic(err)
-	}
+	store, err := feed.NewSQLite3(nil, config.Datasource)
+	check(err)
+	defer store.Close()
 
-	metrics := _metrics.NewPrometheusListener(config.Prometheus.ListenAddress).WithPrefix("hikkabot")
-	bot := newTelegramBot(config)
+	blobs, err := (&format.FileBlobStorage{
+		Directory:     config.Media.Directory,
+		TTL:           30 * time.Minute,
+		CleanInterval: 10 * time.Minute,
+	}).Init()
+	check(err)
 
-	storage := _storage.NewSQL(config.Aggregator.Storage)
-	defer storage.Close()
+	mediam := (&feed.MediaManager{
+		DefaultClient: fluhttp.NewClient(nil),
+		SizeBounds:    [2]int64{10 << 10, 75 << 20},
+		Storage:       blobs,
+		Dedup:         feed.MD5MediaDedup{Hashes: store},
+		RateLimiter:   flu.ConcurrencyRateLimiter(10),
+	}).Init(ctx)
+	defer mediam.Close()
 
-	bufferSpace := _media.NewBufferSpace(config.Media.Directory)
-	defer bufferSpace.Cleanup()
+	executor := feed.NewTaskExecutor()
+	defer executor.Close()
 
-	mediator := &_media.Tor{
-		Metrics:     metrics.WithPrefix("mediator"),
-		Storage:     storage,
-		BufferSpace: bufferSpace,
-		SizeBounds: [2]int64{
-			config.Media.MinSize.Value(1 << 10),
-			config.Media.MaxSize.Value(75 << 20),
-		},
-		Buffer:  config.Media.Buffer,
-		Debug:   true,
-		Workers: config.Media.Concurrency,
-	}
-
-	if config.Aconvert != nil {
-		mediator.AddConverter(_media.NewAconvertConverter(config.Aconvert.Init(), bufferSpace))
-	}
-
-	defer mediator.Initialize().Close()
-
-	channel := feed.Telegram{
-		Client: bot.Client,
-	}
-
-	agg := &feed.Aggregator{
-		Channel: channel,
-		Storage: storage,
-		Tor:     mediator,
-		Metrics: metrics.WithPrefix("aggregator"),
-		Timeout: timeout,
-		Aliases: config.Aggregator.Aliases,
-		AdminID: config.Aggregator.AdminID,
-	}
-
-	if config.Dvach != nil {
-		client := dvach.NewClient(fluhttp.NewTransport().
-			ResponseHeaderTimeout(2*time.Minute).
-			NewClient().
-			Timeout(4*time.Minute), config.Dvach.Usercode)
-		agg.AddSource(_source.DvachCatalog{client, mediator}).
-			AddSource(_source.DvachThread{client, mediator})
-	}
-
-	if config.Reddit != nil {
-		client := reddit.NewClient(fluhttp.NewClient(nil), config.Reddit.Config)
-		source := _source.Reddit{
-			Client:  client,
-			Tor:     mediator,
-			Storage: storage,
-			Metrics: metrics.WithPrefix("reddit"),
-		}
-		agg.AddSource(source)
-	}
-
-	bot.Listen(context.Background(), nil, agg.Init().CommandListener(config.Telegram.Username))
-}
-
-func newTelegramBot(config *Config) *telegram.Bot {
-	telegram.SendDelays[telegram.PrivateChat] = time.Second
 	bot := telegram.NewBot(fluhttp.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
-		ProxyURL(config.Telegram.Proxy).
-		NewClient().
-		Timeout(2*time.Minute), config.Telegram.Token, config.Telegram.SendRetries)
-	_, err := bot.Send(context.Background(), config.Aggregator.AdminID, &telegram.Text{Text: "⬆️"}, nil)
-	if err != nil {
-		panic(errors.Wrap(err, "failed to send initial message"))
+		NewClient(), config.Telegram.Token)
+
+	aggregator := feed.NewAggregator(executor, store, feed.TelegramHTML{Sender: bot}, config.Interval.Duration)
+
+	initRedditVendor(ctx, aggregator, mediam, store, config.Reddit)
+	initDvachVendors(aggregator, mediam, config.Dvach.Usercode)
+
+	listener := &feed.CommandListener{
+		Context:    ctx,
+		Aggregator: aggregator,
+		Management: feed.NewSupervisorManagement(bot, config.Supervisor),
+		Aliases:    config.Aliases,
 	}
-	return bot
+
+	check(aggregator.Init(ctx, listener))
+	defer bot.CommandListener(listener).Close()
+	flu.AwaitSignal(syscall.SIGINT, syscall.SIGABRT, syscall.SIGKILL, syscall.SIGTERM)
+}
+
+func initRedditVendor(ctx context.Context, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLite3, config reddit.Config) error {
+	store := &reddit.SQLite3{
+		SQLite3:       sqlite3,
+		ThingTTL:      reddit.DefaultThingTTL,
+		CleanInterval: time.Hour,
+	}
+
+	if err := store.Init(ctx); err != nil {
+		return errors.Wrap(err, "init reddit store")
+	}
+
+	aggregator.Vendor("subreddit", &reddit.SubredditFeed{
+		Client:       reddit.NewClient(nil, config),
+		Store:        store,
+		MediaManager: mediam,
+	})
+
+	return nil
+}
+
+func initDvachVendors(aggregator *feed.Aggregator, mediam *feed.MediaManager, usercode string) {
+	client := dvach.NewClient(nil, usercode)
+
+	aggregator.Vendor("2ch/catalog", &dvach.CatalogFeed{
+		Client:       client,
+		MediaManager: mediam,
+	})
+
+	aggregator.Vendor("2ch/thread", &dvach.ThreadFeed{
+		Client:       client,
+		MediaManager: mediam,
+	})
+}
+
+func check(err error) error {
+	if err != nil {
+		panic(err)
+	}
+	return err
 }
