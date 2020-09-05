@@ -146,8 +146,8 @@ github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANyt
 github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d/go.mod h1:qj24IKcXYK6Iy9ceXlo3Tc+vtHo9lIhSX5JddghvEPo=
 github.com/jfk9w-go/flu v0.9.16 h1:lWr1VmeoVfLE99lQH8fqkGif7C4fWRd+VFMz1/qPy9A=
 github.com/jfk9w-go/flu v0.9.16/go.mod h1:dQR0klvteGw29mFqhBUpv1N2WGdzobYMAq3/RD+Q8nw=
-github.com/jfk9w-go/telegram-bot-api v0.9.9 h1:ki5mcoNBHwXfCl7rVQF1cSl29ivD4sfHJ7AQtatikVs=
-github.com/jfk9w-go/telegram-bot-api v0.9.9/go.mod h1:1bZ9RQogDDiMhSp4wYf7mKYubUY0PLTQsDUDw60ZCRM=
+github.com/jfk9w-go/telegram-bot-api v0.9.10 h1:pA4ZtJ5b7ZTXY417a+KrYMprygt5+W7AgJxXzOzml+Q=
+github.com/jfk9w-go/telegram-bot-api v0.9.10/go.mod h1:1bZ9RQogDDiMhSp4wYf7mKYubUY0PLTQsDUDw60ZCRM=
 github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=
 github.com/jpillora/backoff v1.0.0/go.mod h1:J/6gKK9jxlEcS3zixgDgUAsiuZ7yrSoa/FX5e0EB2j4=
