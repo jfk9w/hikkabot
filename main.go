@@ -7,18 +7,18 @@ import (
 	"syscall"
 	"time"
 
-	yaml "gopkg.in/yaml.v3"
-
-	"github.com/jfk9w-go/telegram-bot-api/format"
-
-	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/feed"
+	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/jfk9w/hikkabot/vendors/dvach"
 	"github.com/jfk9w/hikkabot/vendors/reddit"
+	"github.com/pkg/errors"
+	yaml "gopkg.in/yaml.v3"
 )
 
 type Duration struct {
@@ -53,6 +53,7 @@ type Config struct {
 	Supervisor telegram.ID
 	Datasource string
 	Interval   Duration
+	Prometheus struct{ Address string }
 	Media      struct{ Directory string }
 	Aliases    map[string]telegram.ID
 	Telegram   struct{ Token string }
@@ -78,12 +79,17 @@ func main() {
 	}).Init()
 	check(err)
 
+	metrics := metrics.NewPrometheusListener(config.Prometheus.Address)
+	metrics.MustRegister(prometheus.NewBuildInfoCollector())
+	defer metrics.Close(context.Background())
+
 	mediam := (&feed.MediaManager{
 		DefaultClient: fluhttp.NewClient(nil),
 		SizeBounds:    [2]int64{10 << 10, 75 << 20},
 		Storage:       blobs,
 		Dedup:         feed.MD5MediaDedup{Hashes: store},
 		RateLimiter:   flu.ConcurrencyRateLimiter(10),
+		Metrics:       metrics.WithPrefix("media"),
 	}).Init(ctx)
 	defer mediam.Close()
 
@@ -94,24 +100,31 @@ func main() {
 		ResponseHeaderTimeout(2*time.Minute).
 		NewClient(), config.Telegram.Token)
 
-	aggregator := feed.NewAggregator(executor, store, feed.TelegramHTML{Sender: bot}, config.Interval.Duration)
+	aggregator := &feed.Aggregator{
+		Executor:          executor,
+		Feeds:             store,
+		HTMLWriterFactory: feed.TelegramHTML{Sender: bot},
+		UpdateInterval:    config.Interval.Duration,
+		Metrics:           metrics.WithPrefix("aggregator"),
+	}
 
-	initRedditVendor(ctx, aggregator, mediam, store, config.Reddit)
+	initRedditVendor(ctx, metrics, aggregator, mediam, store, config.Reddit)
 	initDvachVendors(aggregator, mediam, config.Dvach.Usercode)
 
-	listener := &feed.CommandListener{
+	listener, err := (&feed.CommandListener{
 		Context:    ctx,
 		Aggregator: aggregator,
 		Management: feed.NewSupervisorManagement(bot, config.Supervisor),
 		Aliases:    config.Aliases,
-	}
+	}).Init(ctx)
+	check(err)
+	defer listener.Close()
 
-	check(aggregator.Init(ctx, listener))
 	defer bot.CommandListener(listener).Close()
 	flu.AwaitSignal(syscall.SIGINT, syscall.SIGABRT, syscall.SIGKILL, syscall.SIGTERM)
 }
 
-func initRedditVendor(ctx context.Context, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLite3, config reddit.Config) error {
+func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLite3, config reddit.Config) error {
 	store := &reddit.SQLite3{
 		SQLite3:       sqlite3,
 		ThingTTL:      reddit.DefaultThingTTL,
@@ -126,6 +139,7 @@ func initRedditVendor(ctx context.Context, aggregator *feed.Aggregator, mediam *
 		Client:       reddit.NewClient(nil, config),
 		Store:        store,
 		MediaManager: mediam,
+		Metrics:      metrics.WithPrefix("subreddit"),
 	})
 
 	return nil

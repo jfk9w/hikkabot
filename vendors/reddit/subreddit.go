@@ -2,11 +2,14 @@ package reddit
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jfk9w-go/flu/metrics"
 
 	"github.com/jfk9w/hikkabot/resolver"
 
@@ -45,8 +48,9 @@ var (
 
 type SubredditFeed struct {
 	*Client
-	Store
-	*feed.MediaManager
+	Store        Store
+	MediaManager *feed.MediaManager
+	Metrics      metrics.Registry
 }
 
 func (f *SubredditFeed) getListing(ctx context.Context, subreddit string, limit int) ([]Thing, error) {
@@ -75,7 +79,7 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 
 	data := SubredditFeedData{
 		Subreddit: subreddit,
-		Top:       0.25,
+		Top:       0.2,
 		SentNames: make(common.StringSet, 1000),
 	}
 
@@ -94,7 +98,7 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 	}, nil
 }
 
-func (f *SubredditFeed) newMediaRef(feedID feed.ID, thing ThingData) format.MediaRef {
+func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData) format.MediaRef {
 	url := thing.URL
 	if thing.Domain == "v.redd.it" {
 		url = thing.MediaContainer.FallbackURL()
@@ -119,6 +123,10 @@ func (f *SubredditFeed) newMediaRef(feedID feed.ID, thing ThingData) format.Medi
 		Dedup: true,
 	}
 
+	f.Metrics.Counter("media", append(subID.MetricsLabels(),
+		"domain", thing.Domain,
+	)).Inc()
+
 	switch thing.Domain {
 	case "gfycat.com", "www.gfycat.com":
 		ref.MediaResolver = new(resolver.Gfycat)
@@ -131,11 +139,13 @@ func (f *SubredditFeed) newMediaRef(feedID feed.ID, thing ThingData) format.Medi
 		ref.MediaResolver = new(resolver.Imgur)
 	case "youtube.com", "www.youtube.com", "youtu.be":
 		ref.MediaResolver = &resolver.YouTube{MediaRef: ref}
+	case "preview.redd.it":
+		ref.MediaResolver = &feed.DummyMediaResolver{Client: f.Client.Client}
 	default:
 		ref.MediaResolver = new(feed.DummyMediaResolver)
 	}
 
-	ref.FeedID = feedID
+	ref.FeedID = subID.FeedID
 	return f.MediaManager.Submit(ref)
 }
 
@@ -173,6 +183,10 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 			if err != nil {
 				return errors.Wrap(err, "percentile")
 			}
+			f.Metrics.Gauge("ups", append(queue.SubID.MetricsLabels(),
+				"subreddit", data.Subreddit,
+				"top", fmt.Sprintf("%.2f", data.Top),
+			)).Set(float64(percentile))
 		}
 
 		if thing.Ups < percentile {
@@ -188,7 +202,7 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 				return nil
 			}
 		} else {
-			media := f.newMediaRef(queue.SubID.FeedID, thing)
+			media := f.newMediaRef(queue.SubID, thing)
 			write = func(html *format.HTMLWriter) error {
 				html.Text(f.getSubredditName(data.Subreddit)).Text("\n").
 					Text(thing.Title).

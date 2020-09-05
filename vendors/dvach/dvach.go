@@ -6,10 +6,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/telegram-bot-api/format"
-	"github.com/jfk9w/hikkabot/vendors/common"
 )
 
 const (
@@ -52,11 +48,6 @@ func (f File) URL() string {
 	return Host + f.Path
 }
 
-func (f File) WriteMedia(html *format.HTMLWriter, collapsible bool) {
-	html.Media(f.URL(), common.NewResolvedMediaRef(
-		f.Type.MIMEType(), flu.URL(f.URL())), collapsible)
-}
-
 type Post struct {
 	NumString    string `json:"num"`
 	ParentString string `json:"parent"`
@@ -74,13 +65,6 @@ type Post struct {
 	Num    int
 	Parent int
 	Date   time.Time
-}
-
-func (p Post) WriteMedia(html *format.HTMLWriter, text string, collapsible bool) {
-	for _, file := range p.Files {
-		html.Text(text).Media(file.URL(), common.NewResolvedMediaRef(
-			file.Type.MIMEType(), flu.URL(file.URL())), collapsible)
-	}
 }
 
 var (
