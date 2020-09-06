@@ -25,7 +25,7 @@ func (s *SQLite3) Init(ctx context.Context) error {
 	  name VARCHAR(63) NOT NULL UNIQUE,
 	  subreddit VARCHAR(255) NOT NULL,
 	  ups INTEGER NOT NULL,
-	  created_at TIMESTAMP NOT NULL
+	  last_seen TIMESTAMP NOT NULL
 	)`, SQLite3SubredditTable.GetTable())
 	if _, err := s.ExecContext(ctx, sql); err != nil {
 		return errors.Wrapf(err, "create %s table", SQLite3SubredditTable.GetTable())
@@ -43,7 +43,7 @@ func (s *SQLite3) Thing(ctx context.Context, thing *ThingData) error {
 		now := s.Now()
 		expiry := now.Add(-s.ThingTTL)
 		deleted, err := s.ExecuteSQLBuilder(ctx, s.Database.Delete(SQLite3SubredditTable).
-			Where(goqu.C("created_at").Lt(expiry)))
+			Where(goqu.C("last_seen").Lt(expiry)))
 		if err != nil {
 			return errors.Wrap(err, "delete")
 		}
@@ -53,8 +53,8 @@ func (s *SQLite3) Thing(ctx context.Context, thing *ThingData) error {
 	}
 
 	_, err := s.ExecuteSQLBuilder(ctx, s.Database.Insert(SQLite3SubredditTable).
-		Cols("subreddit", "name", "created_at", "ups").
-		Vals([]interface{}{thing.Subreddit, thing.Name, thing.Created, thing.Ups}).
+		Cols("subreddit", "name", "last_seen", "ups").
+		Vals([]interface{}{thing.Subreddit, thing.Name, s.Now(), thing.Ups}).
 		OnConflict(goqu.DoUpdate("name", map[string]int{"ups": thing.Ups})))
 
 	return err
@@ -116,7 +116,7 @@ func (s *SQLite3) Clean(ctx context.Context, data *SubredditFeedData) (int, erro
 		With("sent_names(name)", goqu.L(values.String())).
 		From(goqu.T("sent_names")).
 		LeftJoin(SQLite3SubredditTable, goqu.On(nameColumn.Eq(SQLite3SubredditTable.Col("name")))).
-		Where(goqu.And(SQLite3SubredditTable.Col("created_at").IsNull())))
+		Where(goqu.And(SQLite3SubredditTable.Col("last_seen").IsNull())))
 	s.RUnlock()
 	if err != nil {
 		return 0, errors.Wrap(err, "query")

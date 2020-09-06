@@ -72,6 +72,7 @@ func TestSQLite3_Basic(t *testing.T) {
 	}
 
 	for _, thing := range things {
+		clock.now = thing.Created
 		assert.Nil(t, rstore.Thing(ctx, &thing))
 		data.SentNames.Add(thing.Name)
 	}
