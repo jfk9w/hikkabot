@@ -34,6 +34,7 @@ type SubredditFeedData struct {
 	SentNames     common.StringSet `json:"sent_names"`
 	Top           float64          `json:"top"`
 	LastCleanSecs int64            `json:"last_clean"`
+	MediaOnly     bool             `json:"media_only"`
 }
 
 func (d SubredditFeedData) Copy() SubredditFeedData {
@@ -84,10 +85,15 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 	}
 
 	for _, option := range options {
-		var err error
-		data.Top, err = strconv.ParseFloat(option, 64)
-		if err != nil || data.Top <= 0 {
-			return feed.Candidate{}, errors.Wrap(err, "top must be positive")
+		switch option {
+		case "m":
+			data.MediaOnly = true
+		default:
+			var err error
+			data.Top, err = strconv.ParseFloat(option, 64)
+			if err != nil || data.Top <= 0 {
+				return feed.Candidate{}, errors.Wrap(err, "top must be positive")
+			}
 		}
 	}
 
@@ -194,7 +200,7 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 		}
 
 		var write feed.WriteHTML
-		if thing.IsSelf {
+		if thing.IsSelf && !data.MediaOnly {
 			write = func(html *format.HTMLWriter) error {
 				html.Text(f.getSubredditName(data.Subreddit)).Text("\n").
 					Bold(thing.Title).Text("\n").
