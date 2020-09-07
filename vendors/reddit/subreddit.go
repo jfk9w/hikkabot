@@ -9,13 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jfk9w-go/flu/metrics"
-
-	"github.com/jfk9w/hikkabot/resolver"
-
 	"github.com/doug-martin/goqu/v9"
+	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/metrics"
 	"github.com/jfk9w-go/telegram-bot-api/feed"
 	"github.com/jfk9w-go/telegram-bot-api/format"
+	"github.com/jfk9w/hikkabot/resolver"
 	"github.com/jfk9w/hikkabot/vendors/common"
 	"github.com/pkg/errors"
 )
@@ -30,15 +29,15 @@ type Store interface {
 }
 
 type SubredditFeedData struct {
-	Subreddit     string           `json:"subreddit"`
-	SentNames     common.StringSet `json:"sent_names"`
-	Top           float64          `json:"top"`
-	LastCleanSecs int64            `json:"last_clean"`
-	MediaOnly     bool             `json:"media_only"`
+	Subreddit     string        `json:"subreddit"`
+	SentIDs       flu.Uint64Set `json:"sent_ids,omitempty"`
+	Top           float64       `json:"top"`
+	LastCleanSecs int64         `json:"last_clean,omitempty"`
+	MediaOnly     bool          `json:"media_only,omitempty"`
 }
 
 func (d SubredditFeedData) Copy() SubredditFeedData {
-	d.SentNames = d.SentNames.Copy()
+	d.SentIDs = d.SentIDs.Copy()
 	return d
 }
 
@@ -81,7 +80,6 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 	data := SubredditFeedData{
 		Subreddit: subreddit,
 		Top:       0.2,
-		SentNames: make(common.StringSet, 1000),
 	}
 
 	for _, option := range options {
@@ -97,6 +95,7 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 		}
 	}
 
+	data.SentIDs = make(flu.Uint64Set, int(100*data.Top))
 	return feed.Candidate{
 		ID:   data.Subreddit,
 		Name: f.getSubredditName(data.Subreddit),
@@ -141,8 +140,12 @@ func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData) format.Me
 	case "imgur.com", "www.imgur.com":
 		ref.MediaResolver = new(resolver.Imgur)
 	case "i.imgur.com":
-		ref.URL = strings.Replace(url, ".gifv", ".mp4", 1)
-		ref.MediaResolver = new(resolver.Imgur)
+		if !strings.Contains(url, ".gifv") {
+			ref.MediaResolver = new(resolver.Imgur)
+			break
+		}
+		url = strings.Replace(url, ".gifv", ".mp4", 1)
+		fallthrough
 	case "youtube.com", "www.youtube.com", "youtu.be":
 		ref.MediaResolver = &resolver.YouTube{MediaRef: ref}
 	case "preview.redd.it":
@@ -156,7 +159,7 @@ func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData) format.Me
 }
 
 func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue feed.Queue) error {
-	data := &SubredditFeedData{SentNames: make(common.StringSet, 1000)}
+	data := &SubredditFeedData{SentIDs: make(flu.Uint64Set)}
 	if err := rawData.ReadTo(data); err != nil {
 		return errors.Wrap(err, "parse data")
 	}
@@ -174,13 +177,7 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 			return errors.Wrap(err, "save post")
 		}
 
-		if data.SentNames.Has(thing.Name) {
-			continue
-		}
-
-		data.SentNames.Add(thing.Name)
-		f.Store.Clean(ctx, data)
-		if !data.SentNames.Has(thing.Name) {
+		if data.SentIDs.Has(thing.ID) {
 			continue
 		}
 
@@ -200,12 +197,16 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 		}
 
 		var write feed.WriteHTML
-		if thing.IsSelf && !data.MediaOnly {
-			write = func(html *format.HTMLWriter) error {
-				html.Text(f.getSubredditName(data.Subreddit)).Text("\n").
-					Bold(thing.Title).Text("\n").
-					MarkupString(thing.SelfTextHTML)
-				return nil
+		if thing.IsSelf {
+			if data.MediaOnly {
+				continue
+			} else {
+				write = func(html *format.HTMLWriter) error {
+					html.Text(f.getSubredditName(data.Subreddit)).Text("\n").
+						Bold(thing.Title).Text("\n").
+						MarkupString(thing.SelfTextHTML)
+					return nil
+				}
 			}
 		} else {
 			media := f.newMediaRef(queue.SubID, thing)
@@ -215,6 +216,12 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 					Media(thing.URL, media, true)
 				return nil
 			}
+		}
+
+		data.SentIDs.Add(thing.ID)
+		f.Store.Clean(ctx, data)
+		if !data.SentIDs.Has(thing.ID) {
+			continue
 		}
 
 		if err := queue.Submit(ctx, feed.Update{

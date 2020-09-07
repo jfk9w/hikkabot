@@ -133,6 +133,7 @@ func (f *CatalogFeed) doLoad(ctx context.Context, rawData feed.Data, queue feed.
 		write := func(html *format.HTMLWriter) error {
 			if media != nil {
 				html.Session.PageSize = format.DefaultMaxCaptionSize
+				html.Session.PageCount = 1
 			}
 
 			ctx := html.Session.Context
@@ -143,9 +144,11 @@ func (f *CatalogFeed) doLoad(ctx context.Context, rawData feed.Data, queue feed.
 			}
 
 			html.Bold(post.DateString).Text("\n").
-				Link("[link]", post.URL()).
-				Text("\n---\n").
-				MarkupString(post.Comment)
+				Link("[link]", post.URL())
+
+			if post.Comment != "" {
+				html.Text("\n---\n").MarkupString(post.Comment)
+			}
 
 			if media != nil {
 				html.Media(post.URL(), media, true)

@@ -68,13 +68,13 @@ func TestSQLite3_Basic(t *testing.T) {
 
 	data := &reddit.SubredditFeedData{
 		Subreddit: "a",
-		SentNames: make(common.StringSet),
+		SentIDs:   make(common.StringSet),
 	}
 
 	for _, thing := range things {
 		clock.now = thing.Created
 		assert.Nil(t, rstore.Thing(ctx, &thing))
-		data.SentNames.Add(thing.Name)
+		data.SentIDs.Add(thing.Name)
 	}
 
 	assertPercentile(t, rstore, "a", 0.8, 4)

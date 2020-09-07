@@ -7,8 +7,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/flu/metrics"
@@ -18,6 +16,7 @@ import (
 	"github.com/jfk9w/hikkabot/vendors/dvach"
 	"github.com/jfk9w/hikkabot/vendors/reddit"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -121,6 +120,18 @@ func main() {
 	defer listener.Close()
 
 	defer bot.CommandListener(listener).Close()
+
+	check(listener.Status(ctx, bot, telegram.Command{
+		Chat: &telegram.Chat{
+			ID: config.Supervisor,
+		},
+		User: &telegram.User{
+			ID: config.Supervisor,
+		},
+		Message: new(telegram.Message),
+		Key:     "/status",
+	}))
+
 	flu.AwaitSignal(syscall.SIGINT, syscall.SIGABRT, syscall.SIGKILL, syscall.SIGTERM)
 }
 

@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/martinlindhe/base36"
-
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/pkg/errors"
@@ -77,18 +75,10 @@ func (c *Client) refreshToken(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) execute(ctx context.Context, resp interface{}, req *fluhttp.Request) error {
-	c.rateLimiter.Start(context.Background())
-	defer c.rateLimiter.Complete()
-	if time.Now().Sub(c.tokenTime).Minutes() > 58 {
-		if err := c.refreshToken(ctx); err != nil {
-			return err
-		}
-	}
-	return req.Context(ctx).Execute().DecodeBody(flu.JSON{resp}).Error
-}
-
 func (c *Client) GetListing(ctx context.Context, subreddit, sort string, limit int) ([]Thing, error) {
+	c.rateLimiter.Start(ctx)
+	defer c.rateLimiter.Complete()
+
 	if limit <= 0 {
 		limit = 25
 	}
@@ -107,14 +97,19 @@ func (c *Client) GetListing(ctx context.Context, subreddit, sort string, limit i
 		QueryParam("limit", strconv.Itoa(limit)).
 		Context(ctx).
 		Execute().
-		DecodeBody(flu.JSON{resp}).
+		DecodeBody(flu.JSON{Value: resp}).
 		Error; err != nil {
 		return nil, errors.Wrap(err, "get listing")
 	}
 
 	for i := range resp.Data.Children {
 		child := &resp.Data.Children[i]
-		child.Data.ID = base36.Decode(strings.Split(child.Data.Name, "_")[1])
+		var err error
+		id := strings.Split(child.Data.Name, "_")[1]
+		child.Data.ID, err = strconv.ParseUint(id, 36, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parse id: %s", id)
+		}
 		child.Data.SelfTextHTML = html.UnescapeString(child.Data.SelfTextHTML)
 		child.Data.Created = time.Unix(int64(child.Data.CreatedSecs), 0)
 	}

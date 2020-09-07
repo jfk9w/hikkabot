@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,7 +23,7 @@ type SQLite3 struct {
 func (s *SQLite3) Init(ctx context.Context) error {
 	sql := fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS %s (
-	  name VARCHAR(63) NOT NULL UNIQUE,
+	  id VARCHAR(63) NOT NULL UNIQUE,
 	  subreddit VARCHAR(255) NOT NULL,
 	  ups INTEGER NOT NULL,
 	  last_seen TIMESTAMP NOT NULL
@@ -53,9 +54,9 @@ func (s *SQLite3) Thing(ctx context.Context, thing *ThingData) error {
 	}
 
 	_, err := s.ExecuteSQLBuilder(ctx, s.Database.Insert(SQLite3SubredditTable).
-		Cols("subreddit", "name", "last_seen", "ups").
-		Vals([]interface{}{thing.Subreddit, thing.Name, s.Now(), thing.Ups}).
-		OnConflict(goqu.DoUpdate("name", map[string]int{"ups": thing.Ups})))
+		Cols("subreddit", "id", "last_seen", "ups").
+		Vals([]interface{}{thing.Subreddit, strconv.FormatUint(thing.ID, 36), s.Now(), thing.Ups}).
+		OnConflict(goqu.DoUpdate("id", map[string]int{"ups": thing.Ups})))
 
 	return err
 }
@@ -96,7 +97,7 @@ func (s *SQLite3) Clean(ctx context.Context, data *SubredditFeedData) (int, erro
 	var values strings.Builder
 	values.WriteString("(VALUES ")
 	first := true
-	data.SentNames.ForEach(func(key string) bool {
+	for value := range data.SentIDs {
 		if !first {
 			values.WriteString(", ")
 		} else {
@@ -104,18 +105,17 @@ func (s *SQLite3) Clean(ctx context.Context, data *SubredditFeedData) (int, erro
 		}
 
 		values.WriteString("('")
-		values.WriteString(key)
+		values.WriteString(strconv.FormatUint(value, 36))
 		values.WriteString("')")
-		return true
-	})
+	}
 	values.WriteString(")")
 
-	nameColumn := goqu.I("sent_names.name")
+	nameColumn := goqu.I("sent_ids.id")
 	s.RLock()
 	rows, err := s.QuerySQLBuilder(ctx, s.Select(nameColumn).
-		With("sent_names(name)", goqu.L(values.String())).
-		From(goqu.T("sent_names")).
-		LeftJoin(SQLite3SubredditTable, goqu.On(nameColumn.Eq(SQLite3SubredditTable.Col("name")))).
+		With("sent_ids(id)", goqu.L(values.String())).
+		From(goqu.T("sent_ids")).
+		LeftJoin(SQLite3SubredditTable, goqu.On(nameColumn.Eq(SQLite3SubredditTable.Col("id")))).
 		Where(goqu.And(SQLite3SubredditTable.Col("last_seen").IsNull())))
 	s.RUnlock()
 	if err != nil {
@@ -125,12 +125,12 @@ func (s *SQLite3) Clean(ctx context.Context, data *SubredditFeedData) (int, erro
 	defer rows.Close()
 	removed := 0
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var id uint64
+		if err := rows.Scan(&id); err != nil {
 			return 0, errors.Wrap(err, "scan")
 		}
 
-		data.SentNames.Delete(name)
+		delete(data.SentIDs, id)
 		removed += 1
 	}
 
