@@ -20,7 +20,7 @@ type SQLite3 struct {
 	lastCleanTime time.Time
 }
 
-func (s *SQLite3) Init(ctx context.Context) error {
+func (s *SQLite3) Init(ctx context.Context) (Store, error) {
 	sql := fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS %s (
 	  id VARCHAR(63) NOT NULL UNIQUE,
@@ -29,9 +29,9 @@ func (s *SQLite3) Init(ctx context.Context) error {
 	  last_seen TIMESTAMP NOT NULL
 	)`, SQLite3SubredditTable.GetTable())
 	if _, err := s.ExecContext(ctx, sql); err != nil {
-		return errors.Wrapf(err, "create %s table", SQLite3SubredditTable.GetTable())
+		return nil, errors.Wrapf(err, "create %s table", SQLite3SubredditTable.GetTable())
 	}
-	return nil
+	return s, nil
 }
 
 func (s *SQLite3) Thing(ctx context.Context, thing *ThingData) error {

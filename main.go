@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jfk9w/hikkabot/vendors/common"
+
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/flu/metrics"
@@ -80,6 +82,8 @@ func main() {
 
 	metrics := metrics.NewPrometheusListener(config.Prometheus.Address)
 	metrics.MustRegister(prometheus.NewBuildInfoCollector())
+	metrics.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	metrics.MustRegister(prometheus.NewGoCollector())
 	defer metrics.Close(context.Background())
 
 	mediam := (&feed.MediaManager{
@@ -122,34 +126,35 @@ func main() {
 	defer bot.CommandListener(listener).Close()
 
 	check(listener.Status(ctx, bot, telegram.Command{
-		Chat: &telegram.Chat{
-			ID: config.Supervisor,
-		},
-		User: &telegram.User{
-			ID: config.Supervisor,
-		},
+		Chat:    &telegram.Chat{ID: config.Supervisor},
+		User:    &telegram.User{ID: config.Supervisor},
 		Message: new(telegram.Message),
-		Key:     "/status",
-	}))
+		Key:     "/status"}))
 
 	flu.AwaitSignal(syscall.SIGINT, syscall.SIGABRT, syscall.SIGKILL, syscall.SIGTERM)
 }
 
 func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLite3, config reddit.Config) error {
-	store := &reddit.SQLite3{
+	store, err := (&reddit.SQLite3{
 		SQLite3:       sqlite3,
 		ThingTTL:      reddit.DefaultThingTTL,
 		CleanInterval: time.Hour,
+	}).Init(ctx)
+	if err != nil {
+		return errors.Wrap(err, "init reddit store")
 	}
 
-	if err := store.Init(ctx); err != nil {
-		return errors.Wrap(err, "init reddit store")
+	viddit := &common.Viddit{
+		Client:        fluhttp.NewClient(nil),
+		Clock:         format.ClockFunc(time.Now),
+		ResetInterval: 20 * time.Minute,
 	}
 
 	aggregator.Vendor("subreddit", &reddit.SubredditFeed{
 		Client:       reddit.NewClient(nil, config),
 		Store:        store,
 		MediaManager: mediam,
+		Viddit:       viddit,
 		Metrics:      metrics.WithPrefix("subreddit"),
 	})
 

@@ -39,19 +39,15 @@ func (r *RedGIFs) Request(request *fluhttp.Request) *fluhttp.Request {
 func (r *RedGIFs) Handle(resp *http.Response) error {
 	defer resp.Body.Close()
 	tokenizer := html.NewTokenizer(resp.Body)
-	for {
-		tt := tokenizer.Next()
-		if tt == html.ErrorToken {
-			break
-		}
+	for tokenizer.Next() != html.ErrorToken {
 		token := tokenizer.Token()
 		if token.Type == html.StartTagToken &&
 			token.Data == "script" &&
 			format.HTMLAttributes(token.Attr).Get("type") == "application/ld+json" {
-			tt := tokenizer.Next()
-			if tt == html.ErrorToken {
+			if tokenizer.Next() != html.ErrorToken {
 				break
 			}
+
 			token := tokenizer.Token()
 			if token.Type == html.TextToken {
 				var data struct {

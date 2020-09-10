@@ -22,7 +22,7 @@ import (
 var DefaultThingTTL = 7 * 24 * time.Hour
 
 type Store interface {
-	Init(ctx context.Context) error
+	Init(ctx context.Context) (Store, error)
 	Thing(ctx context.Context, thing *ThingData) error
 	Percentile(ctx context.Context, subreddit string, top float64) (int, error)
 	Clean(ctx context.Context, data *SubredditFeedData) (int, error)
@@ -51,6 +51,7 @@ type SubredditFeed struct {
 	Store        Store
 	MediaManager *feed.MediaManager
 	Metrics      metrics.Registry
+	Viddit       *common.Viddit
 }
 
 func (f *SubredditFeed) getListing(ctx context.Context, subreddit string, limit int) ([]Thing, error) {
@@ -103,32 +104,32 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 	}, nil
 }
 
-func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData) format.MediaRef {
-	url := thing.URL
+func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData, mediaOnly bool) format.MediaRef {
+	ref := &feed.MediaRef{
+		FeedID: subID.FeedID,
+		URL:    thing.URL,
+		Dedup:  mediaOnly,
+	}
+
 	if thing.Domain == "v.redd.it" {
-		url = thing.MediaContainer.FallbackURL()
-		if url == "" {
+		ref.URL = thing.MediaContainer.FallbackURL()
+		if ref.URL == "" {
 			for _, mc := range thing.CrosspostParentList {
-				url = mc.FallbackURL()
-				if url != "" {
+				ref.URL = mc.FallbackURL()
+				if ref.URL != "" {
 					break
 				}
 			}
 		}
 
-		if url == "" {
+		if ref.URL == "" {
 			return common.InvalidMediaRef{
 				Error: errors.Errorf("failed to find url for %s", thing.URL),
 			}
 		}
 	}
 
-	ref := &feed.MediaRef{
-		URL:   url,
-		Dedup: true,
-	}
-
-	f.Metrics.Counter("media", append(subID.MetricsLabels(),
+	f.Metrics.Counter("media", subID.MetricsLabels().Append(
 		"domain", thing.Domain,
 	)).Inc()
 
@@ -136,25 +137,28 @@ func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData) format.Me
 	case "gfycat.com", "www.gfycat.com":
 		ref.MediaResolver = new(resolver.Gfycat)
 	case "redgifs.com", "www.redgifs.com":
+		ref.Blob = true
 		ref.MediaResolver = new(resolver.RedGIFs)
 	case "imgur.com", "www.imgur.com":
 		ref.MediaResolver = new(resolver.Imgur)
 	case "i.imgur.com":
-		if !strings.Contains(url, ".gifv") {
+		if !strings.Contains(ref.URL, ".gifv") {
 			ref.MediaResolver = new(resolver.Imgur)
-			break
+		} else {
+			ref.URL = strings.Replace(ref.URL, ".gifv", ".mp4", 1)
+			ref.MediaResolver = new(feed.DummyMediaResolver)
 		}
-		url = strings.Replace(url, ".gifv", ".mp4", 1)
-		fallthrough
 	case "youtube.com", "www.youtube.com", "youtu.be":
 		ref.MediaResolver = &resolver.YouTube{MediaRef: ref}
 	case "preview.redd.it":
 		ref.MediaResolver = &feed.DummyMediaResolver{Client: f.Client.Client}
+	case "v.redd.it":
+		ref.URL = thing.PermalinkURL()
+		ref.MediaResolver = resolver.Viddit{Client: f.Viddit}
 	default:
 		ref.MediaResolver = new(feed.DummyMediaResolver)
 	}
 
-	ref.FeedID = subID.FeedID
 	return f.MediaManager.Submit(ref)
 }
 
@@ -186,6 +190,7 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 			if err != nil {
 				return errors.Wrap(err, "percentile")
 			}
+
 			f.Metrics.Gauge("ups", append(queue.SubID.MetricsLabels(),
 				"subreddit", data.Subreddit,
 				"top", fmt.Sprintf("%.2f", data.Top),
@@ -209,7 +214,7 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 				}
 			}
 		} else {
-			media := f.newMediaRef(queue.SubID, thing)
+			media := f.newMediaRef(queue.SubID, thing, data.MediaOnly)
 			write = func(html *format.HTMLWriter) error {
 				html.Text(f.getSubredditName(data.Subreddit)).Text("\n").
 					Text(thing.Title).

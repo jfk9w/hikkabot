@@ -36,6 +36,11 @@ type ThingData struct {
 	CreatedSecs  float32   `json:"created_utc"`
 	MediaContainer
 	CrosspostParentList []MediaContainer `json:"crosspost_parent_list"`
+	Permalink           string           `json:"permalink"`
+}
+
+func (d ThingData) PermalinkURL() string {
+	return "https://reddit.com" + d.Permalink
 }
 
 type Thing struct {
