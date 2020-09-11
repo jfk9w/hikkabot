@@ -2,7 +2,7 @@
 
 cd ..
 CWD=$(pwd)
-REPOS="hikkabot jfk9w-go/telegram-bot-api jfk9w-go/flu"
+REPOS="hikkabot jfk9w-go/telegram-bot-api jfk9w-go/flu jfk9w-go/aconvert-api"
 for REPO in $REPOS; do
   cd $REPO
   go clean

@@ -3,63 +3,37 @@ package main
 import (
 	"context"
 	"os"
-	"strconv"
-	"syscall"
 	"time"
 
-	"github.com/jfk9w/hikkabot/vendors/common"
-
+	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/feed"
 	"github.com/jfk9w-go/telegram-bot-api/format"
+	"github.com/jfk9w/hikkabot/resolver"
+	"github.com/jfk9w/hikkabot/vendors/common"
 	"github.com/jfk9w/hikkabot/vendors/dvach"
 	"github.com/jfk9w/hikkabot/vendors/reddit"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	yaml "gopkg.in/yaml.v3"
 )
-
-type Duration struct {
-	time.Duration
-}
-
-func (d *Duration) UnmarshalYAML(node *yaml.Node) error {
-	unitrune := node.Value[len(node.Value)-1]
-	var unit time.Duration
-	switch unitrune {
-	case 's':
-		unit = time.Second
-	case 'm':
-		unit = time.Minute
-	case 'h':
-		unit = time.Hour
-	default:
-		return errors.Errorf("unknown time unit: %s", unitrune)
-	}
-
-	amountstr := node.Value[:len(node.Value)-1]
-	amount, err := strconv.ParseInt(amountstr, 10, 64)
-	if err != nil {
-		return errors.Wrapf(err, "parse amount %s", amountstr)
-	}
-
-	d.Duration = time.Duration(amount) * unit
-	return nil
-}
 
 type Config struct {
 	Supervisor telegram.ID
 	Datasource string
-	Interval   Duration
+	Interval   flu.Duration
 	Prometheus struct{ Address string }
-	Media      struct{ Directory string }
-	Aliases    map[string]telegram.ID
-	Telegram   struct{ Token string }
-	Reddit     reddit.Config
-	Dvach      struct{ Usercode string }
+	Aconvert   struct {
+		Servers []int
+		Probe   *aconvert.Probe
+	}
+	Media    struct{ Directory string }
+	Aliases  map[string]telegram.ID
+	Telegram struct{ Token string }
+	Reddit   reddit.Config
+	Dvach    struct{ Usercode string }
 }
 
 func main() {
@@ -80,11 +54,15 @@ func main() {
 	}).Init()
 	check(err)
 
-	metrics := metrics.NewPrometheusListener(config.Prometheus.Address)
-	metrics.MustRegister(prometheus.NewBuildInfoCollector())
-	metrics.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
-	metrics.MustRegister(prometheus.NewGoCollector())
+	metrics := metrics.NewPrometheusListener(config.Prometheus.Address).MustRegister(
+		prometheus.NewBuildInfoCollector(),
+		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
+		prometheus.NewGoCollector())
 	defer metrics.Close(context.Background())
+
+	aconvert := resolver.Aconvert{
+		Client: aconvert.NewClient(nil, config.Aconvert.Servers, config.Aconvert.Probe),
+	}
 
 	mediam := (&feed.MediaManager{
 		DefaultClient: fluhttp.NewClient(nil),
@@ -94,7 +72,7 @@ func main() {
 		RateLimiter:   flu.ConcurrencyRateLimiter(10),
 		Metrics:       metrics.WithPrefix("media"),
 	}).Init(ctx)
-	defer mediam.Close()
+	defer mediam.Converter(aconvert).Close()
 
 	executor := feed.NewTaskExecutor()
 	defer executor.Close()
@@ -131,7 +109,7 @@ func main() {
 		Message: new(telegram.Message),
 		Key:     "/status"}))
 
-	flu.AwaitSignal(syscall.SIGINT, syscall.SIGABRT, syscall.SIGKILL, syscall.SIGTERM)
+	flu.AwaitSignal()
 }
 
 func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLite3, config reddit.Config) error {
