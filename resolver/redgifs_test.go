@@ -24,5 +24,5 @@ func TestRedGIFs_Handle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "https://thcf6.redgifs.com/DearestContentHydra.mp4", r.URL)
+	assert.Equal(t, "https://thcf8.redgifs.com/EarnestKeyEland.mp4", r.URL)
 }
