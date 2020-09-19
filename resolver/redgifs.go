@@ -44,7 +44,7 @@ func (r *RedGIFs) Handle(resp *http.Response) error {
 		if token.Type == html.StartTagToken &&
 			token.Data == "script" &&
 			format.HTMLAttributes(token.Attr).Get("type") == "application/ld+json" {
-			if tokenizer.Next() != html.ErrorToken {
+			if tokenizer.Next() == html.ErrorToken {
 				break
 			}
 
