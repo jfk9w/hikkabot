@@ -148,8 +148,8 @@ github.com/jfk9w-go/aconvert-api v0.9.10-0.20200911111737-b73da1b0847f h1:e+3Ifs
 github.com/jfk9w-go/aconvert-api v0.9.10-0.20200911111737-b73da1b0847f/go.mod h1:zfKPlWtg+huWNTsN5C0UhEjI554O6B/UkeW+wIPP5do=
 github.com/jfk9w-go/flu v0.9.17-0.20200911110833-4ba12d7ee95b h1:nwaOzKBOJY1sfhTPgyuA2BOpsqyS5O4Rp5PEXciAiDo=
 github.com/jfk9w-go/flu v0.9.17-0.20200911110833-4ba12d7ee95b/go.mod h1:TUyCE4dZQJnUIti5Kaa1i5msyvkj+cmpodVE1Kv+RPw=
-github.com/jfk9w-go/telegram-bot-api v0.9.13-0.20200911111831-257114873948 h1:ZdC5CZBkZqnribCV/B7bQojYtwh58A+B7dPZCFuoPgI=
-github.com/jfk9w-go/telegram-bot-api v0.9.13-0.20200911111831-257114873948/go.mod h1:lNLKK7gL8Gnd3PLCG6Ii/Lcq+Cl6FjPwUBpZrxNYuV4=
+github.com/jfk9w-go/telegram-bot-api v0.9.13-0.20200919044822-7b3a48f12e73 h1:XXeCyaszN5wAC5inKZ1NA+QC9pViAg4k7mZAGkliLe0=
+github.com/jfk9w-go/telegram-bot-api v0.9.13-0.20200919044822-7b3a48f12e73/go.mod h1:lNLKK7gL8Gnd3PLCG6Ii/Lcq+Cl6FjPwUBpZrxNYuV4=
 github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=
 github.com/jpillora/backoff v1.0.0/go.mod h1:J/6gKK9jxlEcS3zixgDgUAsiuZ7yrSoa/FX5e0EB2j4=
