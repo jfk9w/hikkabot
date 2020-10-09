@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/jfk9w-go/flu/metrics"
+
 	"github.com/jfk9w-go/telegram-bot-api/format"
 
 	"github.com/doug-martin/goqu/v9/dialect/sqlite3"
@@ -30,6 +32,7 @@ type SQLite3 struct {
 	*goqu.Database
 	flu.Clock
 	flu.RWMutex
+	metrics.Registry
 }
 
 func NewSQLite3(clock flu.Clock, datasource string) (*SQLite3, error) {
@@ -193,8 +196,12 @@ func (s *SQLite3) Delete(ctx context.Context, id SubID) error {
 	return err
 }
 
+var UpdateHistogramBuckets = []float64{1, 10, 100, 500, 1000, 2000, 5000, 10000}
+
 func (s *SQLite3) Update(ctx context.Context, id SubID, value interface{}) error {
 	defer s.Lock().Unlock()
+
+	start := s.Now()
 	where := s.ByID(id)
 	update := map[string]interface{}{"updated_at": s.Now()}
 	switch value := value.(type) {
@@ -209,6 +216,14 @@ func (s *SQLite3) Update(ctx context.Context, id SubID, value interface{}) error
 		update["error"] = value.Error()
 	default:
 		return errors.Errorf("invalid update value type: %T", value)
+	}
+
+	if s.Registry != nil {
+		s.Registry.Histogram("update_ms", metrics.Labels{
+			"feed_id", PrintID(id.FeedID),
+			"id", id.ID,
+			"vendor", id.Vendor,
+		}, UpdateHistogramBuckets).Observe(float64(s.Now().Sub(start).Milliseconds()))
 	}
 
 	ok, err := s.UpdateSQLBuilder(ctx, s.Database.Update(SQLite3FeedTableName).Set(update).Where(where))
