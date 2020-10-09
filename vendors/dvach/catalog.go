@@ -12,8 +12,8 @@ import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 
 	fluhttp "github.com/jfk9w-go/flu/http"
-	"github.com/jfk9w-go/telegram-bot-api/feed"
 	"github.com/jfk9w-go/telegram-bot-api/format"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/vendors/common"
 	"github.com/pkg/errors"
 )

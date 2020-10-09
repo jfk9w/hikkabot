@@ -18,7 +18,7 @@ var VidditURL = "https://viddit.red"
 type Viddit struct {
 	*fluhttp.Client
 	flu.Mutex
-	format.Clock
+	flu.Clock
 	ResetInterval time.Duration
 	lastResetTime time.Time
 }

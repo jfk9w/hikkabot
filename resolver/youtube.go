@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jfk9w-go/telegram-bot-api/feed"
+	"github.com/jfk9w/hikkabot/feed"
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"

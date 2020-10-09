@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
-	"github.com/jfk9w-go/telegram-bot-api/feed"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/pkg/errors"
 )
 

@@ -5,13 +5,15 @@ import (
 	"os"
 	"time"
 
+	"github.com/jfk9w-go/flu/serde"
+
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w-go/telegram-bot-api/feed"
 	"github.com/jfk9w-go/telegram-bot-api/format"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/resolver"
 	"github.com/jfk9w/hikkabot/vendors/common"
 	"github.com/jfk9w/hikkabot/vendors/dvach"
@@ -23,7 +25,7 @@ import (
 type Config struct {
 	Supervisor telegram.ID
 	Datasource string
-	Interval   flu.Duration
+	Interval   serde.Duration
 	Prometheus struct{ Address string }
 	Aconvert   struct {
 		Servers []int
@@ -43,7 +45,7 @@ func main() {
 	config := new(Config)
 	check(flu.DecodeFrom(flu.File(os.Args[1]), flu.YAML{Value: config}))
 
-	store, err := feed.NewSQLite3(nil, config.Datasource)
+	store, err := feed.NewSQLite3(flu.DefaultClock, config.Datasource)
 	check(err)
 	defer store.Close()
 
@@ -124,7 +126,7 @@ func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator 
 
 	viddit := &common.Viddit{
 		Client:        fluhttp.NewClient(nil),
-		Clock:         format.ClockFunc(time.Now),
+		Clock:         flu.DefaultClock,
 		ResetInterval: 20 * time.Minute,
 	}
 

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jfk9w-go/telegram-bot-api/feed"
 	"github.com/jfk9w-go/telegram-bot-api/format"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/utf8string"
 )

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jfk9w-go/telegram-bot-api/feed"
-	"github.com/jfk9w/hikkabot/vendors/common"
+	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/vendors/reddit"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,12 +26,11 @@ func TestSQLite3_Basic(t *testing.T) {
 	assert.Nil(t, err)
 
 	defer store.Close()
-	rstore := &reddit.SQLite3{
+	rstore, err := (&reddit.SQLite3{
 		SQLite3:  store,
 		ThingTTL: 5 * time.Hour,
-	}
-
-	assert.Nil(t, rstore.Init(ctx))
+	}).Init(ctx)
+	assert.Nil(t, err)
 
 	things := []reddit.ThingData{
 		{
@@ -68,13 +67,13 @@ func TestSQLite3_Basic(t *testing.T) {
 
 	data := &reddit.SubredditFeedData{
 		Subreddit: "a",
-		SentIDs:   make(common.StringSet),
+		SentIDs:   make(flu.Uint64Set),
 	}
 
 	for _, thing := range things {
 		clock.now = thing.Created
 		assert.Nil(t, rstore.Thing(ctx, &thing))
-		data.SentIDs.Add(thing.Name)
+		data.SentIDs.Add(thing.ID)
 	}
 
 	assertPercentile(t, rstore, "a", 0.8, 4)
