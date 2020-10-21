@@ -111,13 +111,13 @@ func (s *SQLite3) Clean(ctx context.Context, data *SubredditFeedData) (int, erro
 	values.WriteString(")")
 
 	nameColumn := goqu.I("sent_ids.id")
-	s.RLock()
+	unlocker := s.RLock()
 	rows, err := s.QuerySQLBuilder(ctx, s.Select(nameColumn).
 		With("sent_ids(id)", goqu.L(values.String())).
 		From(goqu.T("sent_ids")).
 		LeftJoin(SQLite3SubredditTable, goqu.On(nameColumn.Eq(SQLite3SubredditTable.Col("id")))).
 		Where(goqu.And(SQLite3SubredditTable.Col("last_seen").IsNull())))
-	s.RUnlock()
+	unlocker.Unlock()
 	if err != nil {
 		return 0, errors.Wrap(err, "query")
 	}

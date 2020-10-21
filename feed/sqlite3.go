@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/jfk9w/hikkabot/feed/internal"
+
 	"github.com/jfk9w-go/flu/metrics"
 
 	"github.com/jfk9w-go/telegram-bot-api/format"
@@ -31,7 +33,7 @@ type SQLBuilder interface {
 type SQLite3 struct {
 	*goqu.Database
 	flu.Clock
-	flu.RWMutex
+	*internal.OrderedMutex
 	metrics.Registry
 }
 
@@ -46,7 +48,11 @@ func NewSQLite3(clock flu.Clock, datasource string) (*SQLite3, error) {
 	options.TimeFormat = "2006-01-02 15:04:05.000"
 	goqu.RegisterDialect(dialect, options)
 
-	return &SQLite3{Database: goqu.New(dialect, db), Clock: clock}, nil
+	return &SQLite3{
+		Database:     goqu.New(dialect, db),
+		Clock:        clock,
+		OrderedMutex: internal.NewRWMutex(),
+	}, nil
 }
 
 func (s *SQLite3) Init(ctx context.Context) ([]ID, error) {
@@ -278,7 +284,7 @@ var MutexHistogramBuckets = []float64{0, 1, 2, 5, 10, 25, 100, 200, 500, 1000, 2
 
 func (s *SQLite3) Lock() flu.Unlocker {
 	start := s.Now()
-	unlocker := s.RWMutex.Lock()
+	unlocker := s.OrderedMutex.Lock()
 	s.Histogram("lock_wait_ms",
 		metrics.Labels{"op", "write"},
 		MutexHistogramBuckets).
@@ -288,7 +294,7 @@ func (s *SQLite3) Lock() flu.Unlocker {
 
 func (s *SQLite3) RLock() flu.Unlocker {
 	start := s.Now()
-	unlocker := s.RWMutex.RLock()
+	unlocker := s.OrderedMutex.RLock()
 	s.Histogram("lock_wait_ms",
 		metrics.Labels{"op", "read"},
 		MutexHistogramBuckets).
