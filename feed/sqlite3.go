@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/jfk9w/hikkabot/feed/internal"
 
@@ -22,8 +23,8 @@ import (
 )
 
 var (
-	SQLite3FeedTableName = goqu.T("feed")
-	SQLite3BlobTableName = goqu.T("blob")
+	Table     = goqu.T("feed")
+	BlobTable = goqu.T("blob")
 )
 
 type SQLBuilder interface {
@@ -66,7 +67,7 @@ func (s *SQLite3) Init(ctx context.Context) ([]ID, error) {
 	  updated_at TIMESTAMP,
 	  error VARCHAR(255),
 	  UNIQUE(sub_id, vendor, feed_id)
-	)`, SQLite3FeedTableName.GetTable())
+	)`, Table.GetTable())
 	if _, err := s.Database.ExecContext(ctx, sql); err != nil {
 		return nil, errors.Wrap(err, "create table")
 	}
@@ -80,13 +81,13 @@ func (s *SQLite3) Init(ctx context.Context) ([]ID, error) {
 	  collisions INTEGER NOT NULL DEFAULT 0,
 	  UNIQUE(feed_id, url),
 	  UNIQUE(feed_id, hash)
-	)`, SQLite3BlobTableName.GetTable())
+	)`, BlobTable.GetTable())
 	if _, err := s.Database.ExecContext(ctx, sql); err != nil {
 		return nil, errors.Wrap(err, "create blob table")
 	}
 	activeSubs := make([]ID, 0)
 	err := s.Select(goqu.DISTINCT("feed_id")).
-		From(SQLite3FeedTableName).
+		From(Table).
 		Where(goqu.C("error").IsNull()).
 		ScanValsContext(ctx, &activeSubs)
 	if err != nil {
@@ -127,7 +128,7 @@ func (s *SQLite3) QuerySQLBuilder(ctx context.Context, builder SQLBuilder) (*sql
 
 func (s *SQLite3) Create(ctx context.Context, sub Sub) error {
 	defer s.Lock().Unlock()
-	ok, err := s.UpdateSQLBuilder(ctx, insertSub(s.Insert(SQLite3FeedTableName).OnConflict(goqu.DoNothing()), sub))
+	ok, err := s.UpdateSQLBuilder(ctx, insertSub(s.Insert(Table).OnConflict(goqu.DoNothing()), sub))
 	if err == nil && !ok {
 		err = ErrExists
 	}
@@ -138,7 +139,7 @@ func (s *SQLite3) Create(ctx context.Context, sub Sub) error {
 func (s *SQLite3) Get(ctx context.Context, id SubID) (Sub, error) {
 	defer s.RLock().Unlock()
 	subs, err := s.selectSubs(ctx, s.
-		From(SQLite3FeedTableName).
+		From(Table).
 		Where(s.ByID(id)).
 		Limit(1))
 	if err != nil {
@@ -155,7 +156,7 @@ func (s *SQLite3) Get(ctx context.Context, id SubID) (Sub, error) {
 func (s *SQLite3) Advance(ctx context.Context, feedID ID) (Sub, error) {
 	defer s.RLock().Unlock()
 	subs, err := s.selectSubs(ctx, s.
-		From(SQLite3FeedTableName).
+		From(Table).
 		Where(goqu.And(
 			goqu.C("feed_id").Eq(feedID),
 			goqu.C("error").IsNull(),
@@ -176,7 +177,7 @@ func (s *SQLite3) Advance(ctx context.Context, feedID ID) (Sub, error) {
 func (s *SQLite3) List(ctx context.Context, feedID ID, active bool) ([]Sub, error) {
 	defer s.RLock().Unlock()
 	return s.selectSubs(ctx, s.
-		From(SQLite3FeedTableName).
+		From(Table).
 		Where(goqu.And(
 			goqu.C("feed_id").Eq(feedID),
 			goqu.Literal("error IS NULL").Eq(active),
@@ -185,7 +186,7 @@ func (s *SQLite3) List(ctx context.Context, feedID ID, active bool) ([]Sub, erro
 
 func (s *SQLite3) Clear(ctx context.Context, feedID ID, pattern string) (int64, error) {
 	defer s.Lock().Unlock()
-	return s.ExecuteSQLBuilder(ctx, s.Database.Delete(SQLite3FeedTableName).
+	return s.ExecuteSQLBuilder(ctx, s.Database.Delete(Table).
 		Where(goqu.And(
 			goqu.C("feed_id").Eq(feedID),
 			goqu.C("error").Like(pattern),
@@ -194,7 +195,7 @@ func (s *SQLite3) Clear(ctx context.Context, feedID ID, pattern string) (int64, 
 
 func (s *SQLite3) Delete(ctx context.Context, id SubID) error {
 	defer s.Lock().Unlock()
-	ok, err := s.UpdateSQLBuilder(ctx, s.Database.Delete(SQLite3FeedTableName).Where(s.ByID(id)))
+	ok, err := s.UpdateSQLBuilder(ctx, s.Database.Delete(Table).Where(s.ByID(id)))
 	if err == nil && !ok {
 		err = ErrNotFound
 	}
@@ -223,7 +224,7 @@ func (s *SQLite3) Update(ctx context.Context, id SubID, value interface{}) error
 		return errors.Errorf("invalid update value type: %T", value)
 	}
 
-	ok, err := s.UpdateSQLBuilder(ctx, s.Database.Update(SQLite3FeedTableName).Set(update).Where(where))
+	ok, err := s.UpdateSQLBuilder(ctx, s.Database.Update(Table).Set(update).Where(where))
 	if err == nil && !ok {
 		err = ErrNotFound
 	}
@@ -234,7 +235,7 @@ func (s *SQLite3) Update(ctx context.Context, id SubID, value interface{}) error
 func (s *SQLite3) Check(ctx context.Context, feedID ID, url string, hash string) error {
 	defer s.Lock().Unlock()
 	now := s.Now()
-	_, err := s.ExecuteSQLBuilder(ctx, s.Insert(SQLite3BlobTableName).
+	_, err := s.ExecuteSQLBuilder(ctx, s.Insert(BlobTable).
 		Cols("feed_id", "url", "hash", "first_seen", "last_seen").
 		Vals([]interface{}{feedID, url, hash, now, now}).
 		OnConflict(goqu.DoUpdate("feed_id, url",
@@ -253,7 +254,7 @@ func (s *SQLite3) Check(ctx context.Context, feedID ID, url string, hash string)
 
 	collisions := 0
 	if _, err := s.Select(goqu.MAX(goqu.C("collisions"))).
-		From(SQLite3BlobTableName).
+		From(BlobTable).
 		Where(goqu.And(
 			goqu.C("feed_id").Eq(feedID),
 			goqu.Or(goqu.C("url").Eq(url), goqu.C("hash").Eq(hash)))).
@@ -280,24 +281,39 @@ func (s *SQLite3) ByID(id SubID) goqu.Expression {
 	}
 }
 
-var MutexHistogramBuckets = []float64{0, 1, 2, 5, 10, 25, 100, 200, 500, 1000, 2000, 5000, 10000}
-
 func (s *SQLite3) Lock() flu.Unlocker {
-	start := s.Now()
 	unlocker := s.OrderedMutex.Lock()
-	s.Histogram("lock_wait_ms",
-		metrics.Labels{"op", "write"},
-		MutexHistogramBuckets).
-		Observe(float64(s.Now().Sub(start).Milliseconds()))
-	return unlocker
+	return meteredUnlocker{
+		Clock:    s.Clock,
+		Unlocker: unlocker,
+		Registry: s.Registry,
+		op:       "write",
+		start:    s.Now(),
+	}
 }
 
 func (s *SQLite3) RLock() flu.Unlocker {
-	start := s.Now()
 	unlocker := s.OrderedMutex.RLock()
-	s.Histogram("lock_wait_ms",
-		metrics.Labels{"op", "read"},
-		MutexHistogramBuckets).
-		Observe(float64(s.Now().Sub(start).Milliseconds()))
-	return unlocker
+	return meteredUnlocker{
+		Clock:    s.Clock,
+		Unlocker: unlocker,
+		Registry: s.Registry,
+		op:       "read",
+		start:    s.Now(),
+	}
+}
+
+type meteredUnlocker struct {
+	flu.Clock
+	flu.Unlocker
+	metrics.Registry
+	op    string
+	start time.Time
+}
+
+func (u meteredUnlocker) Unlock() {
+	u.Unlocker.Unlock()
+	u.Counter("lock_use_ms",
+		metrics.Labels{"op", u.op}).
+		Add(float64(u.Now().Sub(u.start).Milliseconds()))
 }
