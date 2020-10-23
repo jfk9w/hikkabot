@@ -6,18 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jfk9w/hikkabot/feed/internal"
-
-	"github.com/jfk9w-go/flu/metrics"
-
-	"github.com/jfk9w-go/telegram-bot-api/format"
-
-	"github.com/doug-martin/goqu/v9/dialect/sqlite3"
-
-	"github.com/jfk9w-go/flu"
-
 	"github.com/doug-martin/goqu/v9"
+	"github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
+	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/telegram-bot-api/format"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )
@@ -34,7 +28,7 @@ type SQLBuilder interface {
 type SQLite3 struct {
 	*goqu.Database
 	flu.Clock
-	*internal.OrderedMutex
+	flu.RWMutex
 	metrics.Registry
 }
 
@@ -49,11 +43,7 @@ func NewSQLite3(clock flu.Clock, datasource string) (*SQLite3, error) {
 	options.TimeFormat = "2006-01-02 15:04:05.000"
 	goqu.RegisterDialect(dialect, options)
 
-	return &SQLite3{
-		Database:     goqu.New(dialect, db),
-		Clock:        clock,
-		OrderedMutex: internal.NewRWMutex(),
-	}, nil
+	return &SQLite3{Database: goqu.New(dialect, db), Clock: clock}, nil
 }
 
 func (s *SQLite3) Init(ctx context.Context) ([]ID, error) {
@@ -282,7 +272,7 @@ func (s *SQLite3) ByID(id SubID) goqu.Expression {
 }
 
 func (s *SQLite3) Lock() flu.Unlocker {
-	unlocker := s.OrderedMutex.Lock()
+	unlocker := s.RWMutex.Lock()
 	return meteredUnlocker{
 		Clock:    s.Clock,
 		Unlocker: unlocker,
@@ -293,7 +283,7 @@ func (s *SQLite3) Lock() flu.Unlocker {
 }
 
 func (s *SQLite3) RLock() flu.Unlocker {
-	unlocker := s.OrderedMutex.RLock()
+	unlocker := s.RWMutex.RLock()
 	return meteredUnlocker{
 		Clock:    s.Clock,
 		Unlocker: unlocker,
