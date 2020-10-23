@@ -64,9 +64,9 @@ func (s *SQLStorage) Init(ctx context.Context) ([]ID, error) {
 	CREATE TABLE IF NOT EXISTS %s (
 	  sub_id TEXT NOT NULL,
 	  vendor TEXT NOT NULL,
-	  feed_id INTEGER NOT NULL,
+	  feed_id BIGINT NOT NULL,
       name TEXT NOT NULL,
-	  data TEXT,
+	  data JSON,
 	  updated_at TIMESTAMP,
 	  error VARCHAR(255),
 	  UNIQUE(sub_id, vendor, feed_id)
@@ -76,7 +76,7 @@ func (s *SQLStorage) Init(ctx context.Context) ([]ID, error) {
 	}
 	sql = fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS %s (
-      feed_id INTEGER NOT NULL,
+      feed_id BIGINT NOT NULL,
 	  url TEXT NOT NULL,
 	  hash TEXT NOT NULL,
 	  first_seen TIMESTAMP NOT NULL,
@@ -285,7 +285,7 @@ func (s *SQLStorage) ByID(id SubID) goqu.Expression {
 }
 
 func (s *SQLStorage) Lock() flu.Unlocker {
-	var unlocker flu.Unlocker = noOpUnlocker{}
+	var unlocker flu.Unlocker
 	if s.RWMutex != nil {
 		unlocker = s.RWMutex.Lock()
 	}
@@ -300,7 +300,7 @@ func (s *SQLStorage) Lock() flu.Unlocker {
 }
 
 func (s *SQLStorage) RLock() flu.Unlocker {
-	var unlocker flu.Unlocker = noOpUnlocker{}
+	var unlocker flu.Unlocker
 	if s.RWMutex != nil {
 		unlocker = s.RWMutex.RLock()
 	}
@@ -323,15 +323,11 @@ type meteredUnlocker struct {
 }
 
 func (u meteredUnlocker) Unlock() {
-	u.Unlocker.Unlock()
+	if u.Unlocker != nil {
+		u.Unlocker.Unlock()
+	}
+
 	u.Counter("lock_use_ms",
 		metrics.Labels{"op", u.op}).
 		Add(float64(u.Now().Sub(u.start).Milliseconds()))
-}
-
-type noOpUnlocker struct {
-}
-
-func (n noOpUnlocker) Unlock() {
-
 }
