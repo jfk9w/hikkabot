@@ -23,7 +23,7 @@ import (
 
 type Config struct {
 	Supervisor telegram.ID
-	Datasource string
+	Datasource struct{ Driver, Conn string }
 	Interval   serde.Duration
 	Prometheus struct{ Address string }
 	Aconvert   struct {
@@ -44,7 +44,7 @@ func main() {
 	config := new(Config)
 	check(flu.DecodeFrom(flu.File(os.Args[1]), flu.YAML{Value: config}))
 
-	store, err := feed.NewSQLite3(flu.DefaultClock, config.Datasource)
+	store, err := feed.NewSQLStorage(flu.DefaultClock, config.Datasource.Driver, config.Datasource.Conn)
 	check(err)
 	defer store.Close()
 
@@ -114,9 +114,9 @@ func main() {
 	flu.AwaitSignal()
 }
 
-func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLite3, config reddit.Config) error {
+func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLStorage, config reddit.Config) error {
 	store, err := (&reddit.SQLite3{
-		SQLite3:       sqlite3,
+		SQLStorage:    sqlite3,
 		ThingTTL:      reddit.DefaultThingTTL,
 		CleanInterval: time.Hour,
 	}).Init(ctx)

@@ -16,7 +16,7 @@ var columnOrder = []interface{}{
 	"updated_at",
 }
 
-func (s *SQLite3) selectSubs(ctx context.Context, builder *goqu.SelectDataset) ([]Sub, error) {
+func (s *SQLStorage) selectSubs(ctx context.Context, builder *goqu.SelectDataset) ([]Sub, error) {
 	rows, err := s.QuerySQLBuilder(ctx, builder.Select(columnOrder...))
 	if err != nil {
 		return nil, errors.Wrap(err, "query")

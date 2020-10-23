@@ -5,6 +5,7 @@ require (
 	github.com/jfk9w-go/aconvert-api v0.9.10-0.20201009132802-a34ef3fff1e9
 	github.com/jfk9w-go/flu v0.9.17-0.20201009132640-81ee7a969fb5
 	github.com/jfk9w-go/telegram-bot-api v0.9.13-0.20201009133013-ca6541652004
+	github.com/lib/pq v1.8.0
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1

@@ -20,8 +20,8 @@ func (c *testClock) Now() time.Time {
 	return c.now
 }
 
-func newTestSQLite3(t *testing.T, clock flu.Clock) *feed.SQLite3 {
-	store, err := feed.NewSQLite3(clock, ":memory:")
+func newTestSQLite3(t *testing.T, clock flu.Clock) *feed.SQLStorage {
+	store, err := feed.NewSQLStorage(clock, ":memory:")
 	assert.Nil(t, err)
 	return store
 }

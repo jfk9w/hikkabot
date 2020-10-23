@@ -12,6 +12,7 @@ import (
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 	"github.com/jfk9w-go/telegram-bot-api/format"
+	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )
@@ -25,28 +26,40 @@ type SQLBuilder interface {
 	ToSQL() (string, []interface{}, error)
 }
 
-type SQLite3 struct {
+type RWMutex interface {
+	Lock() flu.Unlocker
+	RLock() flu.Unlocker
+}
+
+type SQLStorage struct {
 	*goqu.Database
 	flu.Clock
-	flu.RWMutex
+	RWMutex
 	metrics.Registry
 }
 
-func NewSQLite3(clock flu.Clock, datasource string) (*SQLite3, error) {
-	dialect := "sqlite3"
-	db, err := sql.Open(dialect, datasource)
+func NewSQLStorage(clock flu.Clock, driver, conn string) (*SQLStorage, error) {
+	db, err := sql.Open(driver, conn)
 	if err != nil {
 		return nil, err
 	}
 
-	options := sqlite3.DialectOptions()
-	options.TimeFormat = "2006-01-02 15:04:05.000"
-	goqu.RegisterDialect(dialect, options)
+	var mutex RWMutex
+	if driver == "sqlite3" {
+		options := sqlite3.DialectOptions()
+		options.TimeFormat = "2006-01-02 15:04:05.000"
+		goqu.RegisterDialect("sqlite3", options)
+		mutex = new(flu.RWMutex)
+	}
 
-	return &SQLite3{Database: goqu.New(dialect, db), Clock: clock}, nil
+	return &SQLStorage{
+		Database: goqu.New(driver, db),
+		Clock:    clock,
+		RWMutex:  mutex,
+	}, nil
 }
 
-func (s *SQLite3) Init(ctx context.Context) ([]ID, error) {
+func (s *SQLStorage) Init(ctx context.Context) ([]ID, error) {
 	sql := fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS %s (
 	  sub_id TEXT NOT NULL,
@@ -86,7 +99,7 @@ func (s *SQLite3) Init(ctx context.Context) ([]ID, error) {
 	return activeSubs, nil
 }
 
-func (s *SQLite3) ExecuteSQLBuilder(ctx context.Context, builder SQLBuilder) (int64, error) {
+func (s *SQLStorage) ExecuteSQLBuilder(ctx context.Context, builder SQLBuilder) (int64, error) {
 	sql, args, err := builder.ToSQL()
 	if err != nil {
 		return 0, errors.Wrap(err, "build sql")
@@ -102,12 +115,12 @@ func (s *SQLite3) ExecuteSQLBuilder(ctx context.Context, builder SQLBuilder) (in
 	return affected, nil
 }
 
-func (s *SQLite3) UpdateSQLBuilder(ctx context.Context, builder SQLBuilder) (bool, error) {
+func (s *SQLStorage) UpdateSQLBuilder(ctx context.Context, builder SQLBuilder) (bool, error) {
 	affected, err := s.ExecuteSQLBuilder(ctx, builder)
 	return affected > 0, err
 }
 
-func (s *SQLite3) QuerySQLBuilder(ctx context.Context, builder SQLBuilder) (*sql.Rows, error) {
+func (s *SQLStorage) QuerySQLBuilder(ctx context.Context, builder SQLBuilder) (*sql.Rows, error) {
 	sql, args, err := builder.ToSQL()
 	if err != nil {
 		return nil, errors.Wrap(err, "build sql")
@@ -116,7 +129,7 @@ func (s *SQLite3) QuerySQLBuilder(ctx context.Context, builder SQLBuilder) (*sql
 	return s.QueryContext(ctx, sql, args...)
 }
 
-func (s *SQLite3) Create(ctx context.Context, sub Sub) error {
+func (s *SQLStorage) Create(ctx context.Context, sub Sub) error {
 	defer s.Lock().Unlock()
 	ok, err := s.UpdateSQLBuilder(ctx, insertSub(s.Insert(Table).OnConflict(goqu.DoNothing()), sub))
 	if err == nil && !ok {
@@ -126,7 +139,7 @@ func (s *SQLite3) Create(ctx context.Context, sub Sub) error {
 	return err
 }
 
-func (s *SQLite3) Get(ctx context.Context, id SubID) (Sub, error) {
+func (s *SQLStorage) Get(ctx context.Context, id SubID) (Sub, error) {
 	defer s.RLock().Unlock()
 	subs, err := s.selectSubs(ctx, s.
 		From(Table).
@@ -143,7 +156,7 @@ func (s *SQLite3) Get(ctx context.Context, id SubID) (Sub, error) {
 	return subs[0], nil
 }
 
-func (s *SQLite3) Advance(ctx context.Context, feedID ID) (Sub, error) {
+func (s *SQLStorage) Advance(ctx context.Context, feedID ID) (Sub, error) {
 	defer s.RLock().Unlock()
 	subs, err := s.selectSubs(ctx, s.
 		From(Table).
@@ -164,7 +177,7 @@ func (s *SQLite3) Advance(ctx context.Context, feedID ID) (Sub, error) {
 	return subs[0], nil
 }
 
-func (s *SQLite3) List(ctx context.Context, feedID ID, active bool) ([]Sub, error) {
+func (s *SQLStorage) List(ctx context.Context, feedID ID, active bool) ([]Sub, error) {
 	defer s.RLock().Unlock()
 	return s.selectSubs(ctx, s.
 		From(Table).
@@ -174,7 +187,7 @@ func (s *SQLite3) List(ctx context.Context, feedID ID, active bool) ([]Sub, erro
 		)))
 }
 
-func (s *SQLite3) Clear(ctx context.Context, feedID ID, pattern string) (int64, error) {
+func (s *SQLStorage) Clear(ctx context.Context, feedID ID, pattern string) (int64, error) {
 	defer s.Lock().Unlock()
 	return s.ExecuteSQLBuilder(ctx, s.Database.Delete(Table).
 		Where(goqu.And(
@@ -183,7 +196,7 @@ func (s *SQLite3) Clear(ctx context.Context, feedID ID, pattern string) (int64, 
 		)))
 }
 
-func (s *SQLite3) Delete(ctx context.Context, id SubID) error {
+func (s *SQLStorage) Delete(ctx context.Context, id SubID) error {
 	defer s.Lock().Unlock()
 	ok, err := s.UpdateSQLBuilder(ctx, s.Database.Delete(Table).Where(s.ByID(id)))
 	if err == nil && !ok {
@@ -195,7 +208,7 @@ func (s *SQLite3) Delete(ctx context.Context, id SubID) error {
 
 var UpdateHistogramBuckets = []float64{1, 10, 100, 500, 1000, 2000, 5000, 10000}
 
-func (s *SQLite3) Update(ctx context.Context, id SubID, value interface{}) error {
+func (s *SQLStorage) Update(ctx context.Context, id SubID, value interface{}) error {
 	defer s.Lock().Unlock()
 
 	where := s.ByID(id)
@@ -222,7 +235,7 @@ func (s *SQLite3) Update(ctx context.Context, id SubID, value interface{}) error
 	return err
 }
 
-func (s *SQLite3) Check(ctx context.Context, feedID ID, url string, hash string) error {
+func (s *SQLStorage) Check(ctx context.Context, feedID ID, url string, hash string) error {
 	defer s.Lock().Unlock()
 	now := s.Now()
 	_, err := s.ExecuteSQLBuilder(ctx, s.Insert(BlobTable).
@@ -259,11 +272,11 @@ func (s *SQLite3) Check(ctx context.Context, feedID ID, url string, hash string)
 	return nil
 }
 
-func (s *SQLite3) Close() error {
+func (s *SQLStorage) Close() error {
 	return s.Db.(*sql.DB).Close()
 }
 
-func (s *SQLite3) ByID(id SubID) goqu.Expression {
+func (s *SQLStorage) ByID(id SubID) goqu.Expression {
 	return goqu.Ex{
 		"sub_id":  id.ID,
 		"vendor":  id.Vendor,
@@ -271,8 +284,12 @@ func (s *SQLite3) ByID(id SubID) goqu.Expression {
 	}
 }
 
-func (s *SQLite3) Lock() flu.Unlocker {
-	unlocker := s.RWMutex.Lock()
+func (s *SQLStorage) Lock() flu.Unlocker {
+	var unlocker flu.Unlocker = noOpUnlocker{}
+	if s.RWMutex != nil {
+		unlocker = s.RWMutex.Lock()
+	}
+
 	return meteredUnlocker{
 		Clock:    s.Clock,
 		Unlocker: unlocker,
@@ -282,8 +299,12 @@ func (s *SQLite3) Lock() flu.Unlocker {
 	}
 }
 
-func (s *SQLite3) RLock() flu.Unlocker {
-	unlocker := s.RWMutex.RLock()
+func (s *SQLStorage) RLock() flu.Unlocker {
+	var unlocker flu.Unlocker = noOpUnlocker{}
+	if s.RWMutex != nil {
+		unlocker = s.RWMutex.RLock()
+	}
+
 	return meteredUnlocker{
 		Clock:    s.Clock,
 		Unlocker: unlocker,
@@ -306,4 +327,11 @@ func (u meteredUnlocker) Unlock() {
 	u.Counter("lock_use_ms",
 		metrics.Labels{"op", u.op}).
 		Add(float64(u.Now().Sub(u.start).Milliseconds()))
+}
+
+type noOpUnlocker struct {
+}
+
+func (n noOpUnlocker) Unlock() {
+
 }

@@ -22,13 +22,13 @@ func (c *clockMock) Now() time.Time {
 func TestSQLite3_Basic(t *testing.T) {
 	ctx := context.Background()
 	clock := &clockMock{now: parseTime(t, "2020-01-01T05:00:00Z")}
-	store, err := feed.NewSQLite3(clock, ":memory:")
+	store, err := feed.NewSQLStorage(clock, ":memory:")
 	assert.Nil(t, err)
 
 	defer store.Close()
 	rstore, err := (&reddit.SQLite3{
-		SQLite3:  store,
-		ThingTTL: 5 * time.Hour,
+		SQLStorage: store,
+		ThingTTL:   5 * time.Hour,
 	}).Init(ctx)
 	assert.Nil(t, err)
 
