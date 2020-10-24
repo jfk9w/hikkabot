@@ -36,6 +36,7 @@ type SQLStorage struct {
 	flu.Clock
 	RWMutex
 	metrics.Registry
+	driver string
 }
 
 func NewSQLStorage(clock flu.Clock, driver, conn string) (*SQLStorage, error) {
@@ -56,6 +57,7 @@ func NewSQLStorage(clock flu.Clock, driver, conn string) (*SQLStorage, error) {
 		Database: goqu.New(driver, db),
 		Clock:    clock,
 		RWMutex:  mutex,
+		driver:   driver,
 	}, nil
 }
 
@@ -238,17 +240,23 @@ func (s *SQLStorage) Update(ctx context.Context, id SubID, value interface{}) er
 func (s *SQLStorage) Check(ctx context.Context, feedID ID, url string, hash string) error {
 	defer s.Lock().Unlock()
 	now := s.Now()
+
+	columnUpdatePrefix := ""
+	if s.driver == "postgres" {
+		columnUpdatePrefix = "excluded."
+	}
+
 	_, err := s.ExecuteSQLBuilder(ctx, s.Insert(BlobTable).
 		Cols("feed_id", "url", "hash", "first_seen", "last_seen").
 		Vals([]interface{}{feedID, url, hash, now, now}).
 		OnConflict(goqu.DoUpdate("feed_id, url",
 			map[string]interface{}{
-				"collisions": goqu.Literal("collisions + 1"),
+				"collisions": goqu.Literal(columnUpdatePrefix + `collisions + 1`),
 				"last_seen":  now,
 			})).
 		OnConflict(goqu.DoUpdate("feed_id, hash",
 			map[string]interface{}{
-				"collisions": goqu.Literal("collisions + 1"),
+				"collisions": goqu.Literal(columnUpdatePrefix + `collisions + 1`),
 				"last_seen":  now,
 			})))
 	if err != nil {
