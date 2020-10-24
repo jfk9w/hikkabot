@@ -238,6 +238,10 @@ func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
 				CheckStatus(http.StatusOK).
 				DecodeBodyTo(counter).
 				Error; downloadErr != nil {
+				if ctx.Err() != nil {
+					return format.Media{}, ctx.Err()
+				}
+
 				counter.Add(-counter.Value())
 				select {
 				case <-ctx.Done():
