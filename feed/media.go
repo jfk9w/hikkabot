@@ -61,6 +61,7 @@ type MediaManager struct {
 	Dedup         MediaDedup
 	RateLimiter   flu.RateLimiter
 	Metrics       metrics.Registry
+	Retries       int
 	ctx           context.Context
 	cancel        func()
 	work          sync.WaitGroup
@@ -127,7 +128,6 @@ type MediaRef struct {
 	ResolvedURL string
 	MIMEType    string
 	Size        int64
-	Retries     int
 }
 
 func (r *MediaRef) getClient() *fluhttp.Client {
@@ -231,7 +231,7 @@ func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
 
 		counter := &flu.IOCounter{Output: blob}
 		var downloadErr error
-		for i := 0; i < r.Retries; i++ {
+		for i := 0; i <= r.Manager.Retries; i++ {
 			if downloadErr = r.Request(r.getClient().GET(r.ResolvedURL)).
 				Context(ctx).
 				Execute().

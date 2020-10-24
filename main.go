@@ -30,7 +30,10 @@ type Config struct {
 		Servers []int
 		Probe   *aconvert.Probe
 	}
-	Media    struct{ Directory string }
+	Media struct {
+		Directory string
+		Retries   int
+	}
 	Aliases  map[string]telegram.ID
 	Telegram struct{ Token string }
 	Reddit   reddit.Config
@@ -73,6 +76,7 @@ func main() {
 		Dedup:         feed.MD5MediaDedup{Hashes: store},
 		RateLimiter:   flu.ConcurrencyRateLimiter(10),
 		Metrics:       metrics.WithPrefix("media"),
+		Retries:       config.Media.Retries,
 	}).Init(ctx)
 	defer mediam.Converter(aconvert).Close()
 
