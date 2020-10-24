@@ -43,7 +43,7 @@ func (d SubredditFeedData) Copy() SubredditFeedData {
 
 var (
 	SubredditFeedRefRegexp = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)$`)
-	SQLite3SubredditTable  = goqu.T("reddit")
+	SubredditTable         = goqu.T("reddit")
 )
 
 type SubredditFeed struct {

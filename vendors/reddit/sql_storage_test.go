@@ -26,7 +26,7 @@ func TestSQLite3_Basic(t *testing.T) {
 	assert.Nil(t, err)
 
 	defer store.Close()
-	rstore, err := (&reddit.SQLite3{
+	rstore, err := (&reddit.SQLStorage{
 		SQLStorage: store,
 		ThingTTL:   5 * time.Hour,
 	}).Init(ctx)
