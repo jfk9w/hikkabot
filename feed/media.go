@@ -127,6 +127,7 @@ type MediaRef struct {
 	ResolvedURL string
 	MIMEType    string
 	Size        int64
+	Retries     int
 }
 
 func (r *MediaRef) getClient() *fluhttp.Client {
@@ -229,12 +230,27 @@ func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
 		}
 
 		counter := &flu.IOCounter{Output: blob}
-		if err := r.Request(r.getClient().GET(r.ResolvedURL)).
-			Context(ctx).
-			Execute().
-			CheckStatus(http.StatusOK).
-			DecodeBodyTo(counter).
-			Error; err != nil {
+		var downloadErr error
+		for i := 0; i < r.Retries; i++ {
+			if downloadErr = r.Request(r.getClient().GET(r.ResolvedURL)).
+				Context(ctx).
+				Execute().
+				CheckStatus(http.StatusOK).
+				DecodeBodyTo(counter).
+				Error; downloadErr != nil {
+				counter.Add(-counter.Value())
+				select {
+				case <-ctx.Done():
+					return format.Media{}, ctx.Err()
+				case <-time.After(time.Duration(5*i*i) * time.Second):
+					continue
+				}
+			} else {
+				break
+			}
+		}
+
+		if downloadErr != nil {
 			r.incrementMediaError(r.MIMEType, "download")
 			return format.Media{}, errors.Wrap(err, "download")
 		}
