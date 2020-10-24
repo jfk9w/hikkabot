@@ -178,11 +178,13 @@ func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
 	}
 
 	if r.MIMEType == "" && r.Size == 0 {
-		if err := r.Request(r.getClient().HEAD(r.ResolvedURL)).
-			Context(ctx).
-			Execute().
-			HandleResponse(r).
-			Error; err != nil {
+		if err := r.retry(ctx, "head", func() error {
+			return r.Request(r.getClient().HEAD(r.ResolvedURL)).
+				Context(ctx).
+				Execute().
+				HandleResponse(r).
+				Error
+		}); err != nil {
 			r.incrementMediaError("unknown", "head")
 			return format.Media{}, errors.Wrap(err, "head")
 		}
@@ -229,41 +231,18 @@ func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
 			return format.Media{}, errors.Wrap(err, "create blob")
 		}
 
-		counter := &flu.IOCounter{Output: blob}
-		if err := r.Request(r.getClient().GET(r.ResolvedURL)).
-			Context(ctx).
-			Execute().
-			CheckStatus(http.StatusOK).
-			DecodeBodyTo(counter).
-			Error; err != nil {
-			for i := 0; i < r.Manager.Retries; i++ {
-				if err = r.Request(r.getClient().GET(r.ResolvedURL)).
-					Context(ctx).
-					Execute().
-					CheckStatus(http.StatusOK).
-					DecodeBodyTo(counter).
-					Error; err != nil {
-					if ctx.Err() != nil {
-						return format.Media{}, ctx.Err()
-					}
-
-					log.Printf("[media > %d > %s] download failed (retry %d): %s", r.FeedID, r.URL, i, err)
-					counter.Add(-counter.Value())
-					select {
-					case <-ctx.Done():
-						return format.Media{}, ctx.Err()
-					case <-time.After(time.Duration(5*i*i) * time.Second):
-						continue
-					}
-				} else {
-					break
-				}
-			}
-
-			if err != nil {
-				r.incrementMediaError(r.MIMEType, "download")
-				return format.Media{}, errors.Wrap(err, "download")
-			}
+		var counter *flu.IOCounter
+		if err := r.retry(ctx, "download", func() error {
+			counter = &flu.IOCounter{Output: blob}
+			return r.Request(r.getClient().GET(r.ResolvedURL)).
+				Context(ctx).
+				Execute().
+				CheckStatus(http.StatusOK).
+				DecodeBodyTo(counter).
+				Error
+		}); err != nil {
+			r.incrementMediaError(r.MIMEType, "download")
+			return format.Media{}, errors.Wrap(err, "download")
 		}
 
 		if counter.Value() <= mediaType.AttachMaxSize() {
@@ -285,6 +264,32 @@ func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
 
 	r.incrementMediaError(r.MIMEType, "too large")
 	return format.Media{}, errors.Errorf("size %dMb is too large", r.Size>>20)
+}
+
+func (r *MediaRef) retry(ctx context.Context, op string, body func() error) error {
+	if err := body(); err != nil {
+		for i := 0; i < r.Manager.Retries; i++ {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(5*i*i) * time.Second):
+			}
+
+			if err = body(); err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+
+				log.Printf("[media > %d > %s] %s failed (retry %d): %s", r.FeedID, r.URL, op, i, err)
+			} else {
+				return nil
+			}
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 type MD5MediaDedup struct {
