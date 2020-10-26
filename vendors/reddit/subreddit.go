@@ -3,14 +3,13 @@ package reddit
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/doug-martin/goqu/v9"
-	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/jfk9w/hikkabot/feed"
@@ -18,8 +17,6 @@ import (
 	"github.com/jfk9w/hikkabot/vendors/common"
 	"github.com/pkg/errors"
 )
-
-var DefaultThingTTL = 7 * 24 * time.Hour
 
 type Store interface {
 	Init(ctx context.Context) (Store, error)
@@ -29,11 +26,11 @@ type Store interface {
 }
 
 type SubredditFeedData struct {
-	Subreddit     string        `json:"subreddit"`
-	SentIDs       flu.Uint64Set `json:"sent_ids,omitempty"`
-	Top           float64       `json:"top"`
-	LastCleanSecs int64         `json:"last_clean,omitempty"`
-	MediaOnly     bool          `json:"media_only,omitempty"`
+	Subreddit     string    `json:"subreddit"`
+	SentIDs       Uint64Set `json:"sent_ids,omitempty"`
+	Top           float64   `json:"top"`
+	LastCleanSecs int64     `json:"last_clean,omitempty"`
+	MediaOnly     bool      `json:"media_only,omitempty"`
 }
 
 func (d SubredditFeedData) Copy() SubredditFeedData {
@@ -81,12 +78,13 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 	data := SubredditFeedData{
 		Subreddit: subreddit,
 		Top:       0.2,
+		MediaOnly: true,
 	}
 
 	for _, option := range options {
 		switch option {
-		case "m":
-			data.MediaOnly = true
+		case "!m":
+			data.MediaOnly = false
 		default:
 			var err error
 			data.Top, err = strconv.ParseFloat(option, 64)
@@ -96,7 +94,7 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 		}
 	}
 
-	data.SentIDs = make(flu.Uint64Set, int(100*data.Top))
+	data.SentIDs = make(Uint64Set, int(100*data.Top))
 	return feed.Candidate{
 		ID:   data.Subreddit,
 		Name: f.getSubredditName(data.Subreddit),
@@ -163,7 +161,7 @@ func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData, mediaOnly
 }
 
 func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue feed.Queue) error {
-	data := &SubredditFeedData{SentIDs: make(flu.Uint64Set)}
+	data := &SubredditFeedData{SentIDs: make(Uint64Set)}
 	if err := rawData.ReadTo(data); err != nil {
 		return errors.Wrap(err, "parse data")
 	}
@@ -224,7 +222,12 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 		}
 
 		data.SentIDs.Add(thing.ID)
-		f.Store.Clean(ctx, data)
+		if removed, err := f.Store.Clean(ctx, data); err != nil {
+			log.Printf("[sub > %s] failed to clean posts: %s", queue.SubID, err)
+		} else if removed > 0 {
+			log.Printf("[sub > %s] cleaned %d old posts", queue.SubID, removed)
+		}
+
 		if !data.SentIDs.Has(thing.ID) {
 			continue
 		}

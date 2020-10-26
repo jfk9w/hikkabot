@@ -125,12 +125,15 @@ func (s *SQLStorage) Clean(ctx context.Context, data *SubredditFeedData) (int, e
 	defer rows.Close()
 	removed := 0
 	for rows.Next() {
-		var id uint64
+		var id string
 		if err := rows.Scan(&id); err != nil {
 			return 0, errors.Wrap(err, "scan")
 		}
 
-		delete(data.SentIDs, id)
+		if err := data.SentIDs.Delete(id); err != nil {
+			return 0, errors.Wrap(err, "clean data")
+		}
+
 		removed += 1
 	}
 

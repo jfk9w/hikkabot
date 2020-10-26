@@ -21,7 +21,7 @@ func (c *testClock) Now() time.Time {
 }
 
 func newTestSQLite3(t *testing.T, clock flu.Clock) *feed.SQLStorage {
-	store, err := feed.NewSQLStorage(clock, ":memory:")
+	store, err := feed.NewSQLStorage(clock, "sqlite3", ":memory:")
 	assert.Nil(t, err)
 	return store
 }

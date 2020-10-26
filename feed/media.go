@@ -2,8 +2,6 @@ package feed
 
 import (
 	"context"
-	"crypto/md5"
-	"fmt"
 	"log"
 	"mime"
 	"net/http"
@@ -33,7 +31,7 @@ type (
 	}
 
 	MediaDedup interface {
-		Check(ctx context.Context, feedID ID, url string, blob format.Blob) error
+		Check(ctx context.Context, feedID ID, url, mimeType string, blob format.Blob) error
 	}
 )
 
@@ -247,9 +245,13 @@ func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
 
 		if counter.Value() <= mediaType.AttachMaxSize() {
 			if r.Dedup {
-				if err := r.Manager.Dedup.Check(ctx, r.FeedID, r.URL, blob); err != nil {
+				if err := r.Manager.Dedup.Check(ctx, r.FeedID, r.URL, mimeType, blob); err != nil {
 					r.incrementMediaError(r.MIMEType, "dedup")
-					log.Printf("[media > %d > %s] failed dedup check: %s", r.FeedID, r.URL, err)
+					log.Printf("[dedup > %d] %s: %s", r.FeedID, r.URL, err)
+					if errors.Is(err, format.ErrIgnoredMedia) {
+						err = format.ErrIgnoredMedia
+					}
+
 					return format.Media{}, err
 				}
 			}
@@ -290,16 +292,4 @@ func (r *MediaRef) retry(ctx context.Context, op string, body func() error) erro
 	}
 
 	return nil
-}
-
-type MD5MediaDedup struct {
-	Hashes Hashes
-}
-
-func (d MD5MediaDedup) Check(ctx context.Context, feedID ID, url string, blob format.Blob) error {
-	hash := md5.New()
-	if err := flu.Copy(blob, flu.IO{W: hash}); err != nil {
-		return errors.Wrap(err, "hash")
-	}
-	return d.Hashes.Check(ctx, feedID, url, fmt.Sprintf("%x", hash.Sum(nil)))
 }

@@ -131,9 +131,46 @@ func (s *SQLStorage) QuerySQLBuilder(ctx context.Context, builder SQLBuilder) (*
 	return s.QueryContext(ctx, sql, args...)
 }
 
+var subColumnOrder = []interface{}{
+	"sub_id",
+	"vendor",
+	"feed_id",
+	"name",
+	"data",
+	"updated_at",
+}
+
+func (s *SQLStorage) selectSubs(ctx context.Context, builder *goqu.SelectDataset) ([]Sub, error) {
+	rows, err := s.QuerySQLBuilder(ctx, builder.Select(subColumnOrder...))
+	if err != nil {
+		return nil, errors.Wrap(err, "query")
+	}
+
+	defer rows.Close()
+	subs := make([]Sub, 0)
+	for rows.Next() {
+		sub := Sub{}
+		if err := rows.Scan(
+			&sub.SubID.ID, &sub.SubID.Vendor, &sub.SubID.FeedID,
+			&sub.Name, &sub.Data, &sub.UpdatedAt); err != nil {
+			return nil, errors.Wrap(err, "scan")
+		}
+
+		subs = append(subs, sub)
+	}
+
+	return subs, nil
+}
+
 func (s *SQLStorage) Create(ctx context.Context, sub Sub) error {
 	defer s.Lock().Unlock()
-	ok, err := s.UpdateSQLBuilder(ctx, insertSub(s.Insert(Table).OnConflict(goqu.DoNothing()), sub))
+	ok, err := s.UpdateSQLBuilder(ctx, s.Insert(Table).OnConflict(goqu.DoNothing()).
+		Cols(subColumnOrder...).
+		Vals([]interface{}{
+			sub.SubID.ID, sub.SubID.Vendor, sub.SubID.FeedID,
+			sub.Name, sub.Data, sub.UpdatedAt,
+		}))
+
 	if err == nil && !ok {
 		err = ErrExists
 	}
@@ -208,8 +245,6 @@ func (s *SQLStorage) Delete(ctx context.Context, id SubID) error {
 	return err
 }
 
-var UpdateHistogramBuckets = []float64{1, 10, 100, 500, 1000, 2000, 5000, 10000}
-
 func (s *SQLStorage) Update(ctx context.Context, id SubID, value interface{}) error {
 	defer s.Lock().Unlock()
 
@@ -263,18 +298,29 @@ func (s *SQLStorage) Check(ctx context.Context, feedID ID, url string, hash stri
 		return errors.Wrap(err, "update")
 	}
 
-	collisions := 0
-	if _, err := s.Select(goqu.MAX(goqu.C("collisions"))).
+	rows, err := s.QuerySQLBuilder(ctx, s.Select(goqu.C("url"), goqu.C("collisions")).
 		From(BlobTable).
 		Where(goqu.And(
 			goqu.C("feed_id").Eq(feedID),
-			goqu.Or(goqu.C("url").Eq(url), goqu.C("hash").Eq(hash)))).
-		ScanValContext(ctx, &collisions); err != nil {
+			goqu.Or(
+				goqu.C("url").Eq(url),
+				goqu.C("hash").Eq(hash)))).
+		Limit(1))
+	if err != nil {
 		return errors.Wrap(err, "select")
 	}
 
+	defer rows.Close()
+	collisions := 0
+	oldURL := ""
+	for rows.Next() {
+		if err := rows.Scan(&oldURL, &collisions); err != nil {
+			return errors.Wrap(err, "scan")
+		}
+	}
+
 	if collisions > 0 {
-		return format.ErrIgnoredMedia
+		return errors.Wrapf(format.ErrIgnoredMedia, "duplicates %s", oldURL)
 	}
 
 	return nil

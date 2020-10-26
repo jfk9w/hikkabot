@@ -73,7 +73,7 @@ func main() {
 		DefaultClient: fluhttp.NewClient(nil),
 		SizeBounds:    [2]int64{10 << 10, 75 << 20},
 		Storage:       blobs,
-		Dedup:         feed.MD5MediaDedup{Hashes: store},
+		Dedup:         feed.DefaultMediaDedup{Hashes: store},
 		RateLimiter:   flu.ConcurrencyRateLimiter(10),
 		Metrics:       metrics.WithPrefix("media"),
 		Retries:       config.Media.Retries,
@@ -121,7 +121,7 @@ func main() {
 func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLStorage, config reddit.Config) error {
 	store, err := (&reddit.SQLStorage{
 		SQLStorage:    sqlite3,
-		ThingTTL:      reddit.DefaultThingTTL,
+		ThingTTL:      7 * 24 * time.Hour,
 		CleanInterval: time.Hour,
 	}).Init(ctx)
 	if err != nil {
