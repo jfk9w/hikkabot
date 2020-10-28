@@ -3,7 +3,6 @@ package reddit
 import (
 	"context"
 	"fmt"
-	"log"
 	"regexp"
 	"sort"
 	"strconv"
@@ -222,15 +221,15 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 		}
 
 		data.SentIDs.Add(thing.ID)
-		if removed, err := f.Store.Clean(ctx, data); err != nil {
-			log.Printf("[sub > %s] failed to clean posts: %s", queue.SubID, err)
-		} else if removed > 0 {
-			log.Printf("[sub > %s] cleaned %d old posts", queue.SubID, removed)
-		}
-
-		if !data.SentIDs.Has(thing.ID) {
-			continue
-		}
+		//if removed, err := f.Store.Clean(ctx, data); err != nil {
+		//	log.Printf("[sub > %s] failed to clean posts: %s", queue.SubID, err)
+		//} else if removed > 0 {
+		//	log.Printf("[sub > %s] cleaned %d old posts", queue.SubID, removed)
+		//}
+		//
+		//if !data.SentIDs.Has(thing.ID) {
+		//	continue
+		//}
 
 		if err := queue.Submit(ctx, feed.Update{
 			Write: write,

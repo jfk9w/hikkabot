@@ -71,10 +71,10 @@ func main() {
 
 	mediam := (&feed.MediaManager{
 		DefaultClient: fluhttp.NewClient(nil),
-		SizeBounds:    [2]int64{10 << 10, 75 << 20},
+		SizeBounds:    [2]int64{1 << 10, 75 << 20},
 		Storage:       blobs,
 		Dedup:         feed.DefaultMediaDedup{Hashes: store},
-		RateLimiter:   flu.ConcurrencyRateLimiter(10),
+		RateLimiter:   flu.ConcurrencyRateLimiter(3),
 		Metrics:       metrics.WithPrefix("media"),
 		Retries:       config.Media.Retries,
 	}).Init(ctx)

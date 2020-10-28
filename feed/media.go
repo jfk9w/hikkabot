@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"strconv"
 	"sync"
@@ -271,6 +272,10 @@ func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
 func (r *MediaRef) retry(ctx context.Context, op string, body func() error) error {
 	if err := body(); err != nil {
 		for i := 0; i < r.Manager.Retries; i++ {
+			if !IsNetworkError(err) {
+				return err
+			}
+
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -292,4 +297,18 @@ func (r *MediaRef) retry(ctx context.Context, op string, body func() error) erro
 	}
 
 	return nil
+}
+
+func IsNetworkError(err error) bool {
+	for {
+		if _, ok := err.(*net.OpError); ok {
+			return true
+		}
+
+		if err_, ok := err.(interface{ Unwrap() error }); ok {
+			err = err_.Unwrap()
+		} else {
+			return false
+		}
+	}
 }

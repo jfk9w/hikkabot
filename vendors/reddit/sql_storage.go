@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
+	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w/hikkabot/feed"
+	"github.com/jfk9w/hikkabot/vendors/common"
 	"github.com/pkg/errors"
 )
 
@@ -18,12 +20,13 @@ type SQLStorage struct {
 	ThingTTL      time.Duration
 	CleanInterval time.Duration
 	lastCleanTime time.Time
+	mu            flu.Mutex
 }
 
 func (s *SQLStorage) Init(ctx context.Context) (Store, error) {
 	sql := fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS %s (
-	  id VARCHAR(63) NOT NULL UNIQUE,
+	  id BIGINT NOT NULL UNIQUE,
 	  subreddit VARCHAR(255) NOT NULL,
 	  ups INTEGER NOT NULL,
 	  last_seen TIMESTAMP NOT NULL
@@ -39,7 +42,7 @@ func (s *SQLStorage) Thing(ctx context.Context, thing *ThingData) error {
 		return nil
 	}
 
-	defer s.Lock().Unlock()
+	defer s.mu.Lock().Unlock()
 	if s.Now().Sub(s.lastCleanTime) > s.CleanInterval {
 		now := s.Now()
 		expiry := now.Add(-s.ThingTTL)
@@ -53,10 +56,17 @@ func (s *SQLStorage) Thing(ctx context.Context, thing *ThingData) error {
 		log.Printf("[reddit] deleted %d expired posts", deleted)
 	}
 
-	_, err := s.ExecuteSQLBuilder(ctx, s.Database.Insert(SubredditTable).
-		Cols("subreddit", "id", "last_seen", "ups").
-		Vals([]interface{}{thing.Subreddit, strconv.FormatUint(thing.ID, 36), s.Now(), thing.Ups}).
-		OnConflict(goqu.DoUpdate("id", map[string]int{"ups": thing.Ups})))
+	now := s.Now().In(time.UTC)
+	sql := common.PlainSQLBuilder{
+		SQL: fmt.Sprintf(""+
+			"INSERT INTO %s (subreddit, id, last_seen, ups) "+
+			"VALUES ($1, $2, $3, $4) "+
+			"ON CONFLICT (id) "+
+			"DO UPDATE SET last_seen = $3, ups = $4", SubredditTable.GetTable()),
+		Arguments: []interface{}{thing.Subreddit, thing.ID, now, thing.Ups},
+	}
+
+	_, err := s.ExecuteSQLBuilder(ctx, sql)
 
 	return err
 }
@@ -104,9 +114,9 @@ func (s *SQLStorage) Clean(ctx context.Context, data *SubredditFeedData) (int, e
 			first = false
 		}
 
-		values.WriteString("('")
-		values.WriteString(strconv.FormatUint(value, 36))
-		values.WriteString("')")
+		values.WriteString("(")
+		values.WriteString(strconv.FormatUint(value, 10))
+		values.WriteString(")")
 	}
 	values.WriteString(")")
 
@@ -125,15 +135,12 @@ func (s *SQLStorage) Clean(ctx context.Context, data *SubredditFeedData) (int, e
 	defer rows.Close()
 	removed := 0
 	for rows.Next() {
-		var id string
+		var id uint64
 		if err := rows.Scan(&id); err != nil {
 			return 0, errors.Wrap(err, "scan")
 		}
 
-		if err := data.SentIDs.Delete(id); err != nil {
-			return 0, errors.Wrap(err, "clean data")
-		}
-
+		delete(data.SentIDs, id)
 		removed += 1
 	}
 

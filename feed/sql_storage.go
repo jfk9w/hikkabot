@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jfk9w/hikkabot/vendors/common"
+
 	"github.com/doug-martin/goqu/v9"
-	"github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
@@ -34,9 +35,7 @@ type RWMutex interface {
 type SQLStorage struct {
 	*goqu.Database
 	flu.Clock
-	RWMutex
 	metrics.Registry
-	driver string
 }
 
 func NewSQLStorage(clock flu.Clock, driver, conn string) (*SQLStorage, error) {
@@ -45,30 +44,24 @@ func NewSQLStorage(clock flu.Clock, driver, conn string) (*SQLStorage, error) {
 		return nil, err
 	}
 
-	var mutex RWMutex
-	if driver == "sqlite3" {
-		options := sqlite3.DialectOptions()
-		options.TimeFormat = "2006-01-02 15:04:05.000"
-		goqu.RegisterDialect("sqlite3", options)
-		mutex = new(flu.RWMutex)
+	if driver != "postgres" {
+		panic(errors.New("only postgres supported at the moment"))
 	}
 
 	return &SQLStorage{
 		Database: goqu.New(driver, db),
 		Clock:    clock,
-		RWMutex:  mutex,
-		driver:   driver,
 	}, nil
 }
 
 func (s *SQLStorage) Init(ctx context.Context) ([]ID, error) {
 	sql := fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS %s (
-	  sub_id TEXT NOT NULL,
-	  vendor TEXT NOT NULL,
+	  sub_id VARCHAR(255) NOT NULL,
+	  vendor VARCHAR(63) NOT NULL,
 	  feed_id BIGINT NOT NULL,
-      name TEXT NOT NULL,
-	  data JSON,
+      name VARCHAR(255) NOT NULL,
+	  data JSONB,
 	  updated_at TIMESTAMP,
 	  error VARCHAR(255),
 	  UNIQUE(sub_id, vendor, feed_id)
@@ -79,13 +72,14 @@ func (s *SQLStorage) Init(ctx context.Context) ([]ID, error) {
 	sql = fmt.Sprintf(`
 	CREATE TABLE IF NOT EXISTS %s (
       feed_id BIGINT NOT NULL,
-	  url TEXT NOT NULL,
-	  hash TEXT NOT NULL,
+	  url VARCHAR(1023) NOT NULL,
+      hash_type VARCHAR(15) NOT NULL,
+	  hash BYTEA NOT NULL,
 	  first_seen TIMESTAMP NOT NULL,
 	  last_seen TIMESTAMP,
-	  collisions INTEGER NOT NULL DEFAULT 0,
+	  collisions SMALLINT NOT NULL DEFAULT 0,
 	  UNIQUE(feed_id, url),
-	  UNIQUE(feed_id, hash)
+	  UNIQUE(feed_id, hash_type, hash)
 	)`, BlobTable.GetTable())
 	if _, err := s.Database.ExecContext(ctx, sql); err != nil {
 		return nil, errors.Wrap(err, "create blob table")
@@ -249,7 +243,7 @@ func (s *SQLStorage) Update(ctx context.Context, id SubID, value interface{}) er
 	defer s.Lock().Unlock()
 
 	where := s.ByID(id)
-	update := map[string]interface{}{"updated_at": s.Now()}
+	update := goqu.Record{"updated_at": s.Now()}
 	switch value := value.(type) {
 	case nil:
 		where = goqu.And(where, goqu.C("error").IsNotNull())
@@ -272,58 +266,45 @@ func (s *SQLStorage) Update(ctx context.Context, id SubID, value interface{}) er
 	return err
 }
 
-func (s *SQLStorage) Check(ctx context.Context, feedID ID, url string, hash string) error {
+func (s *SQLStorage) Check(ctx context.Context, feedID ID, url string, hashType string, hash []byte) error {
 	defer s.Lock().Unlock()
-	now := s.Now()
+	now := s.Now().In(time.UTC)
 
-	columnUpdatePrefix := ""
-	if s.driver == "postgres" {
-		columnUpdatePrefix = "excluded."
-	}
-
-	_, err := s.ExecuteSQLBuilder(ctx, s.Insert(BlobTable).
-		Cols("feed_id", "url", "hash", "first_seen", "last_seen").
-		Vals([]interface{}{feedID, url, hash, now, now}).
-		OnConflict(goqu.DoUpdate("feed_id, url",
-			map[string]interface{}{
-				"collisions": goqu.Literal(columnUpdatePrefix + `collisions + 1`),
-				"last_seen":  now,
-			})).
-		OnConflict(goqu.DoUpdate("feed_id, hash",
-			map[string]interface{}{
-				"collisions": goqu.Literal(columnUpdatePrefix + `collisions + 1`),
-				"last_seen":  now,
-			})))
-	if err != nil {
+	hashValue := fmt.Sprintf(`%x`, hash)
+	if updated, err := s.ExecuteSQLBuilder(ctx, s.Insert(BlobTable).
+		Cols("feed_id", "url", "hash_type", "hash", "first_seen").
+		Vals([]interface{}{feedID, url, hashType, hashValue, now}).
+		OnConflict(goqu.DoNothing())); err != nil {
 		return errors.Wrap(err, "update")
+	} else if updated > 0 {
+		return nil
 	}
 
-	rows, err := s.QuerySQLBuilder(ctx, s.Select(goqu.C("url"), goqu.C("collisions")).
-		From(BlobTable).
-		Where(goqu.And(
-			goqu.C("feed_id").Eq(feedID),
-			goqu.Or(
-				goqu.C("url").Eq(url),
-				goqu.C("hash").Eq(hash)))).
-		Limit(1))
+	update := common.PlainSQLBuilder{
+		SQL: fmt.Sprintf(
+			"UPDATE %s SET collisions = collisions + 1, last_seen = $1 WHERE url = $2 OR hash = $3 RETURNING url",
+			BlobTable.GetTable()),
+		Arguments: []interface{}{now, url, hashValue},
+	}
+
+	rows, err := s.QuerySQLBuilder(ctx, update)
 	if err != nil {
-		return errors.Wrap(err, "select")
+		return errors.Wrap(err, "update collision")
 	}
 
 	defer rows.Close()
-	collisions := 0
 	oldURL := ""
 	for rows.Next() {
-		if err := rows.Scan(&oldURL, &collisions); err != nil {
+		if err := rows.Scan(&oldURL); err != nil {
 			return errors.Wrap(err, "scan")
 		}
 	}
 
-	if collisions > 0 {
+	if oldURL != url {
 		return errors.Wrapf(format.ErrIgnoredMedia, "duplicates %s", oldURL)
+	} else {
+		return errors.Wrap(format.ErrIgnoredMedia, "duplicate")
 	}
-
-	return nil
 }
 
 func (s *SQLStorage) Close() error {
@@ -339,14 +320,8 @@ func (s *SQLStorage) ByID(id SubID) goqu.Expression {
 }
 
 func (s *SQLStorage) Lock() flu.Unlocker {
-	var unlocker flu.Unlocker
-	if s.RWMutex != nil {
-		unlocker = s.RWMutex.Lock()
-	}
-
 	return meteredUnlocker{
 		Clock:    s.Clock,
-		Unlocker: unlocker,
 		Registry: s.Registry,
 		op:       "write",
 		start:    s.Now(),
@@ -354,14 +329,8 @@ func (s *SQLStorage) Lock() flu.Unlocker {
 }
 
 func (s *SQLStorage) RLock() flu.Unlocker {
-	var unlocker flu.Unlocker
-	if s.RWMutex != nil {
-		unlocker = s.RWMutex.RLock()
-	}
-
 	return meteredUnlocker{
 		Clock:    s.Clock,
-		Unlocker: unlocker,
 		Registry: s.Registry,
 		op:       "read",
 		start:    s.Now(),
@@ -370,17 +339,12 @@ func (s *SQLStorage) RLock() flu.Unlocker {
 
 type meteredUnlocker struct {
 	flu.Clock
-	flu.Unlocker
 	metrics.Registry
 	op    string
 	start time.Time
 }
 
 func (u meteredUnlocker) Unlock() {
-	if u.Unlocker != nil {
-		u.Unlocker.Unlock()
-	}
-
 	u.Counter("lock_use_ms",
 		metrics.Labels{"op", u.op}).
 		Add(float64(u.Now().Sub(u.start).Milliseconds()))

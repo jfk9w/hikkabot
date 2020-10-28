@@ -26,29 +26,51 @@ type BigUint64Set struct {
 }
 
 func (s Uint64Set) MarshalJSON() ([]byte, error) {
-	var base uint64 = math.MaxUint64
-	for value := range s {
-		if value < base {
-			base = value
+	var b strings.Builder
+	b.WriteRune('[')
+	first := true
+	for val := range s {
+		if !first {
+			b.WriteRune(',')
+		} else {
+			first = false
 		}
+
+		b.WriteString(strconv.FormatUint(val, 10))
 	}
 
-	var b strings.Builder
+	b.WriteRune(']')
 
-	if base < math.MaxUint64 {
-		b.WriteString(EncodeToString(base))
-		for value := range s {
-			off := value - base
-			if off == 0 {
-				continue
+	return []byte(b.String()), nil
+}
+
+func (s Uint64Set) UnmarshalJSONv3(data []byte) error {
+	str := string(data)
+	str = str[1 : len(str)-1]
+	if str == "" {
+		return nil
+	}
+
+	start := 0
+	lastIdx := len(str) - 1
+	for i, c := range str {
+		if c == ',' || i == lastIdx {
+			if i == lastIdx {
+				i += 1
 			}
 
-			b.WriteRune(':')
-			b.WriteString(EncodeToString(off))
+			token := strings.Trim(str[start:i], " ")
+			val, err := strconv.ParseUint(token, 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "decode %s", token)
+			}
+
+			s.Add(val)
+			start = i + 1
 		}
 	}
 
-	return json.Marshal(b.String())
+	return nil
 }
 
 func (s Uint64Set) UnmarshalJSONv2(data []byte) error {
@@ -115,20 +137,12 @@ func (s Uint64Set) UnmarshalJSONv1(data []byte) error {
 }
 
 func (s Uint64Set) UnmarshalJSON(data []byte) error {
-	if err := s.UnmarshalJSONv2(data); err != nil {
-		return s.UnmarshalJSONv1(data)
+	if err := s.UnmarshalJSONv3(data); err != nil {
+		if err := s.UnmarshalJSONv2(data); err != nil {
+			return s.UnmarshalJSONv1(data)
+		}
 	}
 
-	return nil
-}
-
-func (s Uint64Set) Delete(str string) error {
-	val, err := DecodeString(str)
-	if err != nil {
-		return errors.Wrapf(err, "decode %s", str)
-	}
-
-	delete(s, val)
 	return nil
 }
 
