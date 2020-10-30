@@ -30,6 +30,7 @@ type SubredditFeedData struct {
 	Top           float64   `json:"top"`
 	LastCleanSecs int64     `json:"last_clean,omitempty"`
 	MediaOnly     bool      `json:"media_only,omitempty"`
+	IndexUsers    bool      `json:"index_users,omitempty"`
 }
 
 func (d SubredditFeedData) Copy() SubredditFeedData {
@@ -84,6 +85,8 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 		switch option {
 		case "!m":
 			data.MediaOnly = false
+		case "u":
+			data.IndexUsers = true
 		default:
 			var err error
 			data.Top, err = strconv.ParseFloat(option, 64)
@@ -204,7 +207,7 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 				continue
 			} else {
 				write = func(html *format.HTMLWriter) error {
-					html.Text(f.getSubredditName(data.Subreddit)).Text("\n").
+					f.writeHTMLPrefix(html, data.IndexUsers, thing).
 						Bold(thing.Title).Text("\n").
 						MarkupString(thing.SelfTextHTML)
 					return nil
@@ -213,8 +216,8 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 		} else {
 			media := f.newMediaRef(queue.SubID, thing, data.MediaOnly)
 			write = func(html *format.HTMLWriter) error {
-				html.Text(f.getSubredditName(data.Subreddit)).Text("\n").
-					Text(thing.Title).
+				f.writeHTMLPrefix(html, data.IndexUsers, thing).
+					Text(thing.Title).Text("\n").
 					Media(thing.URL, media, true)
 				return nil
 			}
@@ -240,6 +243,15 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 	}
 
 	return nil
+}
+
+func (f *SubredditFeed) writeHTMLPrefix(html *format.HTMLWriter, indexUsers bool, thing ThingData) *format.HTMLWriter {
+	html = html.Text(f.getSubredditName(thing.Subreddit)).Text("\n")
+	if indexUsers && thing.Author != "" {
+		html = html.Text(`u/#`).Text(thing.Author).Text("\n")
+	}
+
+	return html
 }
 
 func (f *SubredditFeed) Load(ctx context.Context, rawData feed.Data, queue feed.Queue) {

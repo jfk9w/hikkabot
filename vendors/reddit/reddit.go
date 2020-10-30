@@ -37,6 +37,7 @@ type ThingData struct {
 	MediaContainer
 	CrosspostParentList []MediaContainer `json:"crosspost_parent_list"`
 	Permalink           string           `json:"permalink"`
+	Author              string           `json:"author"`
 }
 
 func (d ThingData) PermalinkURL() string {
