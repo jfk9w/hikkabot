@@ -70,7 +70,7 @@ func main() {
 	}
 
 	mediam := (&feed.MediaManager{
-		DefaultClient: fluhttp.NewClient(nil),
+		DefaultClient: fluhttp.NewTransport().NewClient(),
 		SizeBounds:    [2]int64{1 << 10, 75 << 20},
 		Storage:       blobs,
 		Dedup:         feed.DefaultMediaDedup{Hashes: store},

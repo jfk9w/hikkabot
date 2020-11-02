@@ -135,10 +135,11 @@ func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData, mediaOnly
 
 	switch thing.Domain {
 	case "gfycat.com", "www.gfycat.com":
-		ref.MediaResolver = new(resolver.Gfycat)
+		ref.Blob = true
+		ref.MediaResolver = resolver.RedGIFs{Site: "gfycat"}
 	case "redgifs.com", "www.redgifs.com":
 		ref.Blob = true
-		ref.MediaResolver = new(resolver.RedGIFs)
+		ref.MediaResolver = resolver.RedGIFs{Site: "redgifs"}
 	case "imgur.com", "www.imgur.com":
 		ref.MediaResolver = new(resolver.Imgur)
 	case "i.imgur.com":

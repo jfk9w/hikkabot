@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jfk9w-go/flu/metrics"
-
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/pkg/errors"
+	"golang.org/x/net/http2"
 )
 
 type (
@@ -169,6 +169,15 @@ func (r *MediaRef) incrementMediaError(mimeType string, err string) {
 }
 
 func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
+	media, err := r.doGet(ctx)
+	if err != nil {
+		return format.Media{}, errors.Wrapf(err, "with resolved URL %s", r.ResolvedURL)
+	}
+
+	return media, nil
+}
+
+func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 	var err error
 	r.ResolvedURL, err = r.ResolveURL(ctx, r.getClient(), r.URL, telegram.Video.AttachMaxSize())
 	if err != nil {
@@ -303,10 +312,10 @@ func IsNetworkError(err error) bool {
 	for {
 		if _, ok := err.(*net.OpError); ok {
 			return true
-		}
-
-		if err_, ok := err.(interface{ Unwrap() error }); ok {
-			err = err_.Unwrap()
+		} else if _, ok := err.(*http2.StreamError); ok {
+			return true
+		} else if wrapped, ok := err.(interface{ Unwrap() error }); ok {
+			err = wrapped.Unwrap()
 		} else {
 			return false
 		}
