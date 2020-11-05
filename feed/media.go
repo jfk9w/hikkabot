@@ -55,6 +55,7 @@ type MediaManager struct {
 	RateLimiter   flu.RateLimiter
 	Metrics       metrics.Registry
 	Retries       int
+	CURL          string
 	ctx           context.Context
 	cancel        func()
 	work          sync.WaitGroup
@@ -163,7 +164,7 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 		return format.Media{}, errors.Wrapf(err, "resolve url: %s", r.URL)
 	}
 
-	client := NewMediaClient(r.getClient(), "curl", 3)
+	client := NewMediaClient(r.getClient(), r.Manager.CURL, r.Manager.Retries)
 	if r.MIMEType == "" && r.Size == 0 {
 		if m, err := client.Metadata(ctx, r.ResolvedURL); err != nil {
 			r.incrementMediaError("unknown", "head")

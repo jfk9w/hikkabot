@@ -85,7 +85,7 @@ func (c DefaultMediaClient) retry(ctx context.Context, url string, op string, bo
 	if err := body(client); err != nil {
 		for i := 0; i < c.retries; i++ {
 			log.Printf("[media > %s] %s (retry %d): %s", url, op, i, err)
-			if !IsNetworkError(err) {
+			if !IsNetworkError(err) || i == 3 {
 				client = c.curl
 			}
 

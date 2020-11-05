@@ -33,6 +33,7 @@ type Config struct {
 	Media struct {
 		Directory string
 		Retries   int
+		CURL      string
 	}
 	Aliases  map[string]telegram.ID
 	Telegram struct{ Token string }
@@ -77,6 +78,7 @@ func main() {
 		RateLimiter:   flu.ConcurrencyRateLimiter(3),
 		Metrics:       metrics.WithPrefix("media"),
 		Retries:       config.Media.Retries,
+		CURL:          config.Media.CURL,
 	}).Init(ctx)
 	defer mediam.Converter(aconvert).Close()
 
