@@ -92,7 +92,7 @@ func (c DefaultMediaClient) retry(ctx context.Context, url string, op string, bo
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(time.Duration(5*i*i) * time.Second):
+			case <-time.After(time.Duration(3*i*i) * time.Second):
 			}
 
 			if err = body(client); err != nil {
