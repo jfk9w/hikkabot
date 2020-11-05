@@ -21,6 +21,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+var GitCommit = "dev"
+
 type Config struct {
 	Supervisor telegram.ID
 	Datasource struct{ Driver, Conn string }
@@ -105,6 +107,7 @@ func main() {
 		Aggregator: aggregator,
 		Management: feed.NewSupervisorManagement(bot, config.Supervisor),
 		Aliases:    config.Aliases,
+		GitCommit:  GitCommit,
 	}).Init(ctx)
 	check(err)
 	defer listener.Close()

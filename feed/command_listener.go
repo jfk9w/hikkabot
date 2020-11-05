@@ -128,6 +128,7 @@ type CommandListener struct {
 	Management Management
 	Aliases    map[string]telegram.ID
 	Metrics    metrics.Registry
+	GitCommit  string
 }
 
 func (c *CommandListener) Init(ctx context.Context) (*CommandListener, error) {
@@ -444,7 +445,9 @@ func (c *CommandListener) Status(ctx context.Context, client telegram.Client, cm
 		"Chat ID: %s\n"+
 		"Message ID: %s\n"+
 		"Bot username: %s\n"+
-		"Datetime: %s\n",
+		"Datetime: %s\n"+
+		"Commit: %s\n",
 		cmd.User.ID, cmd.Chat.ID, cmd.Message.ID,
-		client.Username(), time.Now().Format("2006-01-02 15:04:05")))
+		client.Username(), time.Now().Format("2006-01-02 15:04:05"),
+		c.GitCommit))
 }
