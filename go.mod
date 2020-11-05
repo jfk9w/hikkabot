@@ -19,6 +19,6 @@ require (
 	golang.org/x/sys v0.0.0-20201009025420-dfb3f7c4e634 // indirect
 )
 
-replace github.com/jfk9w-go/telegram-bot-api => ../jfk9w-go/telegram-bot-api
+// replace github.com/jfk9w-go/telegram-bot-api => ../jfk9w-go/telegram-bot-api
 
 go 1.15
