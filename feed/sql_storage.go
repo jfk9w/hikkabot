@@ -301,9 +301,9 @@ func (s *SQLStorage) Check(ctx context.Context, feedID ID, url string, hashType 
 	}
 
 	if oldURL != url {
-		return errors.Wrapf(format.ErrIgnoredMedia, "duplicates %s", oldURL)
+		return errors.Wrapf(format.ErrSkipMedia, "duplicates %s", oldURL)
 	} else {
-		return errors.Wrap(format.ErrIgnoredMedia, "duplicate")
+		return errors.Wrap(format.ErrSkipMedia, "duplicate")
 	}
 }
 

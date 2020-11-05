@@ -45,7 +45,3 @@ func (r RedGIFs) ResolveURL(ctx context.Context, client *fluhttp.Client, url str
 
 	return resp.GfyItem.MP4URL, nil
 }
-
-func (r RedGIFs) Request(request *fluhttp.Request) *fluhttp.Request {
-	return request
-}

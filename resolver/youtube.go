@@ -133,7 +133,3 @@ func (r *YouTube) ResolveURL(ctx context.Context, client *fluhttp.Client, urlstr
 	r.MediaRef.MIMEType = strings.Split(bestFormat.MIMEType, ";")[0]
 	return urlstr, nil
 }
-
-func (r *YouTube) Request(request *fluhttp.Request) *fluhttp.Request {
-	return request
-}

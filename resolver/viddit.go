@@ -18,7 +18,3 @@ func (v Viddit) GetClient() *fluhttp.Client {
 func (v Viddit) ResolveURL(ctx context.Context, _ *fluhttp.Client, url string, _ int64) (string, error) {
 	return v.Client.Get(ctx, url)
 }
-
-func (v Viddit) Request(request *fluhttp.Request) *fluhttp.Request {
-	return request
-}

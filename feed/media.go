@@ -3,10 +3,6 @@ package feed
 import (
 	"context"
 	"log"
-	"mime"
-	"net"
-	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -16,14 +12,12 @@ import (
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/pkg/errors"
-	"golang.org/x/net/http2"
 )
 
 type (
 	MediaResolver interface {
 		GetClient() *fluhttp.Client
 		ResolveURL(ctx context.Context, client *fluhttp.Client, url string, maxSize int64) (string, error)
-		Request(request *fluhttp.Request) *fluhttp.Request
 	}
 
 	MediaConverter interface {
@@ -125,8 +119,7 @@ type MediaRef struct {
 	Blob        bool
 	FeedID      ID
 	ResolvedURL string
-	MIMEType    string
-	Size        int64
+	MediaMetadata
 }
 
 func (r *MediaRef) getClient() *fluhttp.Client {
@@ -135,21 +128,6 @@ func (r *MediaRef) getClient() *fluhttp.Client {
 	} else {
 		return r.Manager.DefaultClient
 	}
-}
-
-func (r *MediaRef) Handle(resp *http.Response) error {
-	var err error
-	r.MIMEType, _, err = mime.ParseMediaType(resp.Header.Get("Content-Type"))
-	if err != nil {
-		return errors.Wrapf(err, "failed to parse Content-Type: %s", resp.Header.Get("Content-Type"))
-	}
-
-	r.Size, err = strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
-	if err != nil {
-		r.Size = UnknownSize
-	}
-
-	return nil
 }
 
 func (r *MediaRef) incrementMediaMethod(mimeType string, method string) {
@@ -185,16 +163,13 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 		return format.Media{}, errors.Wrapf(err, "resolve url: %s", r.URL)
 	}
 
+	client := NewMediaClient(r.getClient(), "curl", 3)
 	if r.MIMEType == "" && r.Size == 0 {
-		if err := r.retry(ctx, "head", func() error {
-			return r.Request(r.getClient().HEAD(r.ResolvedURL)).
-				Context(ctx).
-				Execute().
-				HandleResponse(r).
-				Error
-		}); err != nil {
+		if m, err := client.Metadata(ctx, r.ResolvedURL); err != nil {
 			r.incrementMediaError("unknown", "head")
 			return format.Media{}, errors.Wrap(err, "head")
+		} else {
+			r.MediaMetadata = *m
 		}
 
 		if r.Size != UnknownSize {
@@ -239,16 +214,8 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 			return format.Media{}, errors.Wrap(err, "create blob")
 		}
 
-		var counter *flu.IOCounter
-		if err := r.retry(ctx, "download", func() error {
-			counter = &flu.IOCounter{Output: blob}
-			return r.Request(r.getClient().GET(r.ResolvedURL)).
-				Context(ctx).
-				Execute().
-				CheckStatus(http.StatusOK).
-				DecodeBodyTo(counter).
-				Error
-		}); err != nil {
+		counter := &flu.IOCounter{Output: blob}
+		if err := client.Contents(ctx, r.ResolvedURL, counter); err != nil {
 			r.incrementMediaError(r.MIMEType, "download")
 			return format.Media{}, errors.Wrap(err, "download")
 		}
@@ -257,11 +224,6 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 			if r.Dedup {
 				if err := r.Manager.Dedup.Check(ctx, r.FeedID, r.URL, mimeType, blob); err != nil {
 					r.incrementMediaError(r.MIMEType, "dedup")
-					log.Printf("[dedup > %d] %s: %s", r.FeedID, r.URL, err)
-					if errors.Is(err, format.ErrIgnoredMedia) {
-						err = format.ErrIgnoredMedia
-					}
-
 					return format.Media{}, err
 				}
 			}
@@ -276,48 +238,4 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 
 	r.incrementMediaError(r.MIMEType, "too large")
 	return format.Media{}, errors.Errorf("size %dMb is too large", r.Size>>20)
-}
-
-func (r *MediaRef) retry(ctx context.Context, op string, body func() error) error {
-	if err := body(); err != nil {
-		for i := 0; i < r.Manager.Retries; i++ {
-			if !IsNetworkError(err) {
-				return err
-			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(time.Duration(5*i*i) * time.Second):
-			}
-
-			if err = body(); err != nil {
-				if ctx.Err() != nil {
-					return ctx.Err()
-				}
-
-				log.Printf("[media > %d > %s] %s failed (retry %d): %s", r.FeedID, r.URL, op, i, err)
-			} else {
-				return nil
-			}
-		}
-
-		return err
-	}
-
-	return nil
-}
-
-func IsNetworkError(err error) bool {
-	for {
-		if _, ok := err.(*net.OpError); ok {
-			return true
-		} else if _, ok := err.(*http2.StreamError); ok {
-			return true
-		} else if wrapped, ok := err.(interface{ Unwrap() error }); ok {
-			err = wrapped.Unwrap()
-		} else {
-			return false
-		}
-	}
 }

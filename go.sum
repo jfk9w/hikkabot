@@ -152,8 +152,6 @@ github.com/jfk9w-go/flu v0.9.17-0.20201009132640-81ee7a969fb5 h1:2n+W6Vkd2b5DcQT
 github.com/jfk9w-go/flu v0.9.17-0.20201009132640-81ee7a969fb5/go.mod h1:TUyCE4dZQJnUIti5Kaa1i5msyvkj+cmpodVE1Kv+RPw=
 github.com/jfk9w-go/flu v0.9.17 h1:gz/QkLeRUwLDoTrusYjEJVmVagfmxEP8wq4n7N/8Oog=
 github.com/jfk9w-go/flu v0.9.17/go.mod h1:TUyCE4dZQJnUIti5Kaa1i5msyvkj+cmpodVE1Kv+RPw=
-github.com/jfk9w-go/telegram-bot-api v0.9.13-0.20201009133013-ca6541652004 h1:UXGP0EF5SdksKELpbnqt33Mb3j6QfSWJbCiQlhB7UIk=
-github.com/jfk9w-go/telegram-bot-api v0.9.13-0.20201009133013-ca6541652004/go.mod h1:UyVyqxLGwU7qIxU+qIT64gojvo8plQowMgMwAOclXEE=
 github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=
 github.com/jpillora/backoff v1.0.0/go.mod h1:J/6gKK9jxlEcS3zixgDgUAsiuZ7yrSoa/FX5e0EB2j4=

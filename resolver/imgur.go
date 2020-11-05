@@ -34,10 +34,6 @@ func (r *Imgur) ResolveURL(ctx context.Context, client *fluhttp.Client, url stri
 	}
 }
 
-func (r *Imgur) Request(request *fluhttp.Request) *fluhttp.Request {
-	return request
-}
-
 func (r *Imgur) Handle(resp *http.Response) error {
 	defer resp.Body.Close()
 	if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
