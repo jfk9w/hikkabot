@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/jfk9w-go/watchdog"
+
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
@@ -41,6 +43,7 @@ type Config struct {
 	Telegram struct{ Token string }
 	Reddit   reddit.Config
 	Dvach    struct{ Usercode string }
+	Watchdog watchdog.Config
 }
 
 func main() {
@@ -49,6 +52,8 @@ func main() {
 
 	config := new(Config)
 	check(flu.DecodeFrom(flu.File(os.Args[1]), flu.YAML{Value: config}))
+
+	defer watchdog.Run(ctx, config.Watchdog).Complete(ctx)
 
 	store, err := feed.NewSQLStorage(flu.DefaultClock, config.Datasource.Driver, config.Datasource.Conn)
 	check(err)

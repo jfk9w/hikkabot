@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -54,13 +55,12 @@ type MediaClient interface {
 }
 
 type DefaultMediaClient struct {
-	stdlib  StdLibClient
-	curl    CURL
-	retries int
+	main, fallback MediaClient
+	retries        int
 }
 
 func NewMediaClient(client *fluhttp.Client, curl string, retries int) DefaultMediaClient {
-	main := StdLibClient{client}
+	main := CURL{curl}
 	fallback := CURL{curl}
 	return DefaultMediaClient{main, fallback, retries}
 }
@@ -81,12 +81,12 @@ func (c DefaultMediaClient) Contents(ctx context.Context, url string, out flu.Ou
 }
 
 func (c DefaultMediaClient) retry(ctx context.Context, url string, op string, body func(MediaClient) error) error {
-	var client MediaClient = c.stdlib
+	var client MediaClient = c.main
 	if err := body(client); err != nil {
 		for i := 0; i < c.retries; i++ {
 			log.Printf("[media > %s] %s (retry %d): %s", url, op, i, err)
 			if !IsNetworkError(err) || i == 3 {
-				client = c.curl
+				client = c.fallback
 			}
 
 			select {
@@ -146,17 +146,12 @@ type CURL struct {
 }
 
 func (c CURL) Metadata(ctx context.Context, url string) (*MediaMetadata, error) {
-	args := append(cURLCommonArgs,
-		"-I",                // HEAD
-		"-o /dev/null",      // redirect output to /dev/null
-		"-D", "/dev/stderr", // dump headers to stderr
-		url,
-	)
-
-	cmd := exec.CommandContext(ctx, c.Binary, args...)
 	stderr := new(bytes.Buffer)
-	cmd.Stderr = stderr
-	if err := c.executeAndCheckStatus(cmd); err != nil {
+	if err := c.executeAndCheckStatus(ctx, url, stderr,
+		"-I",              // HEAD
+		"-o", "/dev/null", // redirect output to /dev/null
+		"-D", "/dev/stderr", // dump headers to stderr
+	); err != nil {
 		return nil, err
 	}
 
@@ -184,26 +179,32 @@ scan:
 }
 
 func (c CURL) Contents(ctx context.Context, url string, out flu.Output) error {
-	args := append(cURLCommonArgs,
-		"-o", "/dev/stderr", // redirect output to stderr
-		url,
-	)
-
-	cmd := exec.CommandContext(ctx, c.Binary, args...)
 	w, err := out.Writer()
 	if err != nil {
 		return errors.Wrap(err, "write")
 	}
 
-	cmd.Stderr = w
-	err = c.executeAndCheckStatus(cmd)
+	err = c.executeAndCheckStatus(ctx, url, w,
+		"-o", "/dev/stderr", // redirect output to stderr
+	)
+
 	flu.WriterCloser{Writer: w}.Close()
 	return err
 }
 
-func (c CURL) executeAndCheckStatus(cmd *exec.Cmd) error {
+func (c CURL) executeAndCheckStatus(ctx context.Context, url string, stderr io.Writer, args ...string) error {
+	args = append(args,
+		"-s",                          // silent
+		"-S",                          // show error on fails
+		"-L",                          // follow redirects
+		"--write-out", "%{http_code}", // write response status code to stdout)
+		url,
+	)
+
+	cmd := exec.CommandContext(ctx, c.Binary, args...)
 	stdout := new(bytes.Buffer)
 	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	err := cmd.Run()
 	if err != nil {
 		return errors.Wrap(err, "run process")
@@ -219,11 +220,4 @@ func (c CURL) executeAndCheckStatus(cmd *exec.Cmd) error {
 	}
 
 	return nil
-}
-
-var cURLCommonArgs = []string{
-	"-s",                          // silent
-	"-S",                          // show error on fails
-	"-L",                          // follow redirects
-	"--write-out", "%{http_code}", // write response status code to stdout
 }

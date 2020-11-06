@@ -6,6 +6,7 @@ require (
 	github.com/jfk9w-go/aconvert-api v0.9.10-0.20201009132802-a34ef3fff1e9
 	github.com/jfk9w-go/flu v0.9.17
 	github.com/jfk9w-go/telegram-bot-api v0.9.13
+	github.com/jfk9w-go/watchdog v0.0.0-20201105164950-a62b877461ff
 	github.com/lib/pq v1.8.0
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/pkg/errors v0.9.1
