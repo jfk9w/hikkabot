@@ -69,7 +69,7 @@ func (d DefaultMediaDedup) hashImage(mimeType string, reader io.Reader) (string,
 		return "", nil, errors.Wrap(err, "read image")
 	}
 
-	hash, err := goimagehash.ExtAverageHash(img, 32, 32)
+	hash, err := goimagehash.ExtAverageHash(img, 16, 16)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "compute image hash")
 	}
