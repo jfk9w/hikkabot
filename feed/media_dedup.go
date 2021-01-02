@@ -7,7 +7,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"strings"
 
 	"github.com/corona10/goimagehash"
 	"github.com/jfk9w-go/flu"
@@ -35,8 +34,18 @@ func (d DefaultMediaDedup) Check(ctx context.Context, feedID ID, url, mimeType s
 		hash     []byte
 	)
 
-	if strings.HasPrefix(mimeType, "image") && !strings.HasSuffix(mimeType, "gif") {
-		hashType, hash, err = d.hashImage(mimeType, reader)
+	var readImage ReadImageFunc
+	switch mimeType {
+	case "image/jpeg":
+		readImage = jpeg.Decode
+	case "image/png":
+		readImage = png.Decode
+	case "image/bmp":
+		readImage = bmp.Decode
+	}
+
+	if readImage != nil {
+		hashType, hash, err = d.hashImage(readImage, reader)
 		if err != nil {
 			return err
 		}
@@ -53,17 +62,7 @@ func (d DefaultMediaDedup) Check(ctx context.Context, feedID ID, url, mimeType s
 	return d.Hashes.Check(ctx, feedID, url, hashType, hash)
 }
 
-func (d DefaultMediaDedup) hashImage(mimeType string, reader io.Reader) (string, []byte, error) {
-	var readImage ReadImageFunc
-	switch mimeType {
-	case "image/jpeg":
-		readImage = jpeg.Decode
-	case "image/png":
-		readImage = png.Decode
-	case "image/bmp":
-		readImage = bmp.Decode
-	}
-
+func (d DefaultMediaDedup) hashImage(readImage func(io.Reader) (image.Image, error), reader io.Reader) (string, []byte, error) {
 	img, err := readImage(reader)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "read image")
