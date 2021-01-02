@@ -184,11 +184,11 @@ func (c CURL) Contents(ctx context.Context, url string, out flu.Output) error {
 		return errors.Wrap(err, "write")
 	}
 
+	defer flu.Close(w)
 	err = c.executeAndCheckStatus(ctx, url, w,
 		"-o", "/dev/stderr", // redirect output to stderr
 	)
 
-	flu.WriterCloser{Writer: w}.Close()
 	return err
 }
 
