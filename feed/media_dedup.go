@@ -27,14 +27,14 @@ func (d DefaultMediaDedup) Check(ctx context.Context, feedID ID, url, mimeType s
 		return errors.Wrap(err, "read")
 	}
 
-	defer flu.ReaderCloser{Reader: reader}.Close()
+	defer flu.Close(reader)
 
 	var (
-		hashType string
-		hash     []byte
+		hashType  string
+		hash      []byte
+		readImage ReadImageFunc
 	)
 
-	var readImage ReadImageFunc
 	switch mimeType {
 	case "image/jpeg":
 		readImage = jpeg.Decode
