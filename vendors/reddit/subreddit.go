@@ -59,16 +59,16 @@ func (f *SubredditFeed) getSubredditName(subreddit string) string {
 	return "#" + subreddit
 }
 
-func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string) (feed.Candidate, error) {
+func (f *SubredditFeed) ParseSub(ctx context.Context, ref string, options []string) (feed.SubDraft, error) {
 	groups := SubredditFeedRefRegexp.FindStringSubmatch(ref)
 	if len(groups) != 5 {
-		return feed.Candidate{}, feed.ErrWrongVendor
+		return feed.SubDraft{}, feed.ErrWrongVendor
 	}
 
 	subreddit := groups[4]
 	things, err := f.getListing(ctx, subreddit, 1)
 	if err != nil {
-		return feed.Candidate{}, errors.Wrap(err, "get listing")
+		return feed.SubDraft{}, errors.Wrap(err, "get listing")
 	}
 
 	if len(things) > 0 {
@@ -91,13 +91,13 @@ func (f *SubredditFeed) Parse(ctx context.Context, ref string, options []string)
 			var err error
 			data.Top, err = strconv.ParseFloat(option, 64)
 			if err != nil || data.Top <= 0 {
-				return feed.Candidate{}, errors.Wrap(err, "top must be positive")
+				return feed.SubDraft{}, errors.Wrap(err, "top must be positive")
 			}
 		}
 	}
 
 	data.SentIDs = make(Uint64Set, int(100*data.Top))
-	return feed.Candidate{
+	return feed.SubDraft{
 		ID:   data.Subreddit,
 		Name: f.getSubredditName(data.Subreddit),
 		Data: data,
@@ -255,7 +255,7 @@ func (f *SubredditFeed) writeHTMLPrefix(html *format.HTMLWriter, indexUsers bool
 	return html
 }
 
-func (f *SubredditFeed) Load(ctx context.Context, rawData feed.Data, queue feed.Queue) {
+func (f *SubredditFeed) LoadSub(ctx context.Context, rawData feed.Data, queue feed.Queue) {
 	defer queue.Close()
 	if err := f.doLoad(ctx, rawData, queue); err != nil {
 		_ = queue.Submit(ctx, feed.Update{Error: err})

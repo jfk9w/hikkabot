@@ -3,11 +3,11 @@ package feed
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
-	"github.com/jfk9w-go/flu/metrics"
-
 	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/pkg/errors"
@@ -214,18 +214,21 @@ var (
 
 func (c *CommandListener) resolveChatID(ctx context.Context, client telegram.Client, cmd telegram.Command, argumentIndex int) (context.Context, telegram.ID, error) {
 	chatID := cmd.Chat.ID
-	if len(cmd.Args) > argumentIndex && cmd.Args[argumentIndex] != "." {
-		if id, ok := c.Aliases[cmd.Args[argumentIndex]]; ok {
-			chatID = id
-		} else {
-			chat, err := client.GetChat(ctx, telegram.Username(cmd.Args[argumentIndex]))
-			if err != nil {
-				chatID, err = telegram.ParseID(cmd.Args[argumentIndex])
-				if err != nil {
-					return nil, 0, errors.Wrap(err, "parse chat ID")
-				}
+	if len(cmd.Args) > argumentIndex {
+		if arg := cmd.Args[argumentIndex]; arg != "." {
+			if id, ok := c.Aliases[arg]; ok {
+				chatID = id
 			} else {
-				chatID = chat.ID
+				chat, err := client.GetChat(ctx, telegram.Username(arg))
+				if err != nil {
+					log.Printf("[chat > %s] resolve failed: %s", arg, err)
+					chatID, err = telegram.ParseID(arg)
+					if err != nil {
+						return nil, 0, errors.Wrap(err, "parse chat ID")
+					}
+				} else {
+					chatID = chat.ID
+				}
 			}
 		}
 	}

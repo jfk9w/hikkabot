@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu/metrics"
-
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-
 	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/pkg/errors"
 )
@@ -36,7 +34,7 @@ func (f TelegramHTML) CreateHTMLWriter(ctx context.Context, feedIDs ...ID) (*for
 
 type aggregatorTask struct {
 	htmlWriterFactory HTMLWriterFactory
-	store             Feeds
+	store             SubStorage
 	interval          time.Duration
 	vendors           map[string]Vendor
 	feedID            ID
@@ -46,7 +44,7 @@ type aggregatorTask struct {
 
 func (t *aggregatorTask) Execute(ctx context.Context) error {
 	for {
-		sub, err := t.store.Advance(ctx, t.feedID)
+		sub, err := t.store.NextSub(ctx, t.feedID)
 		if err != nil {
 			return errors.Wrap(err, "advance")
 		}
@@ -86,7 +84,7 @@ func (t *aggregatorTask) update(ctx context.Context, sub Sub) error {
 	queue := NewQueue(sub.SubID, 5)
 	vctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go vendor.Load(vctx, sub.Data, queue)
+	go vendor.LoadSub(vctx, sub.Data, queue)
 	count := 0
 	defer func() { log.Printf("[sub > %s] processed %d updates", sub.SubID, count) }()
 	for update := range queue.channel {
@@ -130,12 +128,12 @@ var updateStoreTimeout = 10 * time.Second
 func (t *aggregatorTask) updateStore(subID SubID, value interface{}) error {
 	ctx, cancel := context.WithTimeout(context.Background(), updateStoreTimeout)
 	defer cancel()
-	return t.store.Update(ctx, subID, value)
+	return t.store.UpdateSub(ctx, subID, value)
 }
 
 type Aggregator struct {
 	Executor          TaskExecutor
-	Feeds             Feeds
+	SubStorage        SubStorage
 	HTMLWriterFactory HTMLWriterFactory
 	Vendors           map[string]Vendor
 	UpdateInterval    time.Duration
@@ -158,7 +156,7 @@ func (a *Aggregator) Vendor(id string, vendor Vendor) *Aggregator {
 
 func (a *Aggregator) Init(ctx context.Context, suspendListener SuspendListener) error {
 	a.SuspendListener = suspendListener
-	ids, err := a.Feeds.Init(ctx)
+	ids, err := a.SubStorage.Init(ctx)
 	if err != nil {
 		return err
 	}
@@ -173,7 +171,7 @@ func (a *Aggregator) Init(ctx context.Context, suspendListener SuspendListener) 
 func (a *Aggregator) submitTask(feedID ID) {
 	a.Executor.Submit(feedID, &aggregatorTask{
 		htmlWriterFactory: a.HTMLWriterFactory,
-		store:             a.Feeds,
+		store:             a.SubStorage,
 		interval:          a.UpdateInterval,
 		vendors:           a.Vendors,
 		feedID:            feedID,
@@ -184,12 +182,12 @@ func (a *Aggregator) submitTask(feedID ID) {
 
 func (a *Aggregator) Close() error {
 	a.Executor.Close()
-	return a.Feeds.Close()
+	return a.SubStorage.Close()
 }
 
 func (a *Aggregator) Subscribe(ctx context.Context, feedID ID, ref string, options []string) (Sub, error) {
 	for vendorID, vendor := range a.Vendors {
-		sub, err := vendor.Parse(ctx, ref, options)
+		sub, err := vendor.ParseSub(ctx, ref, options)
 		switch err {
 		case nil:
 			data, err := DataFrom(sub.Data)
@@ -207,7 +205,7 @@ func (a *Aggregator) Subscribe(ctx context.Context, feedID ID, ref string, optio
 				return sub, errors.Wrap(err, "wrap data")
 			}
 
-			if err := a.Feeds.Create(ctx, sub); err != nil {
+			if err := a.SubStorage.CreateSub(ctx, sub); err != nil {
 				return sub, err
 			}
 
@@ -226,17 +224,17 @@ func (a *Aggregator) Subscribe(ctx context.Context, feedID ID, ref string, optio
 }
 
 func (a *Aggregator) Suspend(ctx context.Context, subID SubID, err error) (Sub, error) {
-	if err := a.Feeds.Update(ctx, subID, err); err != nil {
+	if err := a.SubStorage.UpdateSub(ctx, subID, err); err != nil {
 		return Sub{}, err
 	}
-	return a.Feeds.Get(ctx, subID)
+	return a.SubStorage.GetSub(ctx, subID)
 }
 
 func (a *Aggregator) Resume(ctx context.Context, subID SubID) (Sub, error) {
-	if err := a.Feeds.Update(ctx, subID, nil); err != nil {
+	if err := a.SubStorage.UpdateSub(ctx, subID, nil); err != nil {
 		return Sub{}, err
 	}
-	sub, err := a.Feeds.Get(ctx, subID)
+	sub, err := a.SubStorage.GetSub(ctx, subID)
 	if err != nil {
 		return Sub{}, err
 	}
@@ -246,20 +244,20 @@ func (a *Aggregator) Resume(ctx context.Context, subID SubID) (Sub, error) {
 }
 
 func (a *Aggregator) Delete(ctx context.Context, subID SubID) (Sub, error) {
-	sub, err := a.Feeds.Get(ctx, subID)
+	sub, err := a.SubStorage.GetSub(ctx, subID)
 	if err != nil {
 		return Sub{}, errors.Wrap(err, "get")
 	}
-	if err := a.Feeds.Delete(ctx, subID); err != nil {
+	if err := a.SubStorage.DeleteSub(ctx, subID); err != nil {
 		return Sub{}, errors.Wrap(err, "store delete")
 	}
 	return sub, nil
 }
 
 func (a *Aggregator) Clear(ctx context.Context, feedID ID, pattern string) (int64, error) {
-	return a.Feeds.Clear(ctx, feedID, pattern)
+	return a.SubStorage.DeleteSubs(ctx, feedID, pattern)
 }
 
 func (a *Aggregator) List(ctx context.Context, feedID ID, active bool) ([]Sub, error) {
-	return a.Feeds.List(ctx, feedID, active)
+	return a.SubStorage.ListSubs(ctx, feedID, active)
 }

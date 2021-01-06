@@ -80,11 +80,13 @@ func main() {
 		DefaultClient: fluhttp.NewTransport().NewClient(),
 		SizeBounds:    [2]int64{1 << 10, 75 << 20},
 		Storage:       blobs,
-		Dedup:         feed.DefaultMediaDedup{Hashes: store},
-		RateLimiter:   flu.ConcurrencyRateLimiter(3),
-		Metrics:       metrics.WithPrefix("media"),
-		Retries:       config.Media.Retries,
-		CURL:          config.Media.CURL,
+		Dedup: feed.DefaultMediaDedup{
+			BlobStorage: store,
+		},
+		RateLimiter: flu.ConcurrencyRateLimiter(3),
+		Metrics:     metrics.WithPrefix("media"),
+		Retries:     config.Media.Retries,
+		CURL:        config.Media.CURL,
 	}).Init(ctx)
 	defer mediam.Converter(aconvert).Close()
 
@@ -97,7 +99,7 @@ func main() {
 
 	aggregator := &feed.Aggregator{
 		Executor:          executor,
-		Feeds:             store,
+		SubStorage:        store,
 		HTMLWriterFactory: feed.TelegramHTML{Sender: bot},
 		UpdateInterval:    config.Interval.Duration,
 		Metrics:           metrics.WithPrefix("aggregator"),

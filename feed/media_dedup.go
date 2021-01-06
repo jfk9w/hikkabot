@@ -19,7 +19,7 @@ import (
 type ReadImageFunc func(io.Reader) (image.Image, error)
 
 type DefaultMediaDedup struct {
-	Hashes Hashes
+	BlobStorage BlobStorage
 }
 
 func (d DefaultMediaDedup) Check(ctx context.Context, feedID ID, url, mimeType string, blob format.Blob) error {
@@ -60,7 +60,7 @@ func (d DefaultMediaDedup) Check(ctx context.Context, feedID ID, url, mimeType s
 		hash = md5Hash.Sum(nil)
 	}
 
-	return d.Hashes.Check(ctx, feedID, url, hashType, hash)
+	return d.BlobStorage.CheckBlob(ctx, feedID, url, hashType, hash)
 }
 
 func (d DefaultMediaDedup) hashImage(readImage ReadImageFunc, reader io.Reader) (string, []byte, error) {

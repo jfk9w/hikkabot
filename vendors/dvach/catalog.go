@@ -9,9 +9,8 @@ import (
 	"strings"
 	"time"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-
 	fluhttp "github.com/jfk9w-go/flu/http"
+	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/vendors/common"
@@ -38,10 +37,10 @@ func (f *CatalogFeed) getCatalog(ctx context.Context, board string) (*Catalog, e
 
 var CatalogFeedRefRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
 
-func (f *CatalogFeed) Parse(ctx context.Context, ref string, options []string) (feed.Candidate, error) {
+func (f *CatalogFeed) ParseSub(ctx context.Context, ref string, options []string) (feed.SubDraft, error) {
 	groups := CatalogFeedRefRegexp.FindStringSubmatch(ref)
 	if len(groups) < 6 {
-		return feed.Candidate{}, feed.ErrWrongVendor
+		return feed.SubDraft{}, feed.ErrWrongVendor
 	}
 
 	data := CatalogFeedData{Board: groups[4]}
@@ -51,13 +50,12 @@ loop:
 		case option == "auto":
 			data.Auto = options[i+1:]
 			break loop
-
 		case strings.HasPrefix(option, "re="):
 			option = option[3:]
 			fallthrough
 		default:
 			if re, err := regexp.Compile(option); err != nil {
-				return feed.Candidate{}, errors.Wrap(err, "compile regexp")
+				return feed.SubDraft{}, errors.Wrap(err, "compile regexp")
 			} else {
 				data.Query = &common.Query{Regexp: re}
 			}
@@ -66,10 +64,10 @@ loop:
 
 	catalog, err := f.getCatalog(ctx, data.Board)
 	if err != nil {
-		return feed.Candidate{}, errors.Wrap(err, "get catalog")
+		return feed.SubDraft{}, errors.Wrap(err, "get catalog")
 	}
 
-	candidate := feed.Candidate{
+	draft := feed.SubDraft{
 		ID:   data.Board + "/" + data.Query.String(),
 		Name: catalog.BoardName + " /" + data.Query.String() + "/",
 		Data: data,
@@ -77,11 +75,11 @@ loop:
 
 	if len(data.Auto) != 0 {
 		auto := strings.Join(data.Auto, " ")
-		candidate.ID += "/" + auto
-		candidate.Name += " [" + auto + "]"
+		draft.ID += "/" + auto
+		draft.Name += " [" + auto + "]"
 	}
 
-	return candidate, nil
+	return draft, nil
 }
 
 type catalogFeedQueryResult []Post
@@ -169,7 +167,7 @@ func (f *CatalogFeed) doLoad(ctx context.Context, rawData feed.Data, queue feed.
 	return nil
 }
 
-func (f *CatalogFeed) Load(ctx context.Context, data feed.Data, queue feed.Queue) {
+func (f *CatalogFeed) LoadSub(ctx context.Context, data feed.Data, queue feed.Queue) {
 	defer queue.Close()
 	if err := f.doLoad(ctx, data, queue); err != nil {
 		_ = queue.Submit(ctx, feed.Update{Error: err})

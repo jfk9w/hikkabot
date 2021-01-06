@@ -8,9 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jfk9w-go/flu/metrics"
-
 	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/metrics"
 	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/pkg/errors"
 )
@@ -109,31 +108,31 @@ type Update struct {
 	Error error
 }
 
-type Candidate struct {
+type SubDraft struct {
 	ID   string
 	Name string
 	Data interface{}
 }
 
 type Vendor interface {
-	Parse(ctx context.Context, ref string, options []string) (Candidate, error)
-	Load(ctx context.Context, data Data, queue Queue)
+	ParseSub(ctx context.Context, ref string, options []string) (SubDraft, error)
+	LoadSub(ctx context.Context, data Data, queue Queue)
 }
 
-type Feeds interface {
+type SubStorage interface {
 	io.Closer
 	Init(ctx context.Context) ([]ID, error)
-	Create(ctx context.Context, sub Sub) error
-	Get(ctx context.Context, id SubID) (Sub, error)
-	Advance(ctx context.Context, feedID ID) (Sub, error)
-	List(ctx context.Context, feedID ID, active bool) ([]Sub, error)
-	Clear(ctx context.Context, feedID ID, pattern string) (int64, error)
-	Delete(ctx context.Context, id SubID) error
-	Update(ctx context.Context, id SubID, value interface{}) error
+	CreateSub(ctx context.Context, sub Sub) error
+	GetSub(ctx context.Context, id SubID) (Sub, error)
+	NextSub(ctx context.Context, feedID ID) (Sub, error)
+	ListSubs(ctx context.Context, feedID ID, active bool) ([]Sub, error)
+	DeleteSubs(ctx context.Context, feedID ID, pattern string) (int64, error)
+	DeleteSub(ctx context.Context, id SubID) error
+	UpdateSub(ctx context.Context, id SubID, value interface{}) error
 }
 
-type Hashes interface {
-	Check(ctx context.Context, feedID ID, url string, hashType string, hash []byte) error
+type BlobStorage interface {
+	CheckBlob(ctx context.Context, feedID ID, url string, hashType string, hash []byte) error
 }
 
 type Queue struct {

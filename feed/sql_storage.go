@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jfk9w/hikkabot/vendors/common"
-
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 	"github.com/jfk9w-go/telegram-bot-api/format"
+	"github.com/jfk9w/hikkabot/vendors/common"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
@@ -156,7 +155,7 @@ func (s *SQLStorage) selectSubs(ctx context.Context, builder *goqu.SelectDataset
 	return subs, nil
 }
 
-func (s *SQLStorage) Create(ctx context.Context, sub Sub) error {
+func (s *SQLStorage) CreateSub(ctx context.Context, sub Sub) error {
 	defer s.Lock().Unlock()
 	ok, err := s.UpdateSQLBuilder(ctx, s.Insert(Table).OnConflict(goqu.DoNothing()).
 		Cols(subColumnOrder...).
@@ -172,7 +171,7 @@ func (s *SQLStorage) Create(ctx context.Context, sub Sub) error {
 	return err
 }
 
-func (s *SQLStorage) Get(ctx context.Context, id SubID) (Sub, error) {
+func (s *SQLStorage) GetSub(ctx context.Context, id SubID) (Sub, error) {
 	defer s.RLock().Unlock()
 	subs, err := s.selectSubs(ctx, s.
 		From(Table).
@@ -189,7 +188,7 @@ func (s *SQLStorage) Get(ctx context.Context, id SubID) (Sub, error) {
 	return subs[0], nil
 }
 
-func (s *SQLStorage) Advance(ctx context.Context, feedID ID) (Sub, error) {
+func (s *SQLStorage) NextSub(ctx context.Context, feedID ID) (Sub, error) {
 	defer s.RLock().Unlock()
 	subs, err := s.selectSubs(ctx, s.
 		From(Table).
@@ -210,7 +209,7 @@ func (s *SQLStorage) Advance(ctx context.Context, feedID ID) (Sub, error) {
 	return subs[0], nil
 }
 
-func (s *SQLStorage) List(ctx context.Context, feedID ID, active bool) ([]Sub, error) {
+func (s *SQLStorage) ListSubs(ctx context.Context, feedID ID, active bool) ([]Sub, error) {
 	defer s.RLock().Unlock()
 	return s.selectSubs(ctx, s.
 		From(Table).
@@ -220,16 +219,16 @@ func (s *SQLStorage) List(ctx context.Context, feedID ID, active bool) ([]Sub, e
 		)))
 }
 
-func (s *SQLStorage) Clear(ctx context.Context, feedID ID, pattern string) (int64, error) {
+func (s *SQLStorage) DeleteSubs(ctx context.Context, feedID ID, errorLike string) (int64, error) {
 	defer s.Lock().Unlock()
 	return s.ExecuteSQLBuilder(ctx, s.Database.Delete(Table).
 		Where(goqu.And(
 			goqu.C("feed_id").Eq(feedID),
-			goqu.C("error").Like(pattern),
+			goqu.C("error").Like(errorLike),
 		)))
 }
 
-func (s *SQLStorage) Delete(ctx context.Context, id SubID) error {
+func (s *SQLStorage) DeleteSub(ctx context.Context, id SubID) error {
 	defer s.Lock().Unlock()
 	ok, err := s.UpdateSQLBuilder(ctx, s.Database.Delete(Table).Where(s.ByID(id)))
 	if err == nil && !ok {
@@ -239,7 +238,7 @@ func (s *SQLStorage) Delete(ctx context.Context, id SubID) error {
 	return err
 }
 
-func (s *SQLStorage) Update(ctx context.Context, id SubID, value interface{}) error {
+func (s *SQLStorage) UpdateSub(ctx context.Context, id SubID, value interface{}) error {
 	defer s.Lock().Unlock()
 
 	where := s.ByID(id)
@@ -266,7 +265,7 @@ func (s *SQLStorage) Update(ctx context.Context, id SubID, value interface{}) er
 	return err
 }
 
-func (s *SQLStorage) Check(ctx context.Context, feedID ID, url string, hashType string, hash []byte) error {
+func (s *SQLStorage) CheckBlob(ctx context.Context, feedID ID, url string, hashType string, hash []byte) error {
 	defer s.Lock().Unlock()
 	now := s.Now().In(time.UTC)
 
@@ -305,6 +304,23 @@ func (s *SQLStorage) Check(ctx context.Context, feedID ID, url string, hashType 
 	} else {
 		return errors.Wrap(format.ErrSkipMedia, "duplicate")
 	}
+}
+
+func (s *SQLStorage) BlobPage(ctx context.Context, feedID ID, hashType string, offset, limit uint) ([]string, error) {
+	urls := make([]string, 0)
+	if err := s.Database.Select(goqu.C("url")).
+		From(BlobTable).
+		Where(goqu.And(
+			goqu.C("feed_id").Eq(feedID),
+			goqu.C("hash_type").Eq(hashType))).
+		Order(goqu.C("collisions").Desc(), goqu.C("url").Asc()).
+		Offset(offset).
+		Limit(limit).
+		ScanValsContext(ctx, &urls); err != nil {
+		return nil, errors.Wrap(err, "select blobs")
+	}
+
+	return urls, nil
 }
 
 func (s *SQLStorage) Close() error {

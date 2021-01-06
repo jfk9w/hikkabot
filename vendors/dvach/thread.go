@@ -64,10 +64,10 @@ func getTitle(post Post) string {
 	return "#" + utf8str.String()
 }
 
-func (f *ThreadFeed) Parse(ctx context.Context, ref string, options []string) (feed.Candidate, error) {
+func (f *ThreadFeed) ParseSub(ctx context.Context, ref string, options []string) (feed.SubDraft, error) {
 	groups := ThreadFeedRefRegexp.FindStringSubmatch(ref)
 	if len(groups) < 6 {
-		return feed.Candidate{}, feed.ErrWrongVendor
+		return feed.SubDraft{}, feed.ErrWrongVendor
 	}
 
 	data := ThreadFeedData{Board: groups[4]}
@@ -83,14 +83,14 @@ func (f *ThreadFeed) Parse(ctx context.Context, ref string, options []string) (f
 
 	post, err := f.getPost(ctx, data.Board, data.Num)
 	if err != nil {
-		return feed.Candidate{}, errors.Wrap(err, "get post")
+		return feed.SubDraft{}, errors.Wrap(err, "get post")
 	}
 
 	if data.Tag == "" {
 		data.Tag = getTitle(post)
 	}
 
-	return feed.Candidate{
+	return feed.SubDraft{
 		ID:   fmt.Sprintf("%s/%d", data.Board, data.Num),
 		Name: data.Tag,
 		Data: data,
@@ -168,7 +168,7 @@ func (f *ThreadFeed) doLoad(ctx context.Context, rawData feed.Data, queue feed.Q
 	return nil
 }
 
-func (f *ThreadFeed) Load(ctx context.Context, data feed.Data, queue feed.Queue) {
+func (f *ThreadFeed) LoadSub(ctx context.Context, data feed.Data, queue feed.Queue) {
 	defer queue.Close()
 	if err := f.doLoad(ctx, data, queue); err != nil {
 		_ = queue.Submit(ctx, feed.Update{Error: err})
