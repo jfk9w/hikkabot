@@ -3,6 +3,7 @@ package reddit
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"regexp"
 	"sort"
@@ -175,7 +176,7 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 	things, err := f.getListing(ctx, data.Subreddit, 100)
 
 	if err != nil {
-		if IsStatusCodeError(err, http.StatusBadGateway, http.StatusGatewayTimeout) {
+		if IsTemporaryError(err) {
 			return nil
 		} else {
 			return errors.Wrap(err, "get listing")
@@ -254,15 +255,20 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 	return nil
 }
 
-func IsStatusCodeError(err error, statusCodes ...int) bool {
+var TemporaryErrorStatusCodes = map[int]bool{
+	http.StatusBadGateway:     true,
+	http.StatusGatewayTimeout: true,
+}
+
+func IsTemporaryError(err error) bool {
 	for {
 		if err := errors.Unwrap(err); err != nil {
-			if err, ok := err.(fluhttp.StatusCodeError); ok {
-				for _, statusCode := range statusCodes {
-					if err.Code == statusCode {
-						return true
-					}
-				}
+			if err, ok := err.(fluhttp.StatusCodeError); ok && TemporaryErrorStatusCodes[err.Code] {
+				return true
+			}
+
+			if err, ok := err.(net.Error); ok && err.Temporary() {
+				return true
 			}
 		}
 
