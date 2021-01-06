@@ -3,6 +3,7 @@ package feed
 import (
 	"context"
 	"crypto/md5"
+	"encoding/binary"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -62,7 +63,7 @@ func (d DefaultMediaDedup) Check(ctx context.Context, feedID ID, url, mimeType s
 	return d.Hashes.Check(ctx, feedID, url, hashType, hash)
 }
 
-func (d DefaultMediaDedup) hashImage(readImage func(io.Reader) (image.Image, error), reader io.Reader) (string, []byte, error) {
+func (d DefaultMediaDedup) hashImage(readImage ReadImageFunc, reader io.Reader) (string, []byte, error) {
 	img, err := readImage(reader)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "read image")
@@ -73,10 +74,7 @@ func (d DefaultMediaDedup) hashImage(readImage func(io.Reader) (image.Image, err
 		return "", nil, errors.Wrap(err, "compute image hash")
 	}
 
-	buf := flu.NewBuffer()
-	if err := hash.Dump(buf); err != nil {
-		return "", nil, errors.Wrap(err, "image hash dump")
-	}
-
-	return "dhash", buf.Bytes(), nil
+	buf := make([]byte, hash.Bits()/8)
+	binary.LittleEndian.PutUint64(buf, hash.GetHash())
+	return "dhash", buf, nil
 }
