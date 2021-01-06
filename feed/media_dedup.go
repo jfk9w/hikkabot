@@ -68,7 +68,7 @@ func (d DefaultMediaDedup) hashImage(readImage func(io.Reader) (image.Image, err
 		return "", nil, errors.Wrap(err, "read image")
 	}
 
-	hash, err := goimagehash.ExtAverageHash(img, 16, 16)
+	hash, err := goimagehash.DifferenceHash(img)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "compute image hash")
 	}
@@ -78,5 +78,5 @@ func (d DefaultMediaDedup) hashImage(readImage func(io.Reader) (image.Image, err
 		return "", nil, errors.Wrap(err, "image hash dump")
 	}
 
-	return "ahash", buf.Bytes(), nil
+	return "dhash", buf.Bytes(), nil
 }

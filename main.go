@@ -5,8 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/jfk9w-go/watchdog"
-
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
@@ -14,6 +12,7 @@ import (
 	"github.com/jfk9w-go/flu/serde"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/format"
+	"github.com/jfk9w-go/watchdog"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/resolver"
 	"github.com/jfk9w/hikkabot/vendors/common"
