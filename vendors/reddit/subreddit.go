@@ -3,10 +3,13 @@ package reddit
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	fluhttp "github.com/jfk9w-go/flu/http"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/jfk9w-go/flu/metrics"
@@ -170,8 +173,13 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 	}
 
 	things, err := f.getListing(ctx, data.Subreddit, 100)
+
 	if err != nil {
-		return errors.Wrap(err, "get listing")
+		if IsStatusCodeError(err, http.StatusBadGateway, http.StatusGatewayTimeout) {
+			return nil
+		} else {
+			return errors.Wrap(err, "get listing")
+		}
 	}
 
 	sort.Sort(redditThings(things))
@@ -244,6 +252,24 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 	}
 
 	return nil
+}
+
+func IsStatusCodeError(err error, statusCodes ...int) bool {
+	for {
+		if err := errors.Unwrap(err); err != nil {
+			if err, ok := err.(fluhttp.StatusCodeError); ok {
+				for _, statusCode := range statusCodes {
+					if err.Code == statusCode {
+						return true
+					}
+				}
+			}
+		}
+
+		break
+	}
+
+	return false
 }
 
 func (f *SubredditFeed) writeHTMLPrefix(html *format.HTMLWriter, indexUsers bool, thing ThingData) *format.HTMLWriter {
