@@ -144,14 +144,12 @@ func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData, mediaOnly
 	case "redgifs.com", "www.redgifs.com":
 		ref.Blob = true
 		ref.MediaResolver = resolver.RedGIFs{Site: "redgifs"}
-	case "imgur.com", "www.imgur.com":
-		ref.MediaResolver = new(resolver.Imgur)
-	case "i.imgur.com":
-		if !strings.Contains(ref.URL, ".gifv") {
-			ref.MediaResolver = new(resolver.Imgur)
-		} else {
+	case "imgur.com", "www.imgur.com", "i.imgur.com":
+		if strings.Contains(ref.URL, ".gifv") {
 			ref.URL = strings.Replace(ref.URL, ".gifv", ".mp4", 1)
 			ref.MediaResolver = new(feed.DummyMediaResolver)
+		} else {
+			ref.MediaResolver = new(resolver.Imgur)
 		}
 	case "youtube.com", "www.youtube.com", "youtu.be":
 		ref.MediaResolver = &resolver.YouTube{MediaRef: ref}

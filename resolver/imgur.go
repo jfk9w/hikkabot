@@ -21,7 +21,7 @@ func (r *Imgur) GetClient() *fluhttp.Client {
 	return nil
 }
 
-func (r *Imgur) ResolveURL(ctx context.Context, client *fluhttp.Client, url string, maxSize int64) (string, error) {
+func (r *Imgur) ResolveURL(ctx context.Context, client *fluhttp.Client, url string, _ int64) (string, error) {
 	if err := client.GET(url).
 		Context(ctx).
 		Execute().
