@@ -260,7 +260,7 @@ var TemporaryErrorStatusCodes = map[int]bool{
 
 func IsTemporaryError(err error) bool {
 	for {
-		if err := errors.Unwrap(err); err != nil {
+		if err = errors.Unwrap(err); err != nil {
 			if err, ok := err.(fluhttp.StatusCodeError); ok && TemporaryErrorStatusCodes[err.Code] {
 				return true
 			}
