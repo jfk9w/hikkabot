@@ -77,6 +77,7 @@ func (s *SQLStorage) Init(ctx context.Context) ([]ID, error) {
 	  first_seen TIMESTAMP NOT NULL,
 	  last_seen TIMESTAMP,
 	  collisions SMALLINT NOT NULL DEFAULT 0,
+	  last_url VARCHAR(1023),
 	  UNIQUE(feed_id, url),
 	  UNIQUE(feed_id, hash_type, hash)
 	)`, BlobTable.GetTable())
@@ -281,7 +282,7 @@ func (s *SQLStorage) CheckBlob(ctx context.Context, feedID ID, url string, hashT
 
 	update := common.PlainSQLBuilder{
 		SQL: fmt.Sprintf(
-			"UPDATE %s SET collisions = collisions + 1, last_seen = $1 WHERE url = $2 OR hash = $3 RETURNING url",
+			"UPDATE %s SET collisions = collisions + 1, last_seen = $1, last_url = $2 WHERE url = $2 OR hash = $3 RETURNING url",
 			BlobTable.GetTable()),
 		Arguments: []interface{}{now, url, hashValue},
 	}
