@@ -3,7 +3,6 @@ package dvach
 import (
 	"context"
 	"fmt"
-	"html"
 	"log"
 	"net/http"
 	"regexp"
@@ -11,10 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jfk9w/hikkabot/vendors/common"
+
 	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/utf8string"
 )
 
 type ThreadFeedData struct {
@@ -44,26 +44,6 @@ func (f *ThreadFeed) getThread(ctx context.Context, board string, num int, offse
 	return f.Client.GetThread(ctx, board, num, offset)
 }
 
-var (
-	dvachThreadTagRegexp  = regexp.MustCompile(`<.*?>`)
-	dvachThreadJunkRegexp = regexp.MustCompile(`(?i)[^\wа-яё]`)
-)
-
-func getTitle(post Post) string {
-	title := html.UnescapeString(post.Subject)
-	title = dvachThreadTagRegexp.ReplaceAllString(title, "")
-	fields := strings.Fields(title)
-	for i, field := range fields {
-		fields[i] = strings.Title(dvachThreadJunkRegexp.ReplaceAllString(field, ""))
-	}
-	title = strings.Join(fields, "")
-	utf8str := utf8string.NewString(title)
-	if utf8str.RuneCount() > 25 {
-		return "#" + utf8str.Slice(0, 25)
-	}
-	return "#" + utf8str.String()
-}
-
 func (f *ThreadFeed) ParseSub(ctx context.Context, ref string, options []string) (feed.SubDraft, error) {
 	groups := ThreadFeedRefRegexp.FindStringSubmatch(ref)
 	if len(groups) < 6 {
@@ -87,7 +67,7 @@ func (f *ThreadFeed) ParseSub(ctx context.Context, ref string, options []string)
 	}
 
 	if data.Tag == "" {
-		data.Tag = getTitle(post)
+		data.Tag = common.Hashtag(post.Subject)
 	}
 
 	return feed.SubDraft{
@@ -99,7 +79,7 @@ func (f *ThreadFeed) ParseSub(ctx context.Context, ref string, options []string)
 
 func writePost(html *format.HTMLWriter, post Post, tag string) {
 	if tag == "" {
-		tag = getTitle(post)
+		tag = common.Hashtag(post.Subject)
 	}
 
 	html.AnchorFormat = anchorFormat{post.Board}

@@ -10,9 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	fluhttp "github.com/jfk9w-go/flu/http"
-
 	"github.com/doug-martin/goqu/v9"
+	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/flu/metrics"
 	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/jfk9w/hikkabot/feed"
@@ -81,7 +80,7 @@ func (f *SubredditFeed) ParseSub(ctx context.Context, ref string, options []stri
 
 	data := SubredditFeedData{
 		Subreddit: subreddit,
-		Top:       0.2,
+		Top:       0.3,
 		MediaOnly: true,
 	}
 
@@ -279,7 +278,7 @@ func IsTemporaryError(err error) bool {
 func (f *SubredditFeed) writeHTMLPrefix(html *format.HTMLWriter, indexUsers bool, thing ThingData) *format.HTMLWriter {
 	html = html.Text(f.getSubredditName(thing.Subreddit)).Text("\n")
 	if indexUsers && thing.Author != "" {
-		html = html.Text(`u/#`).Text(thing.Author).Text("\n")
+		html = html.Text(`u/`).Text(common.Hashtag(thing.Author)).Text("\n")
 	}
 
 	return html

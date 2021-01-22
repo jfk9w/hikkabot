@@ -3,7 +3,11 @@ package common
 import (
 	"context"
 	"encoding/json"
+	"html"
 	"regexp"
+	"strings"
+
+	"golang.org/x/exp/utf8string"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/telegram-bot-api/format"
@@ -87,4 +91,24 @@ func (r ResolvedMediaRef) Get(_ context.Context) (format.Media, error) {
 		MIMEType: r.mimeType,
 		Input:    r.input,
 	}, nil
+}
+
+var (
+	tagRegexp  = regexp.MustCompile(`<.*?>`)
+	junkRegexp = regexp.MustCompile(`(?i)[^\wа-яё_]`)
+)
+
+func Hashtag(str string) string {
+	str = html.UnescapeString(str)
+	str = tagRegexp.ReplaceAllString(str, "")
+	fields := strings.Fields(str)
+	for i, field := range fields {
+		fields[i] = strings.Title(junkRegexp.ReplaceAllString(field, ""))
+	}
+	str = strings.Join(fields, "")
+	tag := utf8string.NewString(str)
+	if tag.RuneCount() > 25 {
+		return "#" + tag.Slice(0, 25)
+	}
+	return "#" + tag.String()
 }
