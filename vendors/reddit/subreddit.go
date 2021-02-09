@@ -134,6 +134,7 @@ func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData, mediaOnly
 
 	f.Metrics.Counter("media", subID.MetricsLabels().Append(
 		"domain", thing.Domain,
+		"author", thing.Author,
 	)).Inc()
 
 	switch thing.Domain {
