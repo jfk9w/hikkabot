@@ -272,12 +272,14 @@ func IsTemporaryError(err error) bool {
 }
 
 func (f *SubredditFeed) writeHTMLPrefix(html *format.HTMLWriter, indexUsers bool, thing ThingData) *format.HTMLWriter {
-	html = html.Text(f.getSubredditName(thing.Subreddit)).Text("\n")
+	html = html.Text(f.getSubredditName(thing.Subreddit)).Text(" ")
 	if indexUsers && thing.Author != "" {
-		html = html.Text(`u/`).Text(common.Hashtag(thing.Author)).Text("\n")
+		html = html.Text(`u/`).Text(common.Hashtag(thing.Author))
 	}
 
-	return html
+	return html.Text("\n").
+		Link("[comments]", thing.PermalinkURL()).
+		Text("\n")
 }
 
 func (f *SubredditFeed) LoadSub(ctx context.Context, rawData feed.Data, queue feed.Queue) {
