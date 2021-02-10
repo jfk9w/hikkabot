@@ -132,12 +132,6 @@ func (f *SubredditFeed) newMediaRef(subID feed.SubID, thing ThingData, mediaOnly
 		}
 	}
 
-	f.Metrics.Counter("media", subID.MetricsLabels().Append(
-		"domain", thing.Domain,
-		"author", thing.Author,
-		"subreddit", thing.Subreddit,
-	)).Inc()
-
 	switch thing.Domain {
 	case "gfycat.com", "www.gfycat.com":
 		ref.Blob = true
