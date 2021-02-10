@@ -278,7 +278,7 @@ func (f *SubredditFeed) writeHTMLPrefix(html *format.HTMLWriter, indexUsers bool
 	}
 
 	return html.Text("\n").
-		Link("[comments]", thing.PermalinkURL()).
+		Link("[cmnts]", thing.PermalinkURL()).
 		Text("\n")
 }
 
