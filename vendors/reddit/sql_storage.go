@@ -62,7 +62,7 @@ func (s *SQLStorage) Thing(ctx context.Context, thing *ThingData) error {
 	now := s.Now().In(time.UTC)
 	sql := common.PlainSQLBuilder{
 		SQL: fmt.Sprintf(""+
-			"INSERT INTO %s (subreddit, id, author, domain, last_seen, ups) "+
+			"INSERT INTO %s (subreddit, id, author, domain, created_at, last_seen, ups) "+
 			"VALUES ($1, $2, $3, $4, $5, $6, $7) "+
 			"ON CONFLICT (id) "+
 			"DO UPDATE SET author = $3, domain = $4, created_at = $5, last_seen = $6, ups = $7",
