@@ -30,6 +30,7 @@ func (s *SQLStorage) Init(ctx context.Context) (Store, error) {
 	  subreddit VARCHAR(255) NOT NULL,
 	  author VARCHAR(31) NOT NULL,
       domain VARCHAR(255) NOT NULL,
+	  created_at TIMESTAMP NOT NULL,
 	  ups INTEGER NOT NULL,
 	  last_seen TIMESTAMP NOT NULL
 	)`, SubredditTable.GetTable())
@@ -62,10 +63,11 @@ func (s *SQLStorage) Thing(ctx context.Context, thing *ThingData) error {
 	sql := common.PlainSQLBuilder{
 		SQL: fmt.Sprintf(""+
 			"INSERT INTO %s (subreddit, id, author, domain, last_seen, ups) "+
-			"VALUES ($1, $2, $3, $4, $5, $6) "+
+			"VALUES ($1, $2, $3, $4, $5, $6, $7) "+
 			"ON CONFLICT (id) "+
-			"DO UPDATE SET author = $3, domain = $4, last_seen = $5, ups = $6", SubredditTable.GetTable()),
-		Arguments: []interface{}{thing.Subreddit, thing.ID, thing.Author, thing.Domain, now, thing.Ups},
+			"DO UPDATE SET author = $3, domain = $4, created_at = $5, last_seen = $6, ups = $7",
+			SubredditTable.GetTable()),
+		Arguments: []interface{}{thing.Subreddit, thing.ID, thing.Author, thing.Domain, thing.Created, now, thing.Ups},
 	}
 
 	_, err := s.ExecuteSQLBuilder(ctx, sql)
