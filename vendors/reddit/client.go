@@ -71,7 +71,7 @@ func (c *Client) refreshToken(ctx context.Context) error {
 	}
 	c.SetHeader("Authorization", "Bearer "+resp.AccessToken)
 	c.tokenTime = time.Now()
-	log.Println("[reddit] refreshed access token")
+	log.Printf("[reddit] refreshed access token: %s", resp.AccessToken)
 	return nil
 }
 
