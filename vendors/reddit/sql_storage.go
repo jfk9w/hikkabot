@@ -64,7 +64,7 @@ func (s *SQLStorage) Thing(ctx context.Context, thing *ThingData) error {
 			"INSERT INTO %s (subreddit, id, author, domain, last_seen, ups) "+
 			"VALUES ($1, $2, $3, $4, $5, $6) "+
 			"ON CONFLICT (id) "+
-			"DO UPDATE SET last_seen = $5, ups = $6", SubredditTable.GetTable()),
+			"DO UPDATE SET author = $3, domain = $4, last_seen = $5, ups = $6", SubredditTable.GetTable()),
 		Arguments: []interface{}{thing.Subreddit, thing.ID, thing.Author, thing.Domain, now, thing.Ups},
 	}
 
