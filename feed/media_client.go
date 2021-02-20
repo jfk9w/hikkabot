@@ -61,7 +61,12 @@ type DefaultMediaClient struct {
 
 func NewMediaClient(client *fluhttp.Client, curl string, retries int) DefaultMediaClient {
 	main := StdLibClient{client}
-	fallback := CURL{curl}
+	var fallback MediaClient
+	if curl != "" {
+		fallback = CURL{curl}
+	} else {
+		fallback = main
+	}
 	return DefaultMediaClient{main, fallback, retries}
 }
 

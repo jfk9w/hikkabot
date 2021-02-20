@@ -1,0 +1,64 @@
+# datasource settings
+datasource:
+  # either "sqlite3" or "postgres"
+  driver: "sqlite3"
+  # use "file::memory:?cache=shared" with sqlite3 in order to start in-memory
+  # use "postgresql://user:pass@host:port/db" for postgres connection
+  # current settings will write to a file
+  conn: "/tmp/hikkabot.sqlite3"
+
+# feed update interval in format of "10s", "5m1s", "2h45m", etc.
+interval: "10s"
+
+# optional
+# prometheus settings
+#prometheus:
+#  # the application publishes a prometheus metrics endpoint
+#  address: "http://localhost:8092/metrics"
+
+# media settings
+media:
+  # directory to store temporary data
+  directory: "/tmp/hikkabot"
+  # max retries for each media request
+  retries: 5
+  # optional
+  # if specified, curl will be used as fallback
+  #curl: "/usr/bin/curl"
+
+# telegram-related settings
+telegram:
+  # Telegram Bot API token
+  token: "1232:5326gasd"
+  # this user will receive all subscription management notifications
+  supervisor: 12345678
+  # aliases are used to alias and manage channels with long names and private channels
+  aliases:
+    a: -1234566788
+    b: -1234566789
+
+# optional
+# 2ch.hk client settings
+#dvach:
+#  # your 2ch.hk usercode, used to be required for accessing /e/, /hc/, etc.
+#  usercode: "1235dfga"
+
+# you can omit the following node completely
+# subreddit vendor will be disabled though
+# if present, required fields must be filled
+#reddit:
+#  # required
+#  clientid: "client_id"
+#  # required
+#  clientsecret: "client_secret"
+#  # required
+#  username: "your_reddit_username"
+#  # required
+#  password: "your_reddit_password"
+#  # optional
+#  # max retries for reddit requests
+#  maxretries: 3
+#  # optional
+#  # used to compose user-agent header (as required by reddit)
+#  # by default infers from username
+#  owner: "your_another_username"

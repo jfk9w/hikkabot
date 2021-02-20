@@ -6,7 +6,6 @@ require (
 	github.com/jfk9w-go/aconvert-api v0.9.10-0.20201009132802-a34ef3fff1e9
 	github.com/jfk9w-go/flu v0.9.18
 	github.com/jfk9w-go/telegram-bot-api v0.9.13
-	github.com/jfk9w-go/watchdog v0.0.0-20201105164950-a62b877461ff
 	github.com/lib/pq v1.9.0
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/pkg/errors v0.9.1
@@ -16,7 +15,5 @@ require (
 	golang.org/x/image v0.0.0-20201208152932-35266b937fa6
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
 )
-
-// replace github.com/jfk9w-go/telegram-bot-api => ../jfk9w-go/telegram-bot-api
 
 go 1.15

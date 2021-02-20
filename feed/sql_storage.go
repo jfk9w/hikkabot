@@ -35,6 +35,7 @@ type SQLStorage struct {
 	*goqu.Database
 	flu.Clock
 	metrics.Registry
+	mu *flu.RWMutex
 }
 
 func NewSQLStorage(clock flu.Clock, driver, conn string) (*SQLStorage, error) {
@@ -43,13 +44,15 @@ func NewSQLStorage(clock flu.Clock, driver, conn string) (*SQLStorage, error) {
 		return nil, err
 	}
 
-	if driver != "postgres" {
-		panic(errors.New("only postgres supported at the moment"))
+	var mu *flu.RWMutex = nil
+	if driver == "sqlite3" {
+		mu = new(flu.RWMutex)
 	}
 
 	return &SQLStorage{
 		Database: goqu.New(driver, db),
 		Clock:    clock,
+		mu:       mu,
 	}, nil
 }
 
@@ -337,31 +340,48 @@ func (s *SQLStorage) ByID(id SubID) goqu.Expression {
 }
 
 func (s *SQLStorage) Lock() flu.Unlocker {
-	return meteredUnlocker{
+	u := meteredUnlocker{
 		Clock:    s.Clock,
 		Registry: s.Registry,
 		op:       "write",
 		start:    s.Now(),
 	}
+
+	if s.mu != nil {
+		u.Unlocker = s.mu.Lock()
+	}
+
+	return u
 }
 
 func (s *SQLStorage) RLock() flu.Unlocker {
-	return meteredUnlocker{
+	u := meteredUnlocker{
 		Clock:    s.Clock,
 		Registry: s.Registry,
 		op:       "read",
 		start:    s.Now(),
 	}
+
+	if s.mu != nil {
+		u.Unlocker = s.mu.RLock()
+	}
+
+	return u
 }
 
 type meteredUnlocker struct {
 	flu.Clock
 	metrics.Registry
+	flu.Unlocker
 	op    string
 	start time.Time
 }
 
 func (u meteredUnlocker) Unlock() {
+	if u.Unlocker != nil {
+		u.Unlocker.Unlock()
+	}
+
 	u.Counter("lock_use_ms",
 		metrics.Labels{"op", u.op}).
 		Add(float64(u.Now().Sub(u.start).Milliseconds()))

@@ -2,9 +2,10 @@ package reddit
 
 import (
 	"context"
+	"fmt"
 	"html"
 	"log"
-	_http "net/http"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ type Config struct {
 	ClientSecret string
 	Username     string
 	Password     string
-	UserAgent    string
+	Owner        string
 	MaxRetries   int
 }
 
@@ -33,22 +34,26 @@ type Client struct {
 	*fluhttp.Client
 	tokenTime   time.Time
 	rateLimiter flu.RateLimiter
-	config      Config
+	config      *Config
 }
 
-func NewClient(client *fluhttp.Client, config Config) *Client {
+func NewClient(client *fluhttp.Client, config *Config, gitCommit string) *Client {
 	if client == nil {
 		client = fluhttp.NewClient(nil)
 	}
 
-	c := &Client{
+	owner := config.Owner
+	if owner == "" {
+		owner = config.Username
+	}
+
+	return &Client{
 		Client: client.
-			AcceptStatus(_http.StatusOK).
-			SetHeader("User-Agent", config.UserAgent),
+			AcceptStatus(http.StatusOK).
+			SetHeader("User-Agent", fmt.Sprintf(`hikkabot/%s by /u/%s`, gitCommit, owner)),
 		rateLimiter: flu.IntervalRateLimiter(Timeout),
 		config:      config,
 	}
-	return c
 }
 
 func (c *Client) refreshToken(ctx context.Context) error {

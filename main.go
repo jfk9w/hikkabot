@@ -12,7 +12,6 @@ import (
 	"github.com/jfk9w-go/flu/serde"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/format"
-	"github.com/jfk9w-go/watchdog"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/resolver"
 	"github.com/jfk9w/hikkabot/vendors/common"
@@ -22,27 +21,101 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// GitCommit denotes the code version holder variable
+// and should be substituted with the actual version
+// via go build option:
+//   -ldflags "-X main.GitCommit=$(git rev-parse --short HEAD)"
 var GitCommit = "dev"
 
+// Config describes YAML configuration file which is loaded
+// when the application is started.
 type Config struct {
-	Supervisor telegram.ID
-	Datasource struct{ Driver, Conn string }
-	Interval   serde.Duration
-	Prometheus struct{ Address string }
-	Aconvert   struct {
+
+	// Datasource describes configuration of the datasource
+	// used as aggregator backend.
+	Datasource struct {
+
+		// Driver should be either "postgres" or "sqlite3".
+		// Note that the use of sqlite3 is generally discouraged as a mutex is used
+		// for database access synchronization which could lead to lock starvation
+		// under some load.
+		Driver string
+
+		// Conn represents a connection string passed to the database driver.
+		// Examples:
+		//   "file::memory:?cache=shared" for sqlite3 would created an in-memory database
+		//   "/var/foo/bar/db.sqlite3" for sqlite3 would create and use the database on disk
+		//   "postgresql://user:password@host:port/schema" for postgres would connect to a remote instance of PostgreSQL
+		Conn string
+	}
+
+	// Interval is the amount of time passed between two consecutive subscription update checks
+	// for a single feed (chat). Format is the same used in time.ParseDuration ("10s", "2h45m", etc.).
+	Interval serde.Duration
+
+	// Prometheus contains settings related to metrics reporting.
+	Prometheus struct {
+
+		// Address denotes the address used to publish Prometheus metrics endpoint.
+		// It should generally be either
+		//   "http://localhost:port/path" if you want to publish the endpoint only for the local interface,
+		// or
+		//   "http://0.0.0.0:port/path' if you want to be able to access it from other computers
+		// HTTPS is not supported.
+		Address string
+	}
+
+	// Aconvert describes the configuration for aconvert.com based conversion service.
+	Aconvert struct {
+
+		// Servers is an array of aconvert.com service IDs used for performing conversions.
+		// Default value is aconvert.DefaultServers.
 		Servers []int
-		Probe   *aconvert.Probe
+
+		// Probe is an optional probe used for working servers discovery.
+		// If not specified all Servers will be assumed active.
+		Probe *aconvert.Probe
 	}
+
+	// Media is the configuration for media processing.
 	Media struct {
+
+		// Directory is a path of directory used for buffering media files.
 		Directory string
-		Retries   int
-		CURL      string
+
+		// Retries is the amount of retries for performing metadata and content queries.
+		Retries int
+
+		// CURL denotes the path to cURL binary for use as a fallback HTTP client. Optional.
+		// This may come in handy as I suspect there are issues with Go HTTP/2 implementation.
+		CURL string
 	}
-	Aliases  map[string]telegram.ID
-	Telegram struct{ Token string }
-	Reddit   reddit.Config
-	Dvach    struct{ Usercode string }
-	Watchdog watchdog.Config
+
+	// Telegram describes telegram related settings.
+	Telegram struct {
+
+		// Token is the Telegram Bot API token.
+		Token string
+
+		// Supervisor is the bot owner user ID used for authorization and feed notifications.
+		Supervisor telegram.ID
+
+		// Aliases is a mapping of aliases to chat IDs.
+		// These may be used for defining shortcuts of chat names or
+		// providing access to private channels or groups.
+		Aliases map[string]telegram.ID
+	}
+
+	// Reddit describes reddit.com client configuration.
+	Reddit *reddit.Config
+
+	// Dvach describes 2ch.hk client configuration.
+	Dvach struct {
+
+		// Usercode is set in cookies when performing requests.
+		// This used to be required for accessing hidden boards (/e/, /gg/, etc.).
+		Usercode string
+	}
 }
 
 func main() {
@@ -51,8 +124,6 @@ func main() {
 
 	config := new(Config)
 	check(flu.DecodeFrom(flu.File(os.Args[1]), flu.YAML{Value: config}))
-
-	defer watchdog.Run(ctx, config.Watchdog).Complete(ctx)
 
 	store, err := feed.NewSQLStorage(flu.DefaultClock, config.Datasource.Driver, config.Datasource.Conn)
 	check(err)
@@ -65,13 +136,19 @@ func main() {
 	}).Init()
 	check(err)
 
-	metrics := metrics.NewPrometheusListener(config.Prometheus.Address).MustRegister(
-		prometheus.NewBuildInfoCollector(),
-		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
-		prometheus.NewGoCollector())
-	defer metrics.Close(context.Background())
+	var metricsRegistry metrics.Registry
+	if config.Prometheus.Address != "" {
+		metrics := metrics.NewPrometheusListener(config.Prometheus.Address).MustRegister(
+			prometheus.NewBuildInfoCollector(),
+			prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
+			prometheus.NewGoCollector())
+		defer metrics.Close(context.Background())
+		metricsRegistry = metrics
+	} else {
+		metricsRegistry = metrics.DummyRegistry{Log: true}
+	}
 
-	store.Registry = metrics.WithPrefix("store")
+	store.Registry = metricsRegistry.WithPrefix("store")
 	aconvert := resolver.Aconvert{
 		Client: aconvert.NewClient(nil, config.Aconvert.Servers, config.Aconvert.Probe),
 	}
@@ -84,7 +161,7 @@ func main() {
 			BlobStorage: store,
 		},
 		RateLimiter: flu.ConcurrencyRateLimiter(3),
-		Metrics:     metrics.WithPrefix("media"),
+		Metrics:     metricsRegistry.WithPrefix("media"),
 		Retries:     config.Media.Retries,
 		CURL:        config.Media.CURL,
 	}).Init(ctx)
@@ -102,17 +179,17 @@ func main() {
 		SubStorage:        store,
 		HTMLWriterFactory: feed.TelegramHTML{Sender: bot},
 		UpdateInterval:    config.Interval.Duration,
-		Metrics:           metrics.WithPrefix("aggregator"),
+		Metrics:           metricsRegistry.WithPrefix("aggregator"),
 	}
 
-	initRedditVendor(ctx, metrics, aggregator, mediam, store, config.Reddit)
+	initRedditVendor(ctx, metricsRegistry, aggregator, mediam, store, config.Reddit)
 	initDvachVendors(aggregator, mediam, config.Dvach.Usercode)
 
 	listener, err := (&feed.CommandListener{
 		Context:    ctx,
 		Aggregator: aggregator,
-		Management: feed.NewSupervisorManagement(bot, config.Supervisor),
-		Aliases:    config.Aliases,
+		Management: feed.NewSupervisorManagement(bot, config.Telegram.Supervisor),
+		Aliases:    config.Telegram.Aliases,
 		GitCommit:  GitCommit,
 	}).Init(ctx)
 	check(err)
@@ -121,15 +198,15 @@ func main() {
 	defer bot.CommandListener(listener).Close()
 
 	check(listener.Status(ctx, bot, telegram.Command{
-		Chat:    &telegram.Chat{ID: config.Supervisor},
-		User:    &telegram.User{ID: config.Supervisor},
+		Chat:    &telegram.Chat{ID: config.Telegram.Supervisor},
+		User:    &telegram.User{ID: config.Telegram.Supervisor},
 		Message: new(telegram.Message),
 		Key:     "/status"}))
 
 	flu.AwaitSignal()
 }
 
-func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLStorage, config reddit.Config) error {
+func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLStorage, config *reddit.Config) error {
 	store, err := (&reddit.SQLStorage{
 		SQLStorage:    sqlite3,
 		ThingTTL:      7 * 24 * time.Hour,
@@ -146,7 +223,7 @@ func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator 
 	}
 
 	aggregator.Vendor("subreddit", &reddit.SubredditFeed{
-		Client:       reddit.NewClient(nil, config),
+		Client:       reddit.NewClient(nil, config, GitCommit),
 		Store:        store,
 		MediaManager: mediam,
 		Viddit:       viddit,
