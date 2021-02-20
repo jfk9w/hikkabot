@@ -207,6 +207,10 @@ func main() {
 }
 
 func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLStorage, config *reddit.Config) error {
+	if config == nil {
+		return nil
+	}
+
 	store, err := (&reddit.SQLStorage{
 		SQLStorage:    sqlite3,
 		ThingTTL:      7 * 24 * time.Hour,
