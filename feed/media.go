@@ -2,9 +2,10 @@ package feed
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
@@ -81,7 +82,7 @@ func (m *MediaManager) Submit(ref *MediaRef) format.MediaRef {
 		defer m.work.Done()
 		defer cancel()
 		if err := m.RateLimiter.Start(ctx); err != nil {
-			log.Printf("[media > %s] failed to process: %s", ref.URL, err)
+			logrus.WithField("media", ref.URL).Warnf("failed to process: %s", err)
 			return
 		}
 

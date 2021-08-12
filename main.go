@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
@@ -116,6 +118,16 @@ type Config struct {
 		// This used to be required for accessing hidden boards (/e/, /gg/, etc.).
 		Usercode string
 	}
+
+	// Logging describes logging configuration.
+	Logging struct {
+
+		// Format is either "json" or "text". Default is "text".
+		Format string
+
+		// Level is the logging level.
+		Level string
+	}
 }
 
 func main() {
@@ -124,6 +136,7 @@ func main() {
 
 	config := new(Config)
 	check(flu.DecodeFrom(flu.File(os.Args[1]), flu.YAML{Value: config}))
+	configureLogging(config)
 
 	store, err := feed.NewSQLStorage(flu.DefaultClock, config.Datasource.Driver, config.Datasource.Conn)
 	check(err)
@@ -249,6 +262,23 @@ func initDvachVendors(aggregator *feed.Aggregator, mediam *feed.MediaManager, us
 		Client:       client,
 		MediaManager: mediam,
 	})
+}
+
+func configureLogging(config *Config) {
+	logLevel := logrus.InfoLevel
+	if config.Logging.Level != "" {
+		var err error
+		logLevel, err = logrus.ParseLevel(config.Logging.Level)
+		check(err)
+	}
+
+	logrus.SetLevel(logLevel)
+
+	if config.Logging.Format == "json" {
+		logrus.SetFormatter(new(logrus.JSONFormatter))
+	} else {
+		logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+	}
 }
 
 func check(err error) error {

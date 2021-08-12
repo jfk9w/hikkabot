@@ -6,7 +6,6 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
-	"log"
 	"mime"
 	"net"
 	"net/http"
@@ -14,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
@@ -89,7 +90,7 @@ func (c DefaultMediaClient) retry(ctx context.Context, url string, op string, bo
 	var client MediaClient = c.main
 	if err := body(client); err != nil {
 		for i := 0; i < c.retries; i++ {
-			log.Printf("[media > %s] %s (retry %d): %s", url, op, i, err)
+			logrus.WithField("media", url).Warnf("%s (retry %d): %s", op, i, err)
 			if !IsNetworkError(err) || i == 3 {
 				client = c.fallback
 			}
@@ -221,7 +222,7 @@ func (c CURL) executeAndCheckStatus(ctx context.Context, url string, stderr io.W
 	}
 
 	if string(code) != "200" {
-		return fluhttp.StatusCodeError{Text: string(code)}
+		return fluhttp.StatusCodeError{ResponseBody: code}
 	}
 
 	return nil

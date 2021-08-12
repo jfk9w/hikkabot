@@ -3,10 +3,11 @@ package reddit
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/jfk9w-go/flu"
@@ -56,7 +57,7 @@ func (s *SQLStorage) Thing(ctx context.Context, thing *ThingData) error {
 		}
 
 		s.lastCleanTime = now
-		log.Printf("[reddit] deleted %d expired posts", deleted)
+		logrus.Debugf("deleted %d expired reddit posts", deleted)
 	}
 
 	now := s.Now().In(time.UTC)

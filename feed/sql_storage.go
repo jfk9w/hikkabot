@@ -382,7 +382,9 @@ func (u meteredUnlocker) Unlock() {
 		u.Unlocker.Unlock()
 	}
 
-	u.Counter("lock_use_ms",
-		metrics.Labels{"op", u.op}).
-		Add(float64(u.Now().Sub(u.start).Milliseconds()))
+	if u.Registry != nil {
+		u.Counter("lock_use_ms",
+			metrics.Labels{"op", u.op}).
+			Add(float64(u.Now().Sub(u.start).Milliseconds()))
+	}
 }

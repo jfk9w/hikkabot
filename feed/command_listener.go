@@ -3,8 +3,9 @@ package feed
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
@@ -221,7 +222,7 @@ func (c *CommandListener) resolveChatID(ctx context.Context, client telegram.Cli
 			} else {
 				chat, err := client.GetChat(ctx, telegram.Username(arg))
 				if err != nil {
-					log.Printf("[chat > %s] resolve failed: %s", arg, err)
+					logrus.WithField("chat", arg).Warnf("failed to resolve chat: %s", err)
 					chatID, err = telegram.ParseID(arg)
 					if err != nil {
 						return nil, 0, errors.Wrap(err, "parse chat ID")

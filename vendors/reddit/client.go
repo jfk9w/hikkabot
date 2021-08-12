@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"html"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
@@ -76,7 +77,7 @@ func (c *Client) refreshToken(ctx context.Context) error {
 	}
 	c.SetHeader("Authorization", "Bearer "+resp.AccessToken)
 	c.tokenTime = time.Now()
-	log.Printf("[reddit] refreshed access token: %s", resp.AccessToken)
+	logrus.Debug("refreshed reddit access token")
 	return nil
 }
 

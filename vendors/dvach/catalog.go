@@ -2,12 +2,13 @@ package dvach
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	fluhttp "github.com/jfk9w-go/flu/http"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
@@ -22,6 +23,14 @@ type CatalogFeedData struct {
 	Query  *common.Query `json:"query"`
 	Offset int           `json:"offset,omitempty"`
 	Auto   []string      `json:"auto,omitempty"`
+}
+
+func (d *CatalogFeedData) Log() *logrus.Entry {
+	return logrus.WithFields(logrus.Fields{
+		"board": d.Board,
+		"query": d.Query,
+		"auto":  d.Auto,
+	})
 }
 
 type CatalogFeed struct {
@@ -104,11 +113,11 @@ func (f *CatalogFeed) doLoad(ctx context.Context, rawData feed.Data, queue feed.
 
 	catalog, err := f.getCatalog(ctx, data.Board)
 	if err != nil {
-		if err, ok := err.(fluhttp.StatusCodeError); ok && err.Code == http.StatusNotFound {
+		if err, ok := err.(fluhttp.StatusCodeError); ok && err.StatusCode == http.StatusNotFound {
 			return errors.Wrap(err, "get catalog")
 		}
 
-		log.Printf("[dvach > catalog > /%s /%s/] failed to get: %s", data.Board, data.Query.String(), err)
+		data.Log().Warnf("failed to get: %s", err)
 		return nil
 	}
 

@@ -249,14 +249,15 @@ func (f *SubredditFeed) doLoad(ctx context.Context, rawData feed.Data, queue fee
 }
 
 var TemporaryErrorStatusCodes = map[int]bool{
-	http.StatusBadGateway:     true,
-	http.StatusGatewayTimeout: true,
+	http.StatusBadGateway:         true,
+	http.StatusServiceUnavailable: true,
+	http.StatusGatewayTimeout:     true,
 }
 
 func IsTemporaryError(err error) bool {
 	for {
 		if err = errors.Unwrap(err); err != nil {
-			if err, ok := err.(fluhttp.StatusCodeError); ok && TemporaryErrorStatusCodes[err.Code] {
+			if err, ok := err.(fluhttp.StatusCodeError); ok && TemporaryErrorStatusCodes[err.StatusCode] {
 				return true
 			}
 

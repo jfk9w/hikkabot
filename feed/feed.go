@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 	"github.com/jfk9w-go/telegram-bot-api/format"
@@ -37,6 +39,14 @@ type SubID struct {
 	ID     string `db:"sub_id"`
 	Vendor string `db:"vendor"`
 	FeedID ID     `db:"feed_id"`
+}
+
+func (id SubID) Log() *logrus.Entry {
+	return logrus.WithFields(logrus.Fields{
+		"sub_id":  id.ID,
+		"vendor":  id.Vendor,
+		"feed_id": id.FeedID,
+	})
 }
 
 const SubIDSeparator = "+"
@@ -77,7 +87,7 @@ func DataFrom(value interface{}) (Data, error) {
 	if value == nil {
 		return EmptyData, nil
 	}
-	buf := flu.NewBuffer()
+	buf := new(flu.ByteBuffer)
 	err := flu.EncodeTo(flu.JSON{value}, buf)
 	return Data(buf.Bytes()), err
 }
@@ -98,6 +108,10 @@ type Sub struct {
 	Name      string     `db:"name"`
 	Data      Data       `db:"data"`
 	UpdatedAt *time.Time `db:"updated_at"`
+}
+
+func (s Sub) Log() *logrus.Entry {
+	return s.SubID.Log().WithField("name", s.Name)
 }
 
 type WriteHTML func(html *format.HTMLWriter) error

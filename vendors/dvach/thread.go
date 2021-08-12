@@ -3,12 +3,13 @@ package dvach
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w/hikkabot/vendors/common"
 
@@ -23,6 +24,13 @@ type ThreadFeedData struct {
 	MediaOnly bool   `json:"media_only,omitempty"`
 	Offset    int    `json:"offset,omitempty"`
 	Tag       string `json:"tag"`
+}
+
+func (d *ThreadFeedData) Log() *logrus.Entry {
+	return logrus.WithFields(logrus.Fields{
+		"board": d.Board,
+		"num":   d.Num,
+	})
 }
 
 type ThreadFeed struct {
@@ -105,7 +113,7 @@ func (f *ThreadFeed) doLoad(ctx context.Context, rawData feed.Data, queue feed.Q
 			return errors.Wrap(err, "get thread")
 		}
 
-		log.Printf("[dvach > thread > /%s/%d] failed to get: %s", data.Board, data.Num, err)
+		data.Log().Warnf("failed to get: %s", err)
 		return nil
 	}
 

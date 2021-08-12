@@ -2,8 +2,9 @@ package feed
 
 import (
 	"context"
-	"log"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w-go/flu"
 )
@@ -44,7 +45,7 @@ func (e *DefaultExecutor) Submit(id interface{}, task Task) {
 	ctx, cancel := context.WithCancel(e.ctx)
 	e.work.Add(1)
 	e.tasks[id] = cancel
-	log.Printf("[task > %v] started", id)
+	logrus.WithField("task", id).Debug("scheduled task started")
 	go e.execute(ctx, id, task)
 }
 
@@ -55,7 +56,7 @@ func (e *DefaultExecutor) execute(ctx context.Context, id interface{}, task Task
 	}()
 
 	if err := task.Execute(ctx); err != nil {
-		log.Printf("[task > %v] %s", id, err)
+		logrus.WithField("task", id).Debug("scheduled task: %s", err)
 		return
 	}
 }

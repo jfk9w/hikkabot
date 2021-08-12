@@ -2,7 +2,6 @@ package feed
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/jfk9w-go/flu/metrics"
@@ -59,7 +58,7 @@ func (t *aggregatorTask) Execute(ctx context.Context) error {
 					if ctx.Err() != nil {
 						return err
 					} else {
-						log.Printf("[sub > %s] update failed: %s", sub.SubID, err)
+						sub.Log().Warnf("update failed: %s", err)
 					}
 				} else if t.suspendListener != nil {
 					go t.suspendListener.OnSuspend(sub, updateErr)
@@ -86,7 +85,7 @@ func (t *aggregatorTask) update(ctx context.Context, sub Sub) error {
 	defer cancel()
 	go vendor.LoadSub(vctx, sub.Data, queue)
 	count := 0
-	defer func() { log.Printf("[sub > %s] processed %d updates", sub.SubID, count) }()
+	defer func() { sub.Log().Debugf("processed %d updates", count) }()
 	for update := range queue.channel {
 		if update.Error != nil {
 			return errors.Wrap(update.Error, "update")

@@ -2,9 +2,10 @@ package common
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
@@ -38,7 +39,7 @@ func (v *Viddit) Get(ctx context.Context, url string) (string, error) {
 		}
 
 		v.lastResetTime = now
-		log.Print("[viddit] refreshed cookie")
+		logrus.Debug("refreshed viddit cookie")
 	}
 
 	h := new(vidditResponseHandler)

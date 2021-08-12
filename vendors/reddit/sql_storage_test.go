@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/jfk9w/hikkabot/vendors/reddit"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +21,7 @@ func (c *clockMock) Now() time.Time {
 func TestSQLite3_Basic(t *testing.T) {
 	ctx := context.Background()
 	clock := &clockMock{now: parseTime(t, "2020-01-01T05:00:00Z")}
-	store, err := feed.NewSQLStorage(clock, ":memory:")
+	store, err := feed.NewSQLStorage(clock, "sqlite3", ":memory:")
 	assert.Nil(t, err)
 
 	defer store.Close()
@@ -67,7 +66,7 @@ func TestSQLite3_Basic(t *testing.T) {
 
 	data := &reddit.SubredditFeedData{
 		Subreddit: "a",
-		SentIDs:   make(flu.Uint64Set),
+		SentIDs:   make(reddit.Uint64Set),
 	}
 
 	for _, thing := range things {

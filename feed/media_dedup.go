@@ -53,7 +53,7 @@ func (d DefaultMediaDedup) Check(ctx context.Context, feedID ID, url, mimeType s
 	} else {
 		hashType = "md5"
 		md5Hash := md5.New()
-		if err := flu.Copy(blob, flu.IO{W: md5Hash}); err != nil {
+		if _, err := flu.Copy(blob, flu.IO{W: md5Hash}); err != nil {
 			return errors.Wrap(err, "md5 hash")
 		}
 
