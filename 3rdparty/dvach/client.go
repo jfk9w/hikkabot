@@ -38,26 +38,26 @@ func (r *response) DecodeFrom(body io.Reader) (err error) {
 	return
 }
 
-type Client struct {
-	*fluhttp.Client
+type Client fluhttp.Client
+
+func NewClient(httpClient *fluhttp.Client, usercode string) *Client {
+	if httpClient == nil {
+		httpClient = fluhttp.NewClient(nil)
+	}
+
+	return (*Client)(httpClient.
+		SetCookies(Host, cookies(usercode, "/")...).
+		SetCookies(Host, cookies(usercode, "/makaba")...).
+		AcceptStatus(http.StatusOK))
 }
 
-func NewClient(client *fluhttp.Client, usercode string) *Client {
-	if client == nil {
-		client = fluhttp.NewClient(nil)
-	}
-
-	return &Client{
-		Client: client.
-			SetCookies(Host, cookies(usercode, "/")...).
-			SetCookies(Host, cookies(usercode, "/makaba")...).
-			AcceptStatus(http.StatusOK),
-	}
+func (c *Client) Unmask() *fluhttp.Client {
+	return (*fluhttp.Client)(c)
 }
 
 func (c *Client) GetCatalog(ctx context.Context, board string) (*Catalog, error) {
 	catalog := new(Catalog)
-	err := c.GET(Host + "/" + board + "/catalog_num.json").
+	err := c.Unmask().GET(Host + "/" + board + "/catalog_num.json").
 		Context(ctx).
 		Execute().
 		DecodeBody(newResponse(catalog)).
@@ -73,7 +73,7 @@ func (c *Client) GetThread(ctx context.Context, board string, num int, offset in
 		offset = num
 	}
 	thread := make([]Post, 0)
-	err := c.GET(Host+"/makaba/mobile.fcgi").
+	err := c.Unmask().GET(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_thread").
 		QueryParam("board", board).
 		QueryParam("thread", strconv.Itoa(num)).
@@ -88,11 +88,9 @@ func (c *Client) GetThread(ctx context.Context, board string, num int, offset in
 	return thread, Posts(thread).init(board)
 }
 
-var ErrPostNotFound = errors.New("post not found")
-
 func (c *Client) GetPost(ctx context.Context, board string, num int) (Post, error) {
 	posts := make([]Post, 0)
-	err := c.GET(Host+"/makaba/mobile.fcgi").
+	err := c.Unmask().GET(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_post").
 		QueryParam("board", board).
 		QueryParam("post", strconv.Itoa(num)).
@@ -106,11 +104,11 @@ func (c *Client) GetPost(ctx context.Context, board string, num int) (Post, erro
 	if len(posts) > 0 {
 		return posts[0], (&posts[0]).init(board)
 	}
-	return Post{}, ErrPostNotFound
+	return Post{}, ErrNotFound
 }
 
 func (c *Client) DownloadFile(ctx context.Context, file *File, out flu.Output) error {
-	return c.GET(Host + file.Path).
+	return c.Unmask().GET(Host + file.Path).
 		Context(ctx).
 		Execute().
 		DecodeBodyTo(out).
@@ -119,7 +117,7 @@ func (c *Client) DownloadFile(ctx context.Context, file *File, out flu.Output) e
 
 func (c *Client) GetBoards(ctx context.Context) ([]Board, error) {
 	boardMap := make(map[string][]Board)
-	err := c.GET(Host+"/makaba/mobile.fcgi").
+	err := c.Unmask().GET(Host+"/makaba/mobile.fcgi").
 		QueryParam("task", "get_boards").
 		Context(ctx).
 		Execute().
@@ -137,8 +135,6 @@ func (c *Client) GetBoards(ctx context.Context) ([]Board, error) {
 	return boards, nil
 }
 
-var ErrBoardNotFound = errors.New("board not found")
-
 func (c *Client) GetBoard(ctx context.Context, id string) (*Board, error) {
 	boards, err := c.GetBoards(ctx)
 	if err != nil {
@@ -149,5 +145,5 @@ func (c *Client) GetBoard(ctx context.Context, id string) (*Board, error) {
 			return &board, nil
 		}
 	}
-	return nil, ErrBoardNotFound
+	return nil, ErrNotFound
 }

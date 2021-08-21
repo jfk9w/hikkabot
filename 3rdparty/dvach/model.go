@@ -6,11 +6,17 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 const (
 	Domain = "2ch.hk"
 	Host   = "https://" + Domain
+)
+
+var (
+	ErrNotFound = errors.New("not found")
 )
 
 type FileType int

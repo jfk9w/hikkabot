@@ -1,4 +1,4 @@
-package reddit
+package util
 
 import (
 	"strconv"
@@ -74,10 +74,13 @@ func (s Uint64Set) Copy() Uint64Set {
 	return copy
 }
 
-func EncodeToString(value uint64) string {
-	return strconv.FormatUint(value, 36)
-}
+func (s Uint64Set) Slice() []uint64 {
+	slice := make([]uint64, len(s))
+	i := 0
+	for value := range s {
+		slice[i] = value
+		i++
+	}
 
-func DecodeString(str string) (uint64, error) {
-	return strconv.ParseUint(str, 36, 64)
+	return slice
 }

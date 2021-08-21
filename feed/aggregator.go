@@ -4,46 +4,51 @@ import (
 	"context"
 	"time"
 
+	"github.com/jfk9w-go/flu"
+
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w-go/telegram-bot-api/format"
+	"github.com/jfk9w-go/telegram-bot-api/ext/richtext"
+	"github.com/jfk9w/hikkabot/util/gorm"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type SuspendListener interface {
-	OnSuspend(sub Sub, err error)
+	OnSuspend(sub *Subscription, err error)
 }
 
 type HTMLWriterFactory interface {
-	CreateHTMLWriter(ctx context.Context, feedIDs ...ID) (*format.HTMLWriter, error)
+	CreateHTMLWriter(ctx context.Context, feedIDs ...telegram.ID) (*richtext.HTMLWriter, error)
 }
 
 type TelegramHTML struct {
 	telegram.Sender
 }
 
-func (f TelegramHTML) CreateHTMLWriter(ctx context.Context, feedIDs ...ID) (*format.HTMLWriter, error) {
+func (f TelegramHTML) CreateHTMLWriter(ctx context.Context, feedIDs ...telegram.ID) (*richtext.HTMLWriter, error) {
 	chatIDs := make([]telegram.ChatID, len(feedIDs))
 	for i, feedID := range feedIDs {
 		chatIDs[i] = telegram.ID(feedID)
 	}
 
-	return format.HTML(ctx, telegram.Sender(f), false, chatIDs...), nil
+	return richtext.HTML(ctx, telegram.Sender(f), false, chatIDs...), nil
 }
 
 type aggregatorTask struct {
 	htmlWriterFactory HTMLWriterFactory
-	store             SubStorage
+	clock             flu.Clock
+	store             Storage
 	interval          time.Duration
 	vendors           map[string]Vendor
-	feedID            ID
+	feedID            telegram.ID
 	suspendListener   SuspendListener
 	metrics           metrics.Registry
 }
 
 func (t *aggregatorTask) Execute(ctx context.Context) error {
 	for {
-		sub, err := t.store.NextSub(ctx, t.feedID)
+		sub, err := t.store.Shift(ctx, t.feedID)
 		if err != nil {
 			return errors.Wrap(err, "advance")
 		}
@@ -54,11 +59,12 @@ func (t *aggregatorTask) Execute(ctx context.Context) error {
 				return err
 			} else {
 				t.metrics.Counter("update_err", sub.MetricsLabels()).Inc()
-				if err := t.updateStore(sub.SubID, err); err != nil {
+				if err := t.updateStore(sub.Header, err); err != nil {
 					if ctx.Err() != nil {
 						return err
 					} else {
-						sub.Log().Warnf("update failed: %s", err)
+						logrus.WithFields(sub.Fields()).
+							Warnf("update failed: %s", err)
 					}
 				} else if t.suspendListener != nil {
 					go t.suspendListener.OnSuspend(sub, updateErr)
@@ -75,17 +81,20 @@ func (t *aggregatorTask) Execute(ctx context.Context) error {
 	}
 }
 
-func (t *aggregatorTask) update(ctx context.Context, sub Sub) error {
+func (t *aggregatorTask) update(ctx context.Context, sub *Subscription) error {
 	vendor, ok := t.vendors[sub.Vendor]
 	if !ok {
 		return errors.Errorf("invalid vendor: %s", sub.Vendor)
 	}
-	queue := NewQueue(sub.SubID, 5)
+	queue := NewQueue(sub.Header, sub.Data, 5)
 	vctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go vendor.LoadSub(vctx, sub.Data, queue)
+	go func() {
+		defer close(queue.channel)
+		vendor.Refresh(vctx, queue)
+	}()
 	count := 0
-	defer func() { sub.Log().Debugf("processed %d updates", count) }()
+	defer func() { logrus.WithFields(sub.Fields()).Debugf("processed %d updates", count) }()
 	for update := range queue.channel {
 		if update.Error != nil {
 			return errors.Wrap(update.Error, "update")
@@ -94,17 +103,15 @@ func (t *aggregatorTask) update(ctx context.Context, sub Sub) error {
 		if err != nil {
 			return errors.Wrap(err, "create HTMLWriter")
 		}
-		if err := update.Write(html); err != nil {
-			return errors.Wrap(err, "write")
+		if update.WriteHTML != nil {
+			if err := update.WriteHTML(html); err != nil {
+				return errors.Wrap(err, "write")
+			}
+			if err := html.Flush(); err != nil {
+				return errors.Wrap(err, "flush")
+			}
 		}
-		if err := html.Flush(); err != nil {
-			return errors.Wrap(err, "flush")
-		}
-		data, err := DataFrom(update.Data)
-		if err != nil {
-			return errors.Wrap(err, "wrap data")
-		}
-		err = t.updateStore(sub.SubID, data)
+		err = t.updateStore(sub.Header, update.Data)
 		if err != nil {
 			return errors.Wrap(err, "store update")
 		}
@@ -113,7 +120,7 @@ func (t *aggregatorTask) update(ctx context.Context, sub Sub) error {
 	}
 
 	if count == 0 {
-		err := t.updateStore(sub.SubID, sub.Data)
+		err := t.updateStore(sub.Header, sub.Data)
 		if err != nil {
 			return errors.Wrap(err, "store update")
 		}
@@ -124,15 +131,16 @@ func (t *aggregatorTask) update(ctx context.Context, sub Sub) error {
 
 var updateStoreTimeout = 10 * time.Second
 
-func (t *aggregatorTask) updateStore(subID SubID, value interface{}) error {
+func (t *aggregatorTask) updateStore(header *Header, value interface{}) error {
 	ctx, cancel := context.WithTimeout(context.Background(), updateStoreTimeout)
 	defer cancel()
-	return t.store.UpdateSub(ctx, subID, value)
+	return t.store.Update(ctx, t.clock.Now(), header, value)
 }
 
 type Aggregator struct {
+	Clock             flu.Clock
 	Executor          TaskExecutor
-	SubStorage        SubStorage
+	Storage           Storage
 	HTMLWriterFactory HTMLWriterFactory
 	Vendors           map[string]Vendor
 	UpdateInterval    time.Duration
@@ -155,7 +163,7 @@ func (a *Aggregator) Vendor(id string, vendor Vendor) *Aggregator {
 
 func (a *Aggregator) Init(ctx context.Context, suspendListener SuspendListener) error {
 	a.SuspendListener = suspendListener
-	ids, err := a.SubStorage.Init(ctx)
+	ids, err := a.Storage.Init(ctx)
 	if err != nil {
 		return err
 	}
@@ -167,10 +175,11 @@ func (a *Aggregator) Init(ctx context.Context, suspendListener SuspendListener) 
 	return nil
 }
 
-func (a *Aggregator) submitTask(feedID ID) {
+func (a *Aggregator) submitTask(feedID telegram.ID) {
 	a.Executor.Submit(feedID, &aggregatorTask{
 		htmlWriterFactory: a.HTMLWriterFactory,
-		store:             a.SubStorage,
+		clock:             a.Clock,
+		store:             a.Storage,
 		interval:          a.UpdateInterval,
 		vendors:           a.Vendors,
 		feedID:            feedID,
@@ -181,18 +190,18 @@ func (a *Aggregator) submitTask(feedID ID) {
 
 func (a *Aggregator) Close() error {
 	a.Executor.Close()
-	return a.SubStorage.Close()
+	return nil
 }
 
-func (a *Aggregator) Subscribe(ctx context.Context, feedID ID, ref string, options []string) (Sub, error) {
+func (a *Aggregator) Subscribe(ctx context.Context, feedID telegram.ID, ref string, options []string) (*Subscription, error) {
 	for vendorID, vendor := range a.Vendors {
-		sub, err := vendor.ParseSub(ctx, ref, options)
+		sub, err := vendor.Parse(ctx, ref, options)
 		switch err {
 		case nil:
-			data, err := DataFrom(sub.Data)
-			sub := Sub{
-				SubID: SubID{
-					ID:     sub.ID,
+			data, err := gorm.ToJsonb(sub.Data)
+			sub := &Subscription{
+				Header: &Header{
+					SubID:  sub.SubID,
 					Vendor: vendorID,
 					FeedID: feedID,
 				},
@@ -204,7 +213,7 @@ func (a *Aggregator) Subscribe(ctx context.Context, feedID ID, ref string, optio
 				return sub, errors.Wrap(err, "wrap data")
 			}
 
-			if err := a.SubStorage.CreateSub(ctx, sub); err != nil {
+			if err := a.Storage.Create(ctx, sub); err != nil {
 				return sub, err
 			}
 
@@ -215,48 +224,52 @@ func (a *Aggregator) Subscribe(ctx context.Context, feedID ID, ref string, optio
 			continue
 
 		default:
-			return Sub{}, err
+			return nil, err
 		}
 	}
 
-	return Sub{}, ErrWrongVendor
+	return nil, ErrWrongVendor
 }
 
-func (a *Aggregator) Suspend(ctx context.Context, subID SubID, err error) (Sub, error) {
-	if err := a.SubStorage.UpdateSub(ctx, subID, err); err != nil {
-		return Sub{}, err
+func (a *Aggregator) Suspend(ctx context.Context, header *Header, err error) (*Subscription, error) {
+	if err := a.Storage.Update(ctx, a.Clock.Now(), header, err); err != nil {
+		return nil, err
 	}
-	return a.SubStorage.GetSub(ctx, subID)
+
+	return a.Storage.Get(ctx, header)
 }
 
-func (a *Aggregator) Resume(ctx context.Context, subID SubID) (Sub, error) {
-	if err := a.SubStorage.UpdateSub(ctx, subID, nil); err != nil {
-		return Sub{}, err
+func (a *Aggregator) Resume(ctx context.Context, header *Header) (*Subscription, error) {
+	if err := a.Storage.Update(ctx, a.Clock.Now(), header, nil); err != nil {
+		return nil, err
 	}
-	sub, err := a.SubStorage.GetSub(ctx, subID)
+
+	sub, err := a.Storage.Get(ctx, header)
 	if err != nil {
-		return Sub{}, err
+		return nil, err
 	}
 
-	a.submitTask(subID.FeedID)
+	a.submitTask(header.FeedID)
 	return sub, nil
 }
 
-func (a *Aggregator) Delete(ctx context.Context, subID SubID) (Sub, error) {
-	sub, err := a.SubStorage.GetSub(ctx, subID)
+func (a *Aggregator) Delete(ctx context.Context, header *Header) (*Subscription, error) {
+	sub, err := a.Storage.Get(ctx, header)
 	if err != nil {
-		return Sub{}, errors.Wrap(err, "get")
+		return nil, errors.Wrap(err, "get")
 	}
-	if err := a.SubStorage.DeleteSub(ctx, subID); err != nil {
-		return Sub{}, errors.Wrap(err, "store delete")
+
+	if err := a.Storage.Delete(ctx, header); err != nil {
+		return nil, errors.Wrap(err, "store delete")
 	}
+
 	return sub, nil
 }
 
-func (a *Aggregator) Clear(ctx context.Context, feedID ID, pattern string) (int64, error) {
-	return a.SubStorage.DeleteSubs(ctx, feedID, pattern)
+func (a *Aggregator) Clear(ctx context.Context, feedID telegram.ID, pattern string) (int64, error) {
+	return a.Storage.DeleteAll(ctx, feedID, pattern)
 }
 
-func (a *Aggregator) List(ctx context.Context, feedID ID, active bool) ([]Sub, error) {
-	return a.SubStorage.ListSubs(ctx, feedID, active)
+func (a *Aggregator) List(ctx context.Context, feedID telegram.ID, active bool) ([]Subscription, error) {
+	return a.Storage.List(ctx, feedID, active)
 }

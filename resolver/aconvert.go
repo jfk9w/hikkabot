@@ -5,7 +5,7 @@ import (
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/telegram-bot-api/format"
+	"github.com/jfk9w-go/telegram-bot-api/ext/richtext"
 	"github.com/jfk9w/hikkabot/feed"
 	"github.com/pkg/errors"
 )
@@ -32,7 +32,7 @@ func (a Aconvert) MIMETypes() []string {
 	return AconvertMIMETypeArray
 }
 
-func (a Aconvert) Convert(ctx context.Context, ref *feed.MediaRef) (format.MediaRef, error) {
+func (a Aconvert) Convert(ctx context.Context, ref *feed.MediaRef) (richtext.MediaRef, error) {
 	format := AconvertMIMETypes[ref.MIMEType]
 	resp, err := a.Client.Convert(ctx, flu.URL(ref.ResolvedURL), aconvert.Opts{}.TargetFormat(format))
 	if err != nil {
@@ -40,7 +40,7 @@ func (a Aconvert) Convert(ctx context.Context, ref *feed.MediaRef) (format.Media
 	}
 
 	return &feed.MediaRef{
-		MediaResolver: feed.DummyMediaResolver{Client: a.Client.Client},
+		MediaResolver: feed.DummyMediaResolver{HttpClient: a.Client.Client},
 		Manager:       ref.Manager,
 		URL:           resp.URL(),
 		Dedup:         ref.Dedup,

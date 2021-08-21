@@ -5,13 +5,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jfk9w-go/telegram-bot-api/ext/blob"
+	"github.com/jfk9w-go/telegram-bot-api/ext/richtext"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/pkg/errors"
 )
 
@@ -23,20 +25,20 @@ type (
 
 	MediaConverter interface {
 		MIMETypes() []string
-		Convert(ctx context.Context, ref *MediaRef) (format.MediaRef, error)
+		Convert(ctx context.Context, ref *MediaRef) (richtext.MediaRef, error)
 	}
 
 	MediaDedup interface {
-		Check(ctx context.Context, feedID ID, url, mimeType string, blob format.Blob) error
+		Check(ctx context.Context, feedID telegram.ID, url, mimeType string, blob blob.Blob) error
 	}
 )
 
 type DummyMediaResolver struct {
-	Client *fluhttp.Client
+	HttpClient *fluhttp.Client
 }
 
 func (r DummyMediaResolver) GetClient() *fluhttp.Client {
-	return r.Client
+	return r.HttpClient
 }
 
 func (r DummyMediaResolver) ResolveURL(_ context.Context, _ *fluhttp.Client, url string, _ int64) (string, error) {
@@ -50,7 +52,7 @@ func (r DummyMediaResolver) Request(request *fluhttp.Request) *fluhttp.Request {
 type MediaManager struct {
 	DefaultClient *fluhttp.Client
 	SizeBounds    [2]int64
-	Storage       format.Blobs
+	Storage       blob.Storage
 	Converters    map[string]MediaConverter
 	Dedup         MediaDedup
 	RateLimiter   flu.RateLimiter
@@ -73,9 +75,9 @@ func (m *MediaManager) Init(ctx context.Context) *MediaManager {
 	return m
 }
 
-func (m *MediaManager) Submit(ref *MediaRef) format.MediaRef {
+func (m *MediaManager) Submit(ref *MediaRef) richtext.MediaRef {
 	m.work.Add(1)
-	mvar := format.NewMediaVar()
+	mvar := richtext.NewMediaVar()
 	ctx, cancel := context.WithTimeout(m.ctx, 10*time.Minute)
 	ref.Manager = m
 	go func() {
@@ -119,7 +121,7 @@ type MediaRef struct {
 	URL         string
 	Dedup       bool
 	Blob        bool
-	FeedID      ID
+	FeedID      telegram.ID
 	ResolvedURL string
 	MediaMetadata
 }
@@ -134,7 +136,7 @@ func (r *MediaRef) getClient() *fluhttp.Client {
 
 func (r *MediaRef) incrementMediaMethod(mimeType string, method string) {
 	r.Manager.Metrics.Counter("ok", metrics.Labels{
-		"feed_id", PrintID(r.FeedID),
+		"feed_id", r.FeedID,
 		"mime_type", mimeType,
 		"method", method,
 	}).Inc()
@@ -142,34 +144,34 @@ func (r *MediaRef) incrementMediaMethod(mimeType string, method string) {
 
 func (r *MediaRef) incrementMediaError(mimeType string, err string) {
 	r.Manager.Metrics.Counter("err", metrics.Labels{
-		"feed_id", PrintID(r.FeedID),
+		"feed_id", r.FeedID,
 		"mime_type", mimeType,
 		"err", err,
 	}).Inc()
 }
 
-func (r *MediaRef) Get(ctx context.Context) (format.Media, error) {
+func (r *MediaRef) Get(ctx context.Context) (*richtext.Media, error) {
 	media, err := r.doGet(ctx)
 	if err != nil {
-		return format.Media{}, errors.Wrapf(err, "with resolved URL %s", r.ResolvedURL)
+		return nil, errors.Wrapf(err, "with resolved URL %s", r.ResolvedURL)
 	}
 
 	return media, nil
 }
 
-func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
+func (r *MediaRef) doGet(ctx context.Context) (*richtext.Media, error) {
 	var err error
 	r.ResolvedURL, err = r.ResolveURL(ctx, r.getClient(), r.URL, telegram.Video.AttachMaxSize())
 	if err != nil {
 		r.incrementMediaError("unknown", "resolve url")
-		return format.Media{}, errors.Wrapf(err, "resolve url: %s", r.URL)
+		return nil, errors.Wrapf(err, "resolve url: %s", r.URL)
 	}
 
-	client := NewMediaClient(r.getClient(), r.Manager.CURL, r.Manager.Retries)
+	client := &DefaultMediaClient{r.getClient(), r.Manager.Retries}
 	if r.MIMEType == "" && r.Size == 0 {
 		if m, err := client.Metadata(ctx, r.ResolvedURL); err != nil {
 			r.incrementMediaError("unknown", "head")
-			return format.Media{}, errors.Wrap(err, "head")
+			return nil, errors.Wrap(err, "head")
 		} else {
 			r.MediaMetadata = *m
 		}
@@ -177,10 +179,10 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 		if r.Size != UnknownSize {
 			if r.Size < r.Manager.SizeBounds[0] {
 				r.incrementMediaError(r.MIMEType, "too small")
-				return format.Media{}, errors.Errorf("size of %db is too low", r.Size)
+				return nil, errors.Errorf("size of %db is too low", r.Size)
 			} else if r.Size > r.Manager.SizeBounds[1] {
 				r.incrementMediaError(r.MIMEType, "too large")
-				return format.Media{}, errors.Errorf("size %dMb too large", r.Size>>20)
+				return nil, errors.Errorf("size %dMb too large", r.Size>>20)
 			}
 		}
 	}
@@ -190,7 +192,7 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 		ref, err := converter.Convert(ctx, r)
 		if err != nil {
 			r.incrementMediaError(r.MIMEType, "convert")
-			return format.Media{}, errors.Wrapf(err, "convert from %s", mimeType)
+			return nil, errors.Wrapf(err, "convert from %s", mimeType)
 		}
 
 		return ref.Get(ctx)
@@ -199,12 +201,12 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 	mediaType := telegram.MediaTypeByMIMEType(mimeType)
 	if mediaType == telegram.DefaultMediaType {
 		r.incrementMediaError(r.MIMEType, "mime")
-		return format.Media{}, errors.Errorf("unsupported mime type: %s", mimeType)
+		return nil, errors.Errorf("unsupported mime type: %s", mimeType)
 	}
 
 	if r.Size != UnknownSize && r.Size <= mediaType.RemoteMaxSize() && !r.Dedup && !r.Blob {
 		r.incrementMediaMethod(r.MIMEType, "remote")
-		return format.Media{
+		return &richtext.Media{
 			MIMEType: mimeType,
 			Input:    flu.URL(r.ResolvedURL),
 		}, nil
@@ -213,25 +215,25 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 	if r.Size == UnknownSize || r.Size <= mediaType.AttachMaxSize() {
 		blob, err := r.Manager.Storage.Alloc()
 		if err != nil {
-			return format.Media{}, errors.Wrap(err, "create blob")
+			return nil, errors.Wrap(err, "create blob")
 		}
 
 		counter := &flu.IOCounter{Output: blob}
 		if err := client.Contents(ctx, r.ResolvedURL, counter); err != nil {
 			r.incrementMediaError(r.MIMEType, "download")
-			return format.Media{}, errors.Wrap(err, "download")
+			return nil, errors.Wrap(err, "download")
 		}
 
 		if counter.Value() <= mediaType.AttachMaxSize() {
 			if r.Dedup {
 				if err := r.Manager.Dedup.Check(ctx, r.FeedID, r.URL, mimeType, blob); err != nil {
 					r.incrementMediaError(r.MIMEType, "dedup")
-					return format.Media{}, err
+					return nil, err
 				}
 			}
 
 			r.incrementMediaMethod(r.MIMEType, "attach")
-			return format.Media{
+			return &richtext.Media{
 				MIMEType: mimeType,
 				Input:    blob,
 			}, nil
@@ -239,5 +241,5 @@ func (r *MediaRef) doGet(ctx context.Context) (format.Media, error) {
 	}
 
 	r.incrementMediaError(r.MIMEType, "too large")
-	return format.Media{}, errors.Errorf("size %dMb is too large", r.Size>>20)
+	return nil, errors.Errorf("size %dMb is too large", r.Size>>20)
 }

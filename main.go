@@ -5,22 +5,27 @@ import (
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/jfk9w-go/telegram-bot-api/ext/blob"
+
+	"github.com/jfk9w/hikkabot/vendors/dvach/catalog"
+	"github.com/jfk9w/hikkabot/vendors/dvach/thread"
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/flu/metrics"
-	"github.com/jfk9w-go/flu/serde"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w-go/telegram-bot-api/format"
+	dvach "github.com/jfk9w/hikkabot/3rdparty/dvach"
+	reddit "github.com/jfk9w/hikkabot/3rdparty/reddit"
+	"github.com/jfk9w/hikkabot/3rdparty/viddit"
 	"github.com/jfk9w/hikkabot/feed"
+	feedStorage "github.com/jfk9w/hikkabot/feed/storage"
 	"github.com/jfk9w/hikkabot/resolver"
-	"github.com/jfk9w/hikkabot/vendors/common"
-	"github.com/jfk9w/hikkabot/vendors/dvach"
-	"github.com/jfk9w/hikkabot/vendors/reddit"
-	"github.com/pkg/errors"
+	gormutil "github.com/jfk9w/hikkabot/util/gorm"
+	"github.com/jfk9w/hikkabot/vendors/subreddit"
+	subredditStorage "github.com/jfk9w/hikkabot/vendors/subreddit/storage"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 // GitCommit denotes the code version holder variable
@@ -29,31 +34,14 @@ import (
 //   -ldflags "-X main.GitCommit=$(git rev-parse --short HEAD)"
 var GitCommit = "dev"
 
-// Config describes YAML configuration file which is loaded
-// when the application is started.
 type Config struct {
-
-	// Datasource describes configuration of the datasource
-	// used as aggregator backend.
-	Datasource struct {
-
-		// Driver should be either "postgres" or "sqlite3".
-		// Note that the use of sqlite3 is generally discouraged as a mutex is used
-		// for database access synchronization which could lead to lock starvation
-		// under some load.
-		Driver string
-
-		// Conn represents a connection string passed to the database driver.
-		// Examples:
-		//   "file::memory:?cache=shared" for sqlite3 would created an in-memory database
-		//   "/var/foo/bar/db.sqlite3" for sqlite3 would create and use the database on disk
-		//   "postgresql://user:password@host:port/schema" for postgres would connect to a remote instance of PostgreSQL
-		Conn string
+	Media struct {
+		*blob.FileStorageConfig `yaml:",inline"`
+		Retries                 int
 	}
 
-	// Interval is the amount of time passed between two consecutive subscription update checks
-	// for a single feed (chat). Format is the same used in time.ParseDuration ("10s", "2h45m", etc.).
-	Interval serde.Duration
+	Database string
+	Interval flu.Duration
 
 	// Prometheus contains settings related to metrics reporting.
 	Prometheus struct {
@@ -79,27 +67,13 @@ type Config struct {
 		Probe *aconvert.Probe
 	}
 
-	// Media is the configuration for media processing.
-	Media struct {
-
-		// Directory is a path of directory used for buffering media files.
-		Directory string
-
-		// Retries is the amount of retries for performing metadata and content queries.
-		Retries int
-
-		// CURL denotes the path to cURL binary for use as a fallback HTTP client. Optional.
-		// This may come in handy as I suspect there are issues with Go HTTP/2 implementation.
-		CURL string
-	}
-
 	// Telegram describes telegram related settings.
 	Telegram struct {
 
 		// Token is the Telegram Bot API token.
 		Token string
 
-		// Supervisor is the bot owner user ID used for authorization and feed notifications.
+		// Supervisor is the bot owner user Header used for authorization and feed notifications.
 		Supervisor telegram.ID
 
 		// Aliases is a mapping of aliases to chat IDs.
@@ -138,16 +112,20 @@ func main() {
 	check(flu.DecodeFrom(flu.File(os.Args[1]), flu.YAML{Value: config}))
 	configureLogging(config)
 
-	store, err := feed.NewSQLStorage(flu.DefaultClock, config.Datasource.Driver, config.Datasource.Conn)
-	check(err)
-	defer store.Close()
+	clock := flu.DefaultClock
 
-	blobs, err := (&format.FileBlobStorage{
-		Directory:     config.Media.Directory,
-		TTL:           30 * time.Minute,
-		CleanInterval: 10 * time.Minute,
-	}).Init()
+	db, err := gormutil.NewPostgres(config.Database)
 	check(err)
+	defer func() {
+		if db, err := db.DB(); err == nil {
+			_ = db.Close()
+		}
+	}()
+
+	blobStorage := &blob.FileStorage{FileStorageConfig: config.Media.FileStorageConfig}
+
+	check(blobStorage.Init(ctx, 10*time.Minute))
+	defer blobStorage.Close()
 
 	var metricsRegistry metrics.Registry
 	if config.Prometheus.Address != "" {
@@ -161,24 +139,23 @@ func main() {
 		metricsRegistry = metrics.DummyRegistry{Log: true}
 	}
 
-	store.Registry = metricsRegistry.WithPrefix("store")
-	aconvert := resolver.Aconvert{
+	aconvertResolver := resolver.Aconvert{
 		Client: aconvert.NewClient(nil, config.Aconvert.Servers, config.Aconvert.Probe),
 	}
 
-	mediam := (&feed.MediaManager{
+	mediaManager := (&feed.MediaManager{
 		DefaultClient: fluhttp.NewTransport().NewClient(),
 		SizeBounds:    [2]int64{1 << 10, 75 << 20},
-		Storage:       blobs,
+		Storage:       blobStorage,
 		Dedup: feed.DefaultMediaDedup{
-			BlobStorage: store,
+			BlobStorage: (*feedStorage.SQL)(db),
+			Clock:       clock,
 		},
 		RateLimiter: flu.ConcurrencyRateLimiter(3),
 		Metrics:     metricsRegistry.WithPrefix("media"),
 		Retries:     config.Media.Retries,
-		CURL:        config.Media.CURL,
 	}).Init(ctx)
-	defer mediam.Converter(aconvert).Close()
+	defer mediaManager.Converter(aconvertResolver).Close()
 
 	executor := feed.NewTaskExecutor()
 	defer executor.Close()
@@ -188,15 +165,55 @@ func main() {
 		NewClient(), config.Telegram.Token)
 
 	aggregator := &feed.Aggregator{
+		Clock:             clock,
 		Executor:          executor,
-		SubStorage:        store,
+		Storage:           (*feedStorage.SQL)(db),
 		HTMLWriterFactory: feed.TelegramHTML{Sender: bot},
-		UpdateInterval:    config.Interval.Duration,
+		UpdateInterval:    config.Interval.Unmask(),
 		Metrics:           metricsRegistry.WithPrefix("aggregator"),
 	}
 
-	initRedditVendor(ctx, metricsRegistry, aggregator, mediam, store, config.Reddit)
-	initDvachVendors(aggregator, mediam, config.Dvach.Usercode)
+	dvachClient := dvach.NewClient(nil, config.Dvach.Usercode)
+
+	aggregator.Vendor("2ch/catalog", &catalog.Vendor{
+		DvachClient:  dvachClient,
+		MediaManager: mediaManager,
+	})
+
+	aggregator.Vendor("2ch/thread", &thread.Vendor{
+		DvachClient:  dvachClient,
+		MediaManager: mediaManager,
+		GetTimeout:   20 * time.Second,
+	})
+
+	if config.Reddit != nil {
+		redditClient := reddit.NewClient(nil, flu.DefaultClock, config.Reddit, GitCommit)
+		err := redditClient.RefreshInBackground(ctx, 59*time.Minute)
+		check(err)
+		defer redditClient.Close()
+
+		vidditClient := &viddit.Client{HttpClient: fluhttp.NewClient(nil)}
+		check(vidditClient.RefreshInBackground(ctx, 20*time.Minute))
+		defer vidditClient.Close()
+
+		storage := (*subredditStorage.SQL)(db)
+		check(storage.Init(ctx))
+
+		subredditVendor := &subreddit.Vendor{
+			Clock:         clock,
+			Storage:       storage,
+			CleanInterval: 30 * time.Minute,
+			FreshThingTTL: 7 * 24 * time.Hour,
+			RedditClient:  redditClient,
+			MediaManager:  mediaManager,
+			VidditClient:  vidditClient,
+		}
+
+		check(subredditVendor.DeleteStaleThingsInBackground(ctx, time.Hour))
+		defer subredditVendor.Close()
+
+		aggregator.Vendor("subreddit", subredditVendor)
+	}
 
 	listener, err := (&feed.CommandListener{
 		Context:    ctx,
@@ -219,51 +236,6 @@ func main() {
 	flu.AwaitSignal()
 }
 
-func initRedditVendor(ctx context.Context, metrics metrics.Registry, aggregator *feed.Aggregator, mediam *feed.MediaManager, sqlite3 *feed.SQLStorage, config *reddit.Config) error {
-	if config == nil {
-		return nil
-	}
-
-	store, err := (&reddit.SQLStorage{
-		SQLStorage:    sqlite3,
-		ThingTTL:      7 * 24 * time.Hour,
-		CleanInterval: time.Hour,
-	}).Init(ctx)
-	if err != nil {
-		return errors.Wrap(err, "init reddit store")
-	}
-
-	viddit := &common.Viddit{
-		Client:        fluhttp.NewClient(nil),
-		Clock:         flu.DefaultClock,
-		ResetInterval: 20 * time.Minute,
-	}
-
-	aggregator.Vendor("subreddit", &reddit.SubredditFeed{
-		Client:       reddit.NewClient(nil, config, GitCommit),
-		Store:        store,
-		MediaManager: mediam,
-		Viddit:       viddit,
-		Metrics:      metrics.WithPrefix("subreddit"),
-	})
-
-	return nil
-}
-
-func initDvachVendors(aggregator *feed.Aggregator, mediam *feed.MediaManager, usercode string) {
-	client := dvach.NewClient(nil, usercode)
-
-	aggregator.Vendor("2ch/catalog", &dvach.CatalogFeed{
-		Client:       client,
-		MediaManager: mediam,
-	})
-
-	aggregator.Vendor("2ch/thread", &dvach.ThreadFeed{
-		Client:       client,
-		MediaManager: mediam,
-	})
-}
-
 func configureLogging(config *Config) {
 	logLevel := logrus.InfoLevel
 	if config.Logging.Level != "" {
@@ -277,7 +249,11 @@ func configureLogging(config *Config) {
 	if config.Logging.Format == "json" {
 		logrus.SetFormatter(new(logrus.JSONFormatter))
 	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+		logrus.SetFormatter(&logrus.TextFormatter{
+			FullTimestamp:          true,
+			PadLevelText:           true,
+			DisableLevelTruncation: true,
+		})
 	}
 }
 

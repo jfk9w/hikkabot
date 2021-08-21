@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jfk9w-go/telegram-bot-api/ext/richtext"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/pkg/errors"
 )
 
-type WriteHTMLWithChatLink func(html *format.HTMLWriter, chatLink string) *format.HTMLWriter
+type WriteHTMLWithChatLink func(html *richtext.HTMLWriter, chatLink string) *richtext.HTMLWriter
 
 type Management interface {
 	CheckAccess(ctx context.Context, userID telegram.ID, chatID telegram.ID) (context.Context, error)
@@ -87,13 +88,13 @@ func (s *Supervisor) CheckAccess(ctx context.Context, userID telegram.ID, _ tele
 
 func (s *Supervisor) NotifyAdmins(ctx context.Context, chatID telegram.ID, markup telegram.ReplyMarkup, writeHTML WriteHTMLWithChatLink) error {
 	chatLink := s.GetChatLink(ctx, chatID)
-	transport := format.NewBufferTransport()
-	if err := writeHTML(format.HTMLWithTransport(ctx, transport), chatLink).Flush(); err != nil {
+	output := richtext.NewBufferedOutput()
+	if err := writeHTML(richtext.HTMLWithTransport(ctx, output), chatLink).Flush(); err != nil {
 		return errors.Wrap(err, "flush")
 	}
 
-	lastIdx := len(transport.Pages) - 1
-	pages := transport.Pages
+	lastIdx := len(output.Pages) - 1
+	pages := output.Pages
 	userIDs := make([]telegram.ChatID, len(s.userIDs))
 	i := 0
 	for userID, _ := range s.userIDs {
@@ -101,7 +102,7 @@ func (s *Supervisor) NotifyAdmins(ctx context.Context, chatID telegram.ID, marku
 		i++
 	}
 
-	ttransport := &format.TelegramTransport{
+	telegramOutput := &richtext.TelegramOutput{
 		Sender:  s.client,
 		ChatIDs: userIDs,
 		Strict:  true,
@@ -113,8 +114,8 @@ func (s *Supervisor) NotifyAdmins(ctx context.Context, chatID telegram.ID, marku
 			markup = nil
 		}
 
-		if err := ttransport.Text(
-			format.WithParseMode(format.WithReplyMarkup(ctx, markup), telegram.HTML),
+		if err := telegramOutput.Text(
+			richtext.WithParseMode(richtext.WithReplyMarkup(ctx, markup), telegram.HTML),
 			page, true); err != nil {
 			return err
 		}
@@ -225,7 +226,7 @@ func (c *CommandListener) resolveChatID(ctx context.Context, client telegram.Cli
 					logrus.WithField("chat", arg).Warnf("failed to resolve chat: %s", err)
 					chatID, err = telegram.ParseID(arg)
 					if err != nil {
-						return nil, 0, errors.Wrap(err, "parse chat ID")
+						return nil, 0, errors.Wrap(err, "parse chat Header")
 					}
 				} else {
 					chatID = chat.ID
@@ -242,16 +243,18 @@ func (c *CommandListener) resolveChatID(ctx context.Context, client telegram.Cli
 	return ctx, chatID, nil
 }
 
-func (c *CommandListener) parseSubID(ctx context.Context, cmd telegram.Command, argumentIndex int) (context.Context, SubID, error) {
-	subID, err := ParseSubID(cmd.Args[argumentIndex])
+func (c *CommandListener) parseSubID(ctx context.Context, cmd telegram.Command, argumentIndex int) (context.Context, *Header, error) {
+	header, err := ParseHeader(cmd.Args[argumentIndex])
 	if err != nil {
-		return nil, SubID{}, errors.Wrap(err, "parse subID")
+		return nil, nil, errors.Wrap(err, "parse header")
 	}
-	ctx, err = c.Management.CheckAccess(ctx, cmd.User.ID, telegram.ID(subID.FeedID))
+
+	ctx, err = c.Management.CheckAccess(ctx, cmd.User.ID, telegram.ID(header.FeedID))
 	if err != nil {
-		return nil, SubID{}, err
+		return nil, nil, err
 	}
-	return ctx, subID, nil
+
+	return ctx, header, nil
 }
 
 func (c *CommandListener) Subscribe(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
@@ -268,7 +271,7 @@ func (c *CommandListener) Subscribe(ctx context.Context, client telegram.Client,
 		options = cmd.Args[2:]
 	}
 
-	sub, err := c.Aggregator.Subscribe(ctx, ID(chatID), ref, options)
+	sub, err := c.Aggregator.Subscribe(ctx, chatID, ref, options)
 	if err != nil {
 		return err
 	}
@@ -276,14 +279,14 @@ func (c *CommandListener) Subscribe(ctx context.Context, client telegram.Client,
 	return nil
 }
 
-func (c *CommandListener) OnSubscribe(sub Sub) {
+func (c *CommandListener) OnSubscribe(sub *Subscription) {
 	ctx, cancel := c.background()
 	defer cancel()
 	_ = c.Management.NotifyAdmins(ctx, telegram.ID(sub.FeedID),
 		telegram.InlineKeyboard([]telegram.Button{
-			telegram.Command{Key: suspendCommandKey, Args: []string{sub.SubID.String()}}.Button("Suspend"),
+			telegram.Command{Key: suspendCommandKey, Args: []string{sub.Header.String()}}.Button("Suspend"),
 		}),
-		func(html *format.HTMLWriter, chatLink string) *format.HTMLWriter {
+		func(html *richtext.HTMLWriter, chatLink string) *richtext.HTMLWriter {
 			return html.Text(sub.Name+" @ ").
 				Link("chat", chatLink).
 				Text(" 🔥")
@@ -291,11 +294,11 @@ func (c *CommandListener) OnSubscribe(sub Sub) {
 }
 
 func (c *CommandListener) Suspend(ctx context.Context, _ telegram.Client, cmd telegram.Command) error {
-	ctx, subID, err := c.parseSubID(ctx, cmd, 0)
+	ctx, header, err := c.parseSubID(ctx, cmd, 0)
 	if err != nil {
 		return err
 	}
-	sub, err := c.Aggregator.Suspend(ctx, subID, ErrSuspendedByUser)
+	sub, err := c.Aggregator.Suspend(ctx, header, ErrSuspendedByUser)
 	if err != nil {
 		return err
 	}
@@ -303,16 +306,16 @@ func (c *CommandListener) Suspend(ctx context.Context, _ telegram.Client, cmd te
 	return nil
 }
 
-func (c *CommandListener) OnSuspend(sub Sub, err error) {
+func (c *CommandListener) OnSuspend(sub *Subscription, err error) {
 	ctx, cancel := c.background()
 	defer cancel()
 	_ = c.Management.NotifyAdmins(ctx, telegram.ID(sub.FeedID),
 		// by column
 		telegram.InlineKeyboard([]telegram.Button{
-			telegram.Command{Key: resumeCommandKey, Args: []string{sub.SubID.String()}}.Button("Resume"),
-			telegram.Command{Key: deleteCommandKey, Args: []string{sub.SubID.String()}}.Button("Delete"),
+			telegram.Command{Key: resumeCommandKey, Args: []string{sub.Header.String()}}.Button("Resume"),
+			telegram.Command{Key: deleteCommandKey, Args: []string{sub.Header.String()}}.Button("Delete"),
 		}),
-		func(html *format.HTMLWriter, chatLink string) *format.HTMLWriter {
+		func(html *richtext.HTMLWriter, chatLink string) *richtext.HTMLWriter {
 			return html.Text(sub.Name+" @ ").
 				Link("chat", chatLink).
 				Text(" 🛑\n" + err.Error())
@@ -332,14 +335,14 @@ func (c *CommandListener) Resume(ctx context.Context, _ telegram.Client, cmd tel
 	return nil
 }
 
-func (c *CommandListener) OnResume(sub Sub) {
+func (c *CommandListener) OnResume(sub *Subscription) {
 	ctx, cancel := c.background()
 	defer cancel()
 	_ = c.Management.NotifyAdmins(ctx, telegram.ID(sub.FeedID),
 		telegram.InlineKeyboard([]telegram.Button{
-			telegram.Command{Key: suspendCommandKey, Args: []string{sub.SubID.String()}}.Button("Suspend"),
+			telegram.Command{Key: suspendCommandKey, Args: []string{sub.Header.String()}}.Button("Suspend"),
 		}),
-		func(html *format.HTMLWriter, chatLink string) *format.HTMLWriter {
+		func(html *richtext.HTMLWriter, chatLink string) *richtext.HTMLWriter {
 			return html.Text(sub.Name+" @ ").
 				Link("chat", chatLink).
 				Text(" 🔥")
@@ -359,11 +362,11 @@ func (c *CommandListener) Delete(ctx context.Context, _ telegram.Client, cmd tel
 	return nil
 }
 
-func (c *CommandListener) OnDelete(sub Sub) {
+func (c *CommandListener) OnDelete(sub *Subscription) {
 	ctx, cancel := c.background()
 	defer cancel()
 	_ = c.Management.NotifyAdmins(ctx, telegram.ID(sub.FeedID), nil,
-		func(html *format.HTMLWriter, chatLink string) *format.HTMLWriter {
+		func(html *richtext.HTMLWriter, chatLink string) *richtext.HTMLWriter {
 			return html.Text(sub.Name+" @ ").
 				Link("chat", chatLink).
 				Text(" 🗑")
@@ -379,19 +382,19 @@ func (c *CommandListener) Clear(ctx context.Context, client telegram.Client, cmd
 		return err
 	}
 	pattern := cmd.Args[0]
-	count, err := c.Aggregator.Clear(ctx, ID(chatID), pattern)
+	count, err := c.Aggregator.Clear(ctx, chatID, pattern)
 	if err != nil {
 		return err
 	}
-	go c.OnClear(ID(chatID), pattern, count)
+	go c.OnClear(chatID, pattern, count)
 	return nil
 }
 
-func (c *CommandListener) OnClear(feedID ID, pattern string, count int64) {
+func (c *CommandListener) OnClear(feedID telegram.ID, pattern string, count int64) {
 	ctx, cancel := c.background()
 	defer cancel()
 	_ = c.Management.NotifyAdmins(ctx, telegram.ID(feedID), nil,
-		func(html *format.HTMLWriter, chatLink string) *format.HTMLWriter {
+		func(html *richtext.HTMLWriter, chatLink string) *richtext.HTMLWriter {
 			return html.Text(fmt.Sprintf("%d subs @ ", count)).
 				Link("chat", chatLink).
 				Text(" 🗑 (" + pattern + ")")
@@ -405,13 +408,13 @@ func (c *CommandListener) List(ctx context.Context, client telegram.Client, cmd 
 	}
 
 	active := len(cmd.Args) > 1 && cmd.Args[1] == resumeCommandKey
-	subs, err := c.Aggregator.List(ctx, ID(chatID), active)
+	subs, err := c.Aggregator.List(ctx, chatID, active)
 	if err != nil {
 		return err
 	}
 	if !active && len(subs) == 0 {
 		active = true
-		subs, err = c.Aggregator.List(ctx, ID(chatID), active)
+		subs, err = c.Aggregator.List(ctx, chatID, active)
 		if err != nil {
 			return err
 		}
@@ -425,7 +428,7 @@ func (c *CommandListener) List(ctx context.Context, client telegram.Client, cmd 
 	// by row
 	keyboard := make([][]telegram.Button, len(subs))
 	for i, sub := range subs {
-		keyboard[i] = []telegram.Button{telegram.Command{Key: changeCmd, Args: []string{sub.SubID.String()}}.Button(sub.Name)}
+		keyboard[i] = []telegram.Button{telegram.Command{Key: changeCmd, Args: []string{sub.Header.String()}}.Button(sub.Name)}
 	}
 
 	_, err = client.Send(ctx, cmd.Chat.ID,
@@ -434,7 +437,7 @@ func (c *CommandListener) List(ctx context.Context, client telegram.Client, cmd 
 			Text: fmt.Sprintf(
 				"%d subs @ %s %s",
 				len(subs),
-				format.HTMLAnchor("chat", c.Management.GetChatLink(ctx, chatID)),
+				richtext.HTMLAnchor("chat", c.Management.GetChatLink(ctx, chatID)),
 				status),
 			DisableWebPagePreview: true},
 		&telegram.SendOptions{
@@ -448,7 +451,7 @@ func (c *CommandListener) Status(ctx context.Context, client telegram.Client, cm
 		"User ID: %s\n"+
 		"Chat ID: %s\n"+
 		"Message ID: %s\n"+
-		"Bot username: %s\n"+
+		"Username: %s\n"+
 		"Datetime: %s\n"+
 		"Commit: %s\n",
 		cmd.User.ID, cmd.Chat.ID, cmd.Message.ID,

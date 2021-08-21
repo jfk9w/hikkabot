@@ -56,7 +56,7 @@ func (e *DefaultExecutor) execute(ctx context.Context, id interface{}, task Task
 	}()
 
 	if err := task.Execute(ctx); err != nil {
-		logrus.WithField("task", id).Debug("scheduled task: %s", err)
+		logrus.WithField("task", id).Debugf("scheduled task: %s", err)
 		return
 	}
 }

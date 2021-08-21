@@ -1,4 +1,4 @@
-package common
+package vendors
 
 import (
 	"context"
@@ -7,11 +7,11 @@ import (
 	"regexp"
 	"strings"
 
-	"golang.org/x/exp/utf8string"
+	"github.com/jfk9w-go/telegram-bot-api/ext/richtext"
 
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/telegram-bot-api/format"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/utf8string"
 )
 
 type Query struct {
@@ -57,21 +57,12 @@ func (q *Query) String() string {
 	return q.Regexp.String()
 }
 
-type PlainSQLBuilder struct {
-	SQL       string
-	Arguments []interface{}
-}
-
-func (p PlainSQLBuilder) ToSQL() (string, []interface{}, error) {
-	return p.SQL, p.Arguments, nil
-}
-
 type InvalidMediaRef struct {
 	Error error
 }
 
-func (r InvalidMediaRef) Get(_ context.Context) (format.Media, error) {
-	return format.Media{}, r.Error
+func (r InvalidMediaRef) Get(_ context.Context) (*richtext.Media, error) {
+	return nil, r.Error
 }
 
 type ResolvedMediaRef struct {
@@ -79,15 +70,15 @@ type ResolvedMediaRef struct {
 	input    flu.Input
 }
 
-func NewResolvedMediaRef(mimeType string, input flu.Input) ResolvedMediaRef {
-	return ResolvedMediaRef{
+func NewResolvedMediaRef(mimeType string, input flu.Input) *ResolvedMediaRef {
+	return &ResolvedMediaRef{
 		mimeType: mimeType,
 		input:    input,
 	}
 }
 
-func (r ResolvedMediaRef) Get(_ context.Context) (format.Media, error) {
-	return format.Media{
+func (r *ResolvedMediaRef) Get(_ context.Context) (*richtext.Media, error) {
+	return &richtext.Media{
 		MIMEType: r.mimeType,
 		Input:    r.input,
 	}, nil
