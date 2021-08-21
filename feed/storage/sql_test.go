@@ -2,30 +2,29 @@ package storage_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
+
+	"github.com/jfk9w/hikkabot/feed/storage"
 
 	"github.com/jfk9w-go/telegram-bot-api/ext/richtext"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/feed"
-	"github.com/jfk9w/hikkabot/feed/storage"
 	gormutil "github.com/jfk9w/hikkabot/util/gorm"
-	"github.com/ory/dockertest"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	null "gopkg.in/guregu/null.v3"
-	"gorm.io/gorm"
 )
 
 func TestSQL_Feed(t *testing.T) {
 	ctx, cancel := getContext()
 	defer cancel()
 
-	storage := createStorage(ctx, t)
-	defer storage.Close()
+	db := gormutil.NewTestDatabase(t)
+	defer db.Close()
 
+	storage := (*storage.SQL)(db.DB)
 	activeSubIDs, err := storage.Init(ctx)
 	assert.Nil(t, err)
 	assert.Empty(t, activeSubIDs)
@@ -145,8 +144,12 @@ func TestSQL_BlobHash(t *testing.T) {
 	ctx, cancel := getContext()
 	defer cancel()
 
-	storage := createStorage(ctx, t)
-	defer storage.Close()
+	db := gormutil.NewTestDatabase(t)
+	defer db.Close()
+
+	storage := (*storage.SQL)(db.DB)
+	_, err := storage.Init(ctx)
+	assert.Nil(t, err)
 
 	now, err := time.Parse(time.RFC3339, "2021-07-28T03:00:00+03:00")
 	assert.Nil(t, err)
@@ -186,49 +189,4 @@ func TestSQL_BlobHash(t *testing.T) {
 
 func getContext() (context.Context, func()) {
 	return context.WithTimeout(context.Background(), time.Minute)
-}
-
-type testStorage struct {
-	*storage.SQL
-	Close func() error
-}
-
-func createStorage(ctx context.Context, t *testing.T) *testStorage {
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	container, err := pool.Run("postgres", "latest", []string{"POSTGRES_PASSWORD=pwd"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var db *gorm.DB
-	dsn := fmt.Sprintf("postgresql://postgres:pwd@localhost:%s/postgres", container.GetPort("5432/tcp"))
-	if err := pool.Retry(func() error {
-		db, err = gormutil.NewPostgres(dsn)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	storage := (*storage.SQL)(db)
-	_, err = storage.Init(ctx)
-	assert.Nil(t, err)
-
-	closer := func() error {
-		db, err := db.DB()
-		if err != nil {
-			return err
-		}
-
-		if err := db.Close(); err != nil {
-			return err
-		}
-
-		return container.Close()
-	}
-
-	return &testStorage{storage, closer}
 }
