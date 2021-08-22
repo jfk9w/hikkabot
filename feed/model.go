@@ -2,18 +2,15 @@ package feed
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"time"
 
-	null "gopkg.in/guregu/null.v3"
-
-	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/richtext"
 	gormutil "github.com/jfk9w/hikkabot/util/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	null "gopkg.in/guregu/null.v3"
 )
 
 var (
@@ -35,22 +32,14 @@ type Header struct {
 
 func (h *Header) Fields() logrus.Fields {
 	return logrus.Fields{
-		"subID":  h.SubID,
+		"sub":    h.SubID,
 		"vendor": h.Vendor,
-		"feedID": h.FeedID,
+		"feed":   h.FeedID,
 	}
 }
 
 func (h *Header) String() string {
-	return strings.Join([]string{strconv.FormatInt(int64(h.FeedID), 10), h.Vendor, h.SubID}, HeaderSeparator)
-}
-
-func (h *Header) MetricsLabels() metrics.Labels {
-	return metrics.Labels{
-		"sub_id", h.SubID,
-		"vendor", h.Vendor,
-		"feed_id", h.FeedID,
-	}
+	return strings.Join([]string{h.FeedID.String(), h.Vendor, h.SubID}, HeaderSeparator)
 }
 
 func ParseHeader(value string) (*Header, error) {
@@ -74,7 +63,7 @@ func ParseHeader(value string) (*Header, error) {
 type Subscription struct {
 	*Header   `gorm:"embedded"`
 	Name      string `gorm:"not null"`
-	Data      gormutil.Jsonb
+	Data      gormutil.JSONB
 	UpdatedAt *time.Time
 	Error     null.String
 }
@@ -87,6 +76,17 @@ func (s *Subscription) Fields() logrus.Fields {
 	fields := s.Header.Fields()
 	fields["name"] = s.Name
 	return fields
+}
+
+type SubscriptionStorage interface {
+	Active(ctx context.Context) ([]telegram.ID, error)
+	Create(ctx context.Context, sub *Subscription) error
+	Get(ctx context.Context, id *Header) (*Subscription, error)
+	Shift(ctx context.Context, feedID telegram.ID) (*Subscription, error)
+	List(ctx context.Context, feedID telegram.ID, active bool) ([]Subscription, error)
+	DeleteAll(ctx context.Context, feedID telegram.ID, pattern string) (int64, error)
+	Delete(ctx context.Context, header *Header) error
+	Update(ctx context.Context, now time.Time, header *Header, value interface{}) error
 }
 
 type BlobHash struct {
@@ -103,16 +103,13 @@ func (h *BlobHash) TableName() string {
 	return "blob"
 }
 
-type Storage interface {
-	Init(ctx context.Context) ([]telegram.ID, error)
-	Create(ctx context.Context, sub *Subscription) error
-	Get(ctx context.Context, id *Header) (*Subscription, error)
-	Shift(ctx context.Context, feedID telegram.ID) (*Subscription, error)
-	List(ctx context.Context, feedID telegram.ID, active bool) ([]Subscription, error)
-	DeleteAll(ctx context.Context, feedID telegram.ID, pattern string) (int64, error)
-	Delete(ctx context.Context, header *Header) error
-	Update(ctx context.Context, now time.Time, header *Header, value interface{}) error
+type BlobHashStorage interface {
 	Check(ctx context.Context, hash *BlobHash) error
+}
+
+type Storage interface {
+	SubscriptionStorage
+	BlobHashStorage
 }
 
 type Draft struct {
@@ -125,7 +122,7 @@ type WriteHTML func(html *richtext.HTMLWriter) error
 
 type Update struct {
 	WriteHTML WriteHTML
-	Data      gormutil.Jsonb
+	Data      gormutil.JSONB
 	Error     error
 }
 
@@ -134,16 +131,16 @@ type Loggable interface {
 }
 
 type Queue struct {
-	Header  *Header
-	data    gormutil.Jsonb
-	channel chan Update
+	Header *Header
+	C      chan Update
+	data   gormutil.JSONB
 }
 
-func NewQueue(header *Header, data gormutil.Jsonb, size int) *Queue {
+func NewQueue(header *Header, data gormutil.JSONB, size int) *Queue {
 	return &Queue{
-		Header:  header,
-		data:    data,
-		channel: make(chan Update, size),
+		Header: header,
+		C:      make(chan Update, size),
+		data:   data,
 	}
 }
 
@@ -162,15 +159,15 @@ func (q *Queue) Log(ctx context.Context, data Loggable) *logrus.Entry {
 		WithFields(data.Fields())
 }
 
-func (q *Queue) Proceed(ctx context.Context, writeHTML WriteHTML, data interface{}) error {
-	jsonb, err := gormutil.ToJsonb(data)
+func (q *Queue) Proceed(ctx context.Context, writeHTML WriteHTML, value interface{}) error {
+	data, err := gormutil.ToJSONB(value)
 	if err != nil {
 		return err
 	}
 
 	update := Update{
 		WriteHTML: writeHTML,
-		Data:      jsonb,
+		Data:      data,
 	}
 
 	return q.submit(ctx, update)
@@ -182,7 +179,7 @@ func (q *Queue) Cancel(ctx context.Context, err error) error {
 
 func (q *Queue) submit(ctx context.Context, update Update) error {
 	select {
-	case q.channel <- update:
+	case q.C <- update:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

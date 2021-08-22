@@ -20,12 +20,12 @@ func (s *SQL) Unmask() *gorm.DB {
 	return (*gorm.DB)(s)
 }
 
-func (s *SQL) Init(ctx context.Context) ([]telegram.ID, error) {
-	if err := s.Unmask().WithContext(ctx).
-		AutoMigrate(new(feed.Subscription), new(feed.BlobHash)); err != nil {
-		return nil, err
-	}
+func (s *SQL) Init(ctx context.Context) error {
+	return s.Unmask().WithContext(ctx).
+		AutoMigrate(new(feed.Subscription), new(feed.BlobHash))
+}
 
+func (s *SQL) Active(ctx context.Context) ([]telegram.ID, error) {
 	activeSubs := make([]telegram.ID, 0)
 	return activeSubs, s.Unmask().WithContext(ctx).
 		Model(new(feed.Subscription)).
@@ -109,7 +109,7 @@ func (s *SQL) Update(ctx context.Context, now time.Time, header *feed.Header, va
 	case nil:
 		tx = tx.Where("error is not null")
 		updates["error"] = nil
-	case gormutil.Jsonb:
+	case gormutil.JSONB:
 		tx = tx.Where("error is null")
 		updates["data"] = value
 	case error:

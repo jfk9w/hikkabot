@@ -136,17 +136,17 @@ func (r *MediaRef) getClient() *fluhttp.Client {
 
 func (r *MediaRef) incrementMediaMethod(mimeType string, method string) {
 	r.Manager.Metrics.Counter("ok", metrics.Labels{
-		"feed_id", r.FeedID,
-		"mime_type", mimeType,
-		"method", method,
+		"feed_id":   r.FeedID,
+		"mime_type": mimeType,
+		"method":    method,
 	}).Inc()
 }
 
 func (r *MediaRef) incrementMediaError(mimeType string, err string) {
 	r.Manager.Metrics.Counter("err", metrics.Labels{
-		"feed_id", r.FeedID,
-		"mime_type", mimeType,
-		"err", err,
+		"feed_id":   r.FeedID,
+		"mime_type": mimeType,
+		"err":       err,
 	}).Inc()
 }
 

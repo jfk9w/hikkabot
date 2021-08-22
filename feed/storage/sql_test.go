@@ -25,7 +25,7 @@ func TestSQL_Feed(t *testing.T) {
 	defer db.Close()
 
 	storage := (*storage.SQL)(db.DB)
-	activeSubIDs, err := storage.Init(ctx)
+	activeSubIDs, err := storage.Active(ctx)
 	assert.Nil(t, err)
 	assert.Empty(t, activeSubIDs)
 
@@ -39,7 +39,7 @@ func TestSQL_Feed(t *testing.T) {
 			FeedID: 456,
 		},
 		Name: "test subscription",
-		Data: gormutil.Jsonb("{}"),
+		Data: gormutil.JSONB("{}"),
 	}
 
 	subs, err := storage.List(ctx, sub.Header.FeedID, true)
@@ -60,7 +60,7 @@ func TestSQL_Feed(t *testing.T) {
 	assert.Nil(t, storage.Create(ctx, sub))
 	assert.Equal(t, feed.ErrExists, storage.Create(ctx, sub))
 
-	activeSubIDs, err = storage.Init(ctx)
+	activeSubIDs, err = storage.Active(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, []telegram.ID{sub.Header.FeedID}, activeSubIDs)
 
@@ -86,7 +86,7 @@ func TestSQL_Feed(t *testing.T) {
 	sub.UpdatedAt = &now
 	assert.Nil(t, storage.Update(ctx, now, sub.Header, errors.New(sub.Error.String)))
 
-	activeSubIDs, err = storage.Init(ctx)
+	activeSubIDs, err = storage.Active(ctx)
 	assert.Nil(t, err)
 	assert.Empty(t, activeSubIDs)
 
@@ -102,14 +102,14 @@ func TestSQL_Feed(t *testing.T) {
 	assert.Equal(t, feed.ErrNotFound, err)
 
 	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, sub.Header, errors.New("test error")))
-	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, sub.Header, gormutil.Jsonb(`{"x": "1"}`)))
+	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, sub.Header, gormutil.JSONB(`{"x": "1"}`)))
 
 	now = now.Add(time.Hour)
 	sub.UpdatedAt = &now
 	sub.Error = null.NewString("", false)
 	assert.Nil(t, storage.Update(ctx, now, sub.Header, nil))
 
-	activeSubIDs, err = storage.Init(ctx)
+	activeSubIDs, err = storage.Active(ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, []telegram.ID{sub.Header.FeedID}, activeSubIDs)
 
@@ -127,7 +127,7 @@ func TestSQL_Feed(t *testing.T) {
 
 	now = now.Add(time.Hour)
 	sub.UpdatedAt = &now
-	sub.Data = gormutil.Jsonb(`{"x": "1"}`)
+	sub.Data = gormutil.JSONB(`{"x": "1"}`)
 	assert.Equal(t, nil, storage.Update(ctx, now, sub.Header, sub.Data))
 
 	newSub, err = storage.Get(ctx, sub.Header)
@@ -148,7 +148,7 @@ func TestSQL_BlobHash(t *testing.T) {
 	defer db.Close()
 
 	storage := (*storage.SQL)(db.DB)
-	_, err := storage.Init(ctx)
+	_, err := storage.Active(ctx)
 	assert.Nil(t, err)
 
 	now, err := time.Parse(time.RFC3339, "2021-07-28T03:00:00+03:00")

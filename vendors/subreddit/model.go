@@ -28,7 +28,6 @@ func (d *Data) Fields() logrus.Fields {
 }
 
 type Storage interface {
-	Init(ctx context.Context) error
 	SaveThing(ctx context.Context, thing *reddit.ThingData) error
 	DeleteStaleThings(ctx context.Context, until time.Time) (int64, error)
 	GetPercentile(ctx context.Context, subreddit string, top float64) (int, error)

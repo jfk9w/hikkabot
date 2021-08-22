@@ -7,17 +7,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Jsonb json.RawMessage
+type JSONB json.RawMessage
 
-func ToJsonb(value interface{}) (Jsonb, error) {
+func ToJSONB(value interface{}) (JSONB, error) {
 	return json.Marshal(value)
 }
 
-func (j Jsonb) GormDataType() string {
+func (j JSONB) GormDataType() string {
 	return "jsonb"
 }
 
-func (j Jsonb) Value() (driver.Value, error) {
+func (j JSONB) Value() (driver.Value, error) {
 	if len(j) == 0 {
 		return nil, nil
 	}
@@ -25,11 +25,11 @@ func (j Jsonb) Value() (driver.Value, error) {
 	return json.RawMessage(j).MarshalJSON()
 }
 
-func (j Jsonb) Unmarshal(value interface{}) error {
+func (j JSONB) Unmarshal(value interface{}) error {
 	return json.Unmarshal(j, value)
 }
 
-func (j *Jsonb) Scan(value interface{}) error {
+func (j *JSONB) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.Errorf("failed to unmarshal JSONB value: %s", value)
@@ -39,6 +39,6 @@ func (j *Jsonb) Scan(value interface{}) error {
 	return nil
 }
 
-func (j Jsonb) String() string {
+func (j JSONB) String() string {
 	return string(j)
 }

@@ -1,11 +1,8 @@
-sudo: false
 services:
   - docker
 language: go
 go:
   - stable
-env:
-  - GO111MODULE=on
 script:
   - go test -v ./...
 

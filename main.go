@@ -5,23 +5,25 @@ import (
 	"os"
 	"time"
 
-	"github.com/jfk9w-go/telegram-bot-api/ext/blob"
-
-	"github.com/jfk9w/hikkabot/vendors/dvach/catalog"
-	"github.com/jfk9w/hikkabot/vendors/dvach/thread"
-
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api/ext/blob"
 	dvach "github.com/jfk9w/hikkabot/3rdparty/dvach"
 	reddit "github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/3rdparty/viddit"
 	"github.com/jfk9w/hikkabot/feed"
+	"github.com/jfk9w/hikkabot/feed/access"
+	aggregator "github.com/jfk9w/hikkabot/feed/aggregator"
+	executor "github.com/jfk9w/hikkabot/feed/executor"
+	listener "github.com/jfk9w/hikkabot/feed/listener"
 	feedStorage "github.com/jfk9w/hikkabot/feed/storage"
 	"github.com/jfk9w/hikkabot/resolver"
 	gormutil "github.com/jfk9w/hikkabot/util/gorm"
+	"github.com/jfk9w/hikkabot/vendors/dvach/catalog"
+	"github.com/jfk9w/hikkabot/vendors/dvach/thread"
 	"github.com/jfk9w/hikkabot/vendors/subreddit"
 	subredditStorage "github.com/jfk9w/hikkabot/vendors/subreddit/storage"
 	"github.com/prometheus/client_golang/prometheus"
@@ -116,11 +118,10 @@ func main() {
 
 	db, err := gormutil.NewPostgres(config.Database)
 	check(err)
-	defer func() {
-		if db, err := db.DB(); err == nil {
-			_ = db.Close()
-		}
-	}()
+	defer gormutil.Close(db)
+
+	feedStorage := (*feedStorage.SQL)(db)
+	check(feedStorage.Init(ctx))
 
 	blobStorage := &blob.FileStorage{FileStorageConfig: config.Media.FileStorageConfig}
 
@@ -134,7 +135,7 @@ func main() {
 			prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
 			prometheus.NewGoCollector())
 		defer metrics.Close(context.Background())
-		metricsRegistry = metrics
+		metricsRegistry = metrics.WithPrefix("app")
 	} else {
 		metricsRegistry = metrics.DummyRegistry{Log: true}
 	}
@@ -148,7 +149,7 @@ func main() {
 		SizeBounds:    [2]int64{1 << 10, 75 << 20},
 		Storage:       blobStorage,
 		Dedup: feed.DefaultMediaDedup{
-			BlobStorage: (*feedStorage.SQL)(db),
+			BlobStorage: feedStorage,
 			Clock:       clock,
 		},
 		RateLimiter: flu.ConcurrencyRateLimiter(3),
@@ -157,37 +158,42 @@ func main() {
 	}).Init(ctx)
 	defer mediaManager.Converter(aconvertResolver).Close()
 
-	executor := feed.NewTaskExecutor()
+	executor := executor.NewDefault(ctx)
 	defer executor.Close()
-
 	bot := telegram.NewBot(fluhttp.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		NewClient(), config.Telegram.Token)
-
-	aggregator := &feed.Aggregator{
-		Clock:             clock,
-		Executor:          executor,
-		Storage:           (*feedStorage.SQL)(db),
-		HTMLWriterFactory: feed.TelegramHTML{Sender: bot},
-		UpdateInterval:    config.Interval.Unmask(),
-		Metrics:           metricsRegistry.WithPrefix("aggregator"),
+	accessControl := access.NewDefaultControl(config.Telegram.Supervisor)
+	dvachClient := dvach.NewClient(nil, config.Dvach.Usercode)
+	aggregator := &aggregator.Default{
+		Context: &aggregator.Context{
+			Clock:             clock,
+			Storage:           feedStorage,
+			Interval:          config.Interval.Unmask(),
+			HTMLWriterFactory: aggregator.DefaultHTMLWriterFactory{Sender: bot},
+			Vendors: map[string]feed.Vendor{
+				"2ch/catalog": &catalog.Vendor{
+					DvachClient:  dvachClient,
+					MediaManager: mediaManager,
+				},
+				"2ch/thread": &thread.Vendor{
+					DvachClient:  dvachClient,
+					MediaManager: mediaManager,
+					GetTimeout:   20 * time.Second,
+				},
+			},
+			EventListener: &listener.Event{
+				AccessControl: accessControl,
+				Client:        bot,
+				Registry:      metricsRegistry.WithPrefix("event"),
+			},
+		},
+		Executor: executor,
+		Registry: metricsRegistry.WithPrefix("aggregator"),
 	}
 
-	dvachClient := dvach.NewClient(nil, config.Dvach.Usercode)
-
-	aggregator.Vendor("2ch/catalog", &catalog.Vendor{
-		DvachClient:  dvachClient,
-		MediaManager: mediaManager,
-	})
-
-	aggregator.Vendor("2ch/thread", &thread.Vendor{
-		DvachClient:  dvachClient,
-		MediaManager: mediaManager,
-		GetTimeout:   20 * time.Second,
-	})
-
 	if config.Reddit != nil {
-		redditClient := reddit.NewClient(nil, flu.DefaultClock, config.Reddit, GitCommit)
+		redditClient := reddit.NewClient(nil, config.Reddit, GitCommit)
 		err := redditClient.RefreshInBackground(ctx, 59*time.Minute)
 		check(err)
 		defer redditClient.Close()
@@ -212,22 +218,21 @@ func main() {
 		check(subredditVendor.DeleteStaleThingsInBackground(ctx, time.Hour))
 		defer subredditVendor.Close()
 
-		aggregator.Vendor("subreddit", subredditVendor)
+		aggregator.Vendors["subreddit"] = subredditVendor
 	}
 
-	listener, err := (&feed.CommandListener{
-		Context:    ctx,
-		Aggregator: aggregator,
-		Management: feed.NewSupervisorManagement(bot, config.Telegram.Supervisor),
-		Aliases:    config.Telegram.Aliases,
-		GitCommit:  GitCommit,
-	}).Init(ctx)
-	check(err)
-	defer listener.Close()
+	check(aggregator.Init(ctx))
 
-	defer bot.CommandListener(listener).Close()
+	commandListener := &listener.Command{
+		AccessControl: accessControl,
+		Aggregator:    aggregator,
+		Aliases:       config.Telegram.Aliases,
+		GitCommit:     GitCommit,
+	}
 
-	check(listener.Status(ctx, bot, telegram.Command{
+	defer bot.CommandListener(commandListener).Close()
+
+	check(commandListener.Status(ctx, bot, telegram.Command{
 		Chat:    &telegram.Chat{ID: config.Telegram.Supervisor},
 		User:    &telegram.User{ID: config.Telegram.Supervisor},
 		Message: new(telegram.Message),

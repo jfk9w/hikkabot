@@ -111,7 +111,7 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 		}
 	}
 
-	data.SentIDs = make(util.Uint64Set, int(100*data.Top))
+	data.SentIDs = make(util.Uint64Set)
 	return &feed.Draft{
 		SubID: data.Subreddit,
 		Name:  getSubredditName(data.Subreddit),
@@ -177,6 +177,7 @@ func (v *Vendor) processThing(ctx context.Context,
 	percentile *int, thing *reddit.ThingData) (
 	writeHTML feed.WriteHTML, err error) {
 
+	thing.LastSeen = v.Clock.Now()
 	if err := v.Storage.SaveThing(ctx, thing); err != nil {
 		return nil, errors.Wrapf(err, "save thing %d", thing.ID)
 	}

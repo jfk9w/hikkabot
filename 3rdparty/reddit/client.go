@@ -30,7 +30,6 @@ type Config struct {
 
 type Client struct {
 	HttpClient *fluhttp.Client
-	clock      flu.Clock
 	config     *Config
 	token      string
 	mu         flu.RWMutex
@@ -38,7 +37,7 @@ type Client struct {
 	cancel     func()
 }
 
-func NewClient(httpClient *fluhttp.Client, clock flu.Clock, config *Config, gitCommit string) *Client {
+func NewClient(httpClient *fluhttp.Client, config *Config, gitCommit string) *Client {
 	if httpClient == nil {
 		httpClient = fluhttp.NewClient(nil)
 	}
@@ -52,7 +51,6 @@ func NewClient(httpClient *fluhttp.Client, clock flu.Clock, config *Config, gitC
 		HttpClient: httpClient.
 			AcceptStatus(http.StatusOK).
 			SetHeader("User-Agent", fmt.Sprintf(`hikkabot/%s by /u/%s`, gitCommit, owner)),
-		clock:  clock,
 		config: config,
 	}
 }
@@ -135,7 +133,6 @@ func (c *Client) GetListing(ctx context.Context, subreddit, sort string, limit i
 		} `json:"data"`
 	})
 
-	now := c.clock.Now()
 	if err := c.HttpClient.GET(Host+"/r/"+subreddit+"/"+sort).
 		Auth(c.Auth()).
 		QueryParam("limit", strconv.Itoa(limit)).
@@ -156,7 +153,6 @@ func (c *Client) GetListing(ctx context.Context, subreddit, sort string, limit i
 		}
 		child.Data.SelfTextHTML = html.UnescapeString(child.Data.SelfTextHTML)
 		child.Data.CreatedAt = time.Unix(int64(child.Data.CreatedSecs), 0)
-		child.Data.LastSeen = now
 	}
 
 	return resp.Data.Children, nil
