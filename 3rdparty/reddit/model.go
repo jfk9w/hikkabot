@@ -38,17 +38,17 @@ type ThingData struct {
 	CrosspostParentList []MediaContainer `json:"crosspost_parent_list" gorm:"-"`
 	Permalink           string           `json:"permalink" gorm:"-"`
 	Author              string           `json:"author" gorm:"not null"`
-	LastSeen            time.Time        `json:"-" gorm:"not null"`
 }
 
-func (d *ThingData) PermalinkURL() string {
+func (d ThingData) PermalinkURL() string {
 	return "https://reddit.com" + d.Permalink
 }
 
-func (d *ThingData) TableName() string {
-	return "reddit"
+type Thing struct {
+	Data     ThingData `json:"data" gorm:"embedded"`
+	LastSeen time.Time `json:"-" gorm:"not null"`
 }
 
-type Thing struct {
-	Data *ThingData `json:"data"`
+func (t Thing) TableName() string {
+	return "reddit"
 }

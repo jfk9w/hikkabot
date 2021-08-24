@@ -44,7 +44,7 @@ func (ft FileType) MIMEType() string {
 type File struct {
 	Path         string   `json:"path"`
 	Type         FileType `json:"type"`
-	Size         int      `json:"size"`
+	Size         int64    `json:"size"`
 	DurationSecs *int     `json:"duration_secs"`
 	Width        *int     `json:"width"`
 	Height       *int     `json:"height"`

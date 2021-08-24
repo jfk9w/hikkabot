@@ -46,7 +46,7 @@ func CollectTaggedColumns(entity interface{}, setting string) []string {
 		field := entityType.Field(i)
 		if tag, ok := field.Tag.Lookup("gorm"); ok {
 			tagSettings := schema.ParseTagSetting(tag, ";")
-			if _, ok := tagSettings["embedded"]; ok {
+			if _, ok := tagSettings["EMBEDDED"]; ok {
 				taggedColumns = append(taggedColumns, CollectTaggedColumns(field.Type, setting)...)
 			}
 

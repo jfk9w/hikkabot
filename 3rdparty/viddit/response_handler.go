@@ -4,8 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/jfk9w-go/telegram-bot-api/ext/richtext"
-
+	tghtml "github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"golang.org/x/net/html"
 )
 
@@ -19,9 +18,8 @@ func (h *responseHandler) Handle(resp *http.Response) error {
 	for tokenizer.Next() != html.ErrorToken {
 		token := tokenizer.Token()
 		if token.Type == html.StartTagToken && token.Data == "a" {
-			attrs := richtext.HTMLAttributes(token.Attr)
-			if attrs.Get("id") == "dlbutton" {
-				h.url = attrs.Get("href")
+			if tghtml.Get(token.Attr, "id") == "dlbutton" {
+				h.url = tghtml.Get(token.Attr, "href")
 				return nil
 			}
 		}
