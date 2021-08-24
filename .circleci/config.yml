@@ -2,9 +2,9 @@
 version: 2.1
 jobs:
   build:
-    working_directory: ~/src
+    working_directory: ~/repo
     docker:
-      - image: circleci/golang:1.15.8
+      - image: circleci/golang:1.17
     steps:
       - checkout
       - restore_cache:
