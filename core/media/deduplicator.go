@@ -78,7 +78,7 @@ func hashImage(blob feed.Blob, hash *Hash, readImage readImageFunc) error {
 	}
 
 	hash.Type = "dhash"
-	hash.Value = dhash.ToString()
+	hash.Value = fmt.Sprintf("%x", dhash.GetHash())
 	return nil
 }
 
