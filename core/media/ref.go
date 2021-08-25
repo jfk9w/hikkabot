@@ -27,11 +27,11 @@ func (r *Ref) Labels() metrics.Labels {
 	return r.labels(true)
 }
 
-func (r *Ref) labels(withURL bool) metrics.Labels {
+func (r *Ref) labels(forLog bool) metrics.Labels {
 	labels := metrics.Labels{}.
 		Add("feed", r.FeedID)
 
-	if withURL {
+	if forLog {
 		labels = labels.Add("url", r.URL)
 		if r.ResolvedURL != "" && r.ResolvedURL != r.URL {
 			labels = labels.Add("resolved", r.ResolvedURL)
@@ -40,6 +40,8 @@ func (r *Ref) labels(withURL bool) metrics.Labels {
 
 	if r.Metadata != nil {
 		labels = labels.Add("type", r.MIMEType)
+	} else if !forLog {
+		labels = labels.Add("type", "unknown")
 	}
 
 	return labels
