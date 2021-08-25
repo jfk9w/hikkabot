@@ -1,8 +1,0 @@
-services:
-  - docker
-language: go
-go:
-  - stable
-script:
-  - go test -v ./...
-
