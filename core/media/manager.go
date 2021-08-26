@@ -35,8 +35,7 @@ func (m *Manager) Submit(ref *Ref) media.Ref {
 		}
 
 		defer m.RateLimiter.Complete()
-		media, err := ref.Get(ctx)
-		v.Set(media, err)
+		v.Set(ref.Get(ctx))
 	})
 
 	return v

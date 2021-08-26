@@ -89,7 +89,11 @@ func (c *DefaultControl) NotifyAdmins(ctx context.Context,
 	buffer := receiver.NewBuffer()
 	html := &tghtml.Writer{
 		Context: ctx,
-		Out:     &output.Paged{Receiver: buffer},
+		Out: &output.Paged{
+			Receiver:  buffer,
+			PageCount: 1,
+			PageSize:  500,
+		},
 	}
 
 	if err := writeHTML(html); err != nil {

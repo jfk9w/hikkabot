@@ -192,7 +192,7 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 			Converters: make(map[string]media.Converter),
 			Retries:    3,
 		},
-		RateLimiter: flu.ConcurrencyRateLimiter(5),
+		RateLimiter: flu.ConcurrencyRateLimiter(1),
 	}
 
 	for _, plugin := range app.converterPlugins {

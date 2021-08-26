@@ -2,9 +2,10 @@ package blob
 
 import (
 	"context"
-	"math/rand"
 	"os"
 	"time"
+
+	"github.com/gofrs/uuid"
 
 	"github.com/jfk9w/hikkabot/core/feed"
 
@@ -62,23 +63,9 @@ func (s *FileStorage) Close() error {
 	return nil
 }
 
-var (
-	symbols  = []rune("abcdefghijklmonpqrstuvwxyz0123456789")
-	idLength = 16
-)
-
-func (s *FileStorage) newID() string {
-	id := make([]rune, idLength)
-	for i := 0; i < idLength; i++ {
-		id[i] = symbols[rand.Intn(len(symbols))]
-	}
-
-	return string(id)
-}
-
 func (s *FileStorage) Alloc(now time.Time) (feed.Blob, error) {
 	defer s.mu.Lock().Unlock()
-	file := flu.File(s.Directory + "/" + s.newID())
+	file := flu.File(s.Directory + "/" + uuid.Must(uuid.NewV4()).String())
 	s.files[file] = now
 	return file, nil
 }
