@@ -3,6 +3,7 @@ package thread
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -65,16 +66,22 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 	if err := queue.GetData(ctx, data); err != nil {
 		return
 	}
-
+	log := queue.Log(ctx, data)
 	posts, err := v.DvachClient.GetThread(ctx, data.Board, data.Num, data.Offset)
 	if err != nil {
-		_ = queue.Cancel(ctx, err)
+		if err, ok := err.(*dvach.Error); ok && -err.Code == http.StatusNotFound {
+			_ = queue.Cancel(ctx, err)
+		} else {
+			log.WithField("error", err).
+				Warnf("update: failed (get thread)")
+		}
+
 		return
 	}
 
 	for i := range posts {
 		post := &posts[i]
-		log := queue.Log(ctx, data).WithField("num", post.Num)
+		log := log.WithField("num", post.Num)
 		writeHTML, err := v.processPost(queue.Header, data, log, post)
 		if err != nil {
 			_ = queue.Cancel(ctx, err)

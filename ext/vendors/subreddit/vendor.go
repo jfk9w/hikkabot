@@ -2,6 +2,7 @@ package subreddit
 
 import (
 	"context"
+	"net"
 	"regexp"
 	"sort"
 	"strconv"
@@ -132,7 +133,13 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 
 	things, err := v.getListing(ctx, data.Subreddit, 100)
 	if err != nil {
-		_ = queue.Cancel(ctx, err)
+		if err, ok := err.(net.Error); ok {
+			log.WithField("error", err).
+				Warnf("update: failed (get listing)")
+		} else {
+			_ = queue.Cancel(ctx, err)
+		}
+
 		return
 	}
 

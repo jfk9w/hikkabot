@@ -81,16 +81,18 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		return
 	}
 
+	log := queue.Log(ctx, data)
 	catalog, err := v.DvachClient.GetCatalog(ctx, data.Board)
 	if err != nil {
-		_ = queue.Cancel(ctx, err)
+		log.WithField("error", err.Error()).
+			Warnf("update: failed (get catalog)")
 		return
 	}
 
 	sort.Sort(threadSorter(catalog.Threads))
 	for i := range catalog.Threads {
 		post := &catalog.Threads[i]
-		log := queue.Log(ctx, data).WithField("num", post.Num)
+		log := log.WithField("num", post.Num)
 		writeHTML, err := v.processPost(queue.Header, data, log, post)
 		if err != nil {
 			_ = queue.Cancel(ctx, err)
@@ -105,8 +107,6 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		if err := queue.Proceed(ctx, writeHTML, data); err != nil {
 			return
 		}
-
-		log.Debug("update: ok")
 	}
 }
 
