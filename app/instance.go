@@ -178,6 +178,18 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 		return nil, errors.Wrap(err, "get metrics registry")
 	}
 
+	globalConfig := new(struct {
+		Media struct {
+			Concurrency int
+			Retries     int
+		}
+	})
+
+	if err := app.GetConfig(globalConfig); err != nil {
+		return nil, errors.Wrap(err, "get config")
+	}
+
+	config := globalConfig.Media
 	manager := &media.Manager{
 		Context: &media.Context{
 			Clock:    app.Clock,
@@ -190,9 +202,9 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 			HttpClient: fluhttp.NewClient(nil),
 			SizeBounds: [2]int64{10 << 10, telegram.Video.AttachMaxSize()},
 			Converters: make(map[string]media.Converter),
-			Retries:    3,
+			Retries:    config.Retries,
 		},
-		RateLimiter: flu.ConcurrencyRateLimiter(1),
+		RateLimiter: flu.ConcurrencyRateLimiter(config.Concurrency),
 	}
 
 	for _, plugin := range app.converterPlugins {
@@ -331,16 +343,6 @@ func (app *Instance) Run(ctx context.Context) error {
 func (app *Instance) createAggregator(ctx context.Context,
 	bot *telegram.Bot, accessControl *access.DefaultControl) (*aggregator.Default, error) {
 
-	config := new(struct {
-		Aggregator struct {
-			RefreshEvery flu.Duration
-		}
-	})
-
-	if err := app.GetConfig(config); err != nil {
-		return nil, err
-	}
-
 	storage, err := app.createFeedStorage(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "create feed storage")
@@ -351,6 +353,18 @@ func (app *Instance) createAggregator(ctx context.Context,
 		return nil, errors.Wrap(err, "get metrics registry")
 	}
 
+	globalConfig := new(struct {
+		Aggregator struct {
+			RefreshEvery flu.Duration
+			Preload      int
+		}
+	})
+
+	if err := app.GetConfig(globalConfig); err != nil {
+		return nil, errors.Wrap(err, "get config")
+	}
+
+	config := globalConfig.Aggregator
 	aggregator := &aggregator.Default{
 		Context: &aggregator.Context{
 			Clock:   app.Clock,
@@ -360,8 +374,9 @@ func (app *Instance) createAggregator(ctx context.Context,
 				Registry:      metrics.WithPrefix("event"),
 			},
 			Client:   bot,
-			Interval: config.Aggregator.RefreshEvery.GetOrDefault(time.Minute),
+			Interval: config.RefreshEvery.GetOrDefault(time.Minute),
 			Vendors:  make(map[string]feed.Vendor),
+			Preload:  config.Preload,
 		},
 		Registry: metrics.WithPrefix("aggregator"),
 		Executor: app.createTaskExecutor(ctx),

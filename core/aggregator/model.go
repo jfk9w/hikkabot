@@ -28,5 +28,6 @@ type Context struct {
 	telegram.Client
 
 	Interval time.Duration
+	Preload  int
 	Vendors  map[string]feed.Vendor
 }

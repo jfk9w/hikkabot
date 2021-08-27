@@ -66,7 +66,7 @@ func (t *Task) refresh(ctx context.Context, sub *feed.Subscription) (int, error)
 		return 0, feed.ErrWrongVendor
 	}
 
-	queue := feed.NewQueue(sub.Header, sub.Data, 0)
+	queue := feed.NewQueue(sub.Header, sub.Data, t.Preload)
 	defer new(flu.WaitGroup).Go(ctx, func(ctx context.Context) {
 		defer close(queue.C)
 		vendor.Refresh(ctx, queue)
