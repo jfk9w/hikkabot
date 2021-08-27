@@ -2,6 +2,7 @@ package subreddit
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"regexp"
 	"sort"
@@ -133,9 +134,10 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 
 	things, err := v.getListing(ctx, data.Subreddit, 100)
 	if err != nil {
-		if err, ok := err.(net.Error); ok {
-			log.WithField("error", err).
-				Warnf("update: failed (get listing)")
+		if _, ok := err.(net.Error); ok {
+			log.Warnf("update: failed (network error)")
+		} else if _, ok := err.(*json.SyntaxError); ok {
+			log.Warnf("update: failed (json error)")
 		} else {
 			_ = queue.Cancel(ctx, err)
 		}

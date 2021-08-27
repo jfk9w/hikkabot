@@ -84,8 +84,7 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 	log := queue.Log(ctx, data)
 	catalog, err := v.DvachClient.GetCatalog(ctx, data.Board)
 	if err != nil {
-		log.WithField("error", err.Error()).
-			Warnf("update: failed (get catalog)")
+		log.Warnf("update: failed")
 		return
 	}
 
