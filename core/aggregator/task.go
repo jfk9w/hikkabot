@@ -4,13 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/jfk9w-go/telegram-bot-api/ext/output"
-	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
-
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	tghtml "github.com/jfk9w-go/telegram-bot-api/ext/html"
+	"github.com/jfk9w-go/telegram-bot-api/ext/output"
+	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -32,13 +31,13 @@ func (t *Task) Execute(ctx context.Context) error {
 
 		log := logrus.WithFields(sub.Labels().Map())
 		if updates, err := t.refresh(ctx, sub); err != nil {
-			if isContextRelated(err) {
+			if flu.IsContextRelated(err) {
 				return err
 			}
 
 			sub.Error = null.StringFrom(err.Error())
 			if err := t.Storage.Update(ctx, t.Now(), sub.Header, err); err != nil {
-				if isContextRelated(err) {
+				if flu.IsContextRelated(err) {
 					return err
 				}
 				log.Warnf("update in storage: %s", err)
@@ -67,7 +66,7 @@ func (t *Task) refresh(ctx context.Context, sub *feed.Subscription) (int, error)
 		return 0, feed.ErrWrongVendor
 	}
 
-	queue := feed.NewQueue(sub.Header, sub.Data, 5)
+	queue := feed.NewQueue(sub.Header, sub.Data, 0)
 	defer new(flu.WaitGroup).Go(ctx, func(ctx context.Context) {
 		defer close(queue.C)
 		vendor.Refresh(ctx, queue)
@@ -121,8 +120,4 @@ func (t *Task) createHTMLWriter(ctx context.Context) *tghtml.Writer {
 			PageSize: tghtml.DefaultMaxMessageSize * 9 / 10,
 		},
 	}
-}
-
-func isContextRelated(err error) bool {
-	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 }

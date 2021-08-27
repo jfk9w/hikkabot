@@ -90,5 +90,7 @@ func (s *FileStorage) RemoveStaleFiles(now time.Time) {
 		}
 	}
 
-	logrus.Infof("removed %d stale files", count)
+	if count > 0 {
+		logrus.Infof("removed %d stale files", count)
+	}
 }

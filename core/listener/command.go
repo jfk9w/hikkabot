@@ -121,7 +121,7 @@ func (l *Command) Delete(ctx context.Context, client telegram.Client, cmd telegr
 }
 
 func (l *Command) Clear(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
-	if len(cmd.Args) != 2 {
+	if len(cmd.Args) < 1 {
 		return ErrClearUsage
 	}
 

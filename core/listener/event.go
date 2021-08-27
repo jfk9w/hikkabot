@@ -69,9 +69,7 @@ func (l *Event) OnClear(ctx context.Context, client telegram.Client, feedID tele
 			Text(" 🗑 (" + pattern + ")")
 	}
 
-	l.Counter("clear", make(metrics.Labels, 1).
-		Add("feed", feedID)).
-		Add(float64(deleted))
+	l.Counter("clear", (&feed.Header{FeedID: feedID}).Labels()).Inc()
 	return l.notify(ctx, client, feedID, nil, html)
 }
 

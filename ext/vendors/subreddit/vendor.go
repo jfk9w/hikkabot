@@ -152,7 +152,8 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 
 	percentile := -1
 	dirty := true
-	for _, thing := range things {
+	for i := range things {
+		thing := &things[i]
 		writeHTML, err := v.processThing(ctx, queue.Header, data, log, &percentile, &thing.Data)
 		if err != nil {
 			_ = queue.Cancel(ctx, err)
@@ -170,6 +171,11 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 				if err != nil {
 					_ = queue.Cancel(ctx, errors.Wrap(err, "get fresh things"))
 					return
+				}
+
+				staleIDs := len(data.SentIDs) - len(freshIDs)
+				if staleIDs > 0 {
+					log.Infof("removed %d stale things from data", staleIDs)
 				}
 
 				data.SentIDs = freshIDs
@@ -313,7 +319,10 @@ func (v *Vendor) deleteStaleThings(ctx context.Context, now time.Time) error {
 		return err
 	}
 
-	logrus.Infof("deleted %d stale things", rowsAffected)
+	if rowsAffected > 0 {
+		logrus.Infof("deleted %d stale things", rowsAffected)
+	}
+
 	return nil
 }
 

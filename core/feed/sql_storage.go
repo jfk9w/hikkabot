@@ -81,8 +81,7 @@ func (s *SQLStorage) List(ctx context.Context, feedID telegram.ID, active bool) 
 
 func (s *SQLStorage) DeleteAll(ctx context.Context, feedID telegram.ID, errorLike string) (int64, error) {
 	tx := s.Unmask().WithContext(ctx).
-		Where("feed_id = ? and error like ?", feedID, errorLike).
-		Delete(new(Subscription))
+		Delete(new(Subscription), "feed_id = ? and error like ?", feedID, errorLike)
 	return tx.RowsAffected, tx.Error
 }
 
