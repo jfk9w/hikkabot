@@ -22,10 +22,10 @@ func TestSQLStorage_Things(t *testing.T) {
 	storage := (*subreddit.SQLStorage)(db.DB)
 	assert.Nil(t, storage.Init(ctx))
 
-	now, err := time.ParseInLocation(time.RFC3339, "2021-07-28T03:00:00+03:00", time.Local)
+	now, err := time.Parse(time.RFC3339, "2021-07-28T03:00:00+03:00")
 	assert.Nil(t, err)
 
-	things := []reddit.Thing{{
+	assert.Nil(t, storage.SaveThings(ctx, []reddit.Thing{{
 		Data: reddit.ThingData{
 			ID:        1,
 			CreatedAt: now,
@@ -35,49 +35,69 @@ func TestSQLStorage_Things(t *testing.T) {
 			Author:    "test",
 		},
 		LastSeen: now,
-	}}
+	}}))
 
-	assert.Nil(t, storage.SaveThings(ctx, things))
-
-	newThing := new(reddit.Thing)
+	thing := new(reddit.Thing)
 	err = storage.Unmask().WithContext(ctx).
-		First(newThing).
+		First(thing).
 		Error
 	assert.Nil(t, err)
-	assert.Equal(t, &things[0], newThing)
+	assert.Equal(t, uint64(1), thing.Data.ID)
+	assert.Equal(t, 10, thing.Data.Ups)
+	assert.Equal(t, now.UnixMilli(), thing.Data.CreatedAt.UnixMilli())
+	assert.Equal(t, now.UnixMilli(), thing.LastSeen.UnixMilli())
 
 	now = now.Add(time.Hour)
-	things[0].LastSeen = now
-	things[0].Data.Ups = 15
-	assert.Nil(t, storage.SaveThings(ctx, things))
+	assert.Nil(t, storage.SaveThings(ctx, []reddit.Thing{{
+		Data: reddit.ThingData{
+			ID:        1,
+			CreatedAt: now.Add(-time.Hour),
+			Subreddit: "test",
+			Domain:    "test.com",
+			Ups:       15,
+			Author:    "test",
+		},
+		LastSeen: now,
+	}}))
 
-	newThing = new(reddit.Thing)
+	thing = new(reddit.Thing)
 	err = storage.Unmask().WithContext(ctx).
-		First(newThing).
+		First(thing).
 		Error
 	assert.Nil(t, err)
-	assert.Equal(t, &things[0], newThing)
+	assert.Equal(t, 15, thing.Data.Ups)
+	assert.Equal(t, now.Add(-time.Hour).UnixMilli(), thing.Data.CreatedAt.UnixMilli())
+	assert.Equal(t, now.UnixMilli(), thing.LastSeen.UnixMilli())
 
 	now = now.Add(time.Hour)
-	things = append(things, things[0])
-	things[1].Data.ID = 2
-	things[1].Data.CreatedAt = now
-	things[1].Data.Ups = 30
-	things[1].LastSeen = now
-	assert.Nil(t, storage.SaveThings(ctx, things))
+	assert.Nil(t, storage.SaveThings(ctx, []reddit.Thing{
+		{
+			Data: reddit.ThingData{
+				ID:        1,
+				CreatedAt: now.Add(-2 * time.Hour),
+				Subreddit: "test",
+				Domain:    "test.com",
+				Ups:       15,
+				Author:    "test",
+			},
+			LastSeen: now,
+		},
+		{
+			Data: reddit.ThingData{
+				ID:        2,
+				CreatedAt: now,
+				Subreddit: "test",
+				Domain:    "test.com",
+				Ups:       30,
+				Author:    "test",
+			},
+		},
+	}))
 
-	newThings := make([]reddit.Thing, 0)
-	err = storage.Unmask().WithContext(ctx).
-		Order("id asc").
-		Find(&newThings).
-		Error
-	assert.Nil(t, err)
-	assert.Equal(t, things, newThings)
-
-	percentile, err := storage.GetPercentile(ctx, things[0].Data.Subreddit, 0.51)
+	percentile, err := storage.GetPercentile(ctx, "test", 0.51)
 	assert.Nil(t, err)
 	assert.Equal(t, 15, percentile)
-	percentile, err = storage.GetPercentile(ctx, things[0].Data.Subreddit, 0.5)
+	percentile, err = storage.GetPercentile(ctx, "test", 0.5)
 	assert.Nil(t, err)
 	assert.Equal(t, 30, percentile)
 
@@ -85,19 +105,20 @@ func TestSQLStorage_Things(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, int64(1), deleted)
 
+	var count int64
 	err = storage.Unmask().WithContext(ctx).
-		Order("id asc").
-		Find(&things).
+		Find(new(reddit.Thing)).
+		Count(&count).
 		Error
 	assert.Nil(t, err)
-	assert.Equal(t, things[:1], things)
+	assert.Equal(t, int64(1), count)
 
 	sentIDs := make(util.Uint64Set)
-	sentIDs.Add(newThing.Data.ID)
-	sentIDs.Add(things[0].Data.ID)
-	freshSentIDs, err := storage.GetFreshThingIDs(ctx, things[0].Data.Subreddit, sentIDs)
+	sentIDs.Add(1)
+	sentIDs.Add(2)
+	freshSentIDs, err := storage.GetFreshThingIDs(ctx, "test", sentIDs)
 	assert.Nil(t, err)
-	assert.Equal(t, []uint64{things[0].Data.ID}, freshSentIDs.Slice())
+	assert.Equal(t, []uint64{1}, freshSentIDs.Slice())
 }
 
 func getContext() (context.Context, func()) {
