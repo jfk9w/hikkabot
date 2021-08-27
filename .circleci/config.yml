@@ -4,9 +4,13 @@ jobs:
   build:
     working_directory: ~/repo
     docker:
-      - image: circleci/golang:1.17
+      - image: docker:19.03.15
     steps:
       - checkout
+      - setup_remote_docker
+      - run:
+          name: Install dependencies
+          command: snap install --classic go
       - restore_cache:
           keys:
             - go-mod-v4-{{ checksum "go.sum" }}
