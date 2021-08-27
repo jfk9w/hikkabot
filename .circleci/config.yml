@@ -10,7 +10,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Install dependencies
-          command: snap install --classic go
+          command: wget -c https://golang.org/dl/go1.17.linux-amd64.tar.gz -O - | tar -xz -C /usr/local && ln -s /usr/local/go/bin/go /usr/bin/go
       - restore_cache:
           keys:
             - go-mod-v4-{{ checksum "go.sum" }}
