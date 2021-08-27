@@ -48,10 +48,6 @@ func TestSQLHashStorage(t *testing.T) {
 	assert.Equal(t, int64(0), hash.Collisions)
 
 	now = now.Add(time.Hour)
-	hash.FirstSeen = now
-	hash.LastSeen = now
-	hash.URL = "https://google.com"
-
 	ok, err = storage.Check(ctx, &media.Hash{
 		FeedID:    456,
 		URL:       "https://google.com",
