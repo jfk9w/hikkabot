@@ -22,7 +22,7 @@ func TestSQLStorage_Things(t *testing.T) {
 	storage := (*subreddit.SQLStorage)(db.DB)
 	assert.Nil(t, storage.Init(ctx))
 
-	now, err := time.Parse(time.RFC3339, "2021-07-28T03:00:00+03:00")
+	now, err := time.ParseInLocation(time.RFC3339, "2021-07-28T03:00:00+03:00", time.Local)
 	assert.Nil(t, err)
 
 	things := []reddit.Thing{{

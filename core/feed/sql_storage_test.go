@@ -27,7 +27,7 @@ func TestSQLStorage(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Empty(t, activeSubIDs)
 
-	now, err := time.Parse(time.RFC3339, "2021-07-28T03:00:00+03:00")
+	now, err := time.ParseInLocation(time.RFC3339, "2021-07-28T03:00:00+03:00", time.Local)
 	assert.Nil(t, err)
 
 	sub := &feed.Subscription{
