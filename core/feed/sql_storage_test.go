@@ -27,32 +27,34 @@ func TestSQLStorage(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Empty(t, activeSubIDs)
 
-	now, err := time.ParseInLocation(time.RFC3339, "2021-07-28T03:00:00+03:00", time.Local)
+	now, err := time.Parse(time.RFC3339, "2021-07-28T03:00:00+03:00")
 	assert.Nil(t, err)
 
-	sub := &feed.Subscription{
-		Header: &feed.Header{
-			SubID:  "123",
-			Vendor: "test",
-			FeedID: 456,
-		},
-		Name: "test subscription",
-		Data: gormutil.JSONB("{}"),
+	header := &feed.Header{
+		SubID:  "123",
+		Vendor: "test",
+		FeedID: 456,
 	}
 
-	subs, err := storage.List(ctx, sub.Header.FeedID, true)
+	sub := &feed.Subscription{
+		Header: header,
+		Name:   "test subscription",
+		Data:   gormutil.JSONB("{}"),
+	}
+
+	subs, err := storage.List(ctx, header.FeedID, true)
 	assert.Nil(t, err)
 	assert.Empty(t, subs)
 
-	subs, err = storage.List(ctx, sub.Header.FeedID, false)
+	subs, err = storage.List(ctx, header.FeedID, false)
 	assert.Nil(t, err)
 	assert.Empty(t, subs)
 
-	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, sub.Header, nil))
-	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, sub.Header, errors.New("test error")))
-	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, sub.Header, sub.Data))
+	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, nil))
+	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, errors.New("test error")))
+	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, gormutil.JSONB("{}")))
 
-	_, err = storage.Shift(ctx, sub.Header.FeedID)
+	_, err = storage.Shift(ctx, header.FeedID)
 	assert.Equal(t, feed.ErrNotFound, err)
 
 	assert.Nil(t, storage.Create(ctx, sub))
@@ -60,77 +62,90 @@ func TestSQLStorage(t *testing.T) {
 
 	activeSubIDs, err = storage.Active(ctx)
 	assert.Nil(t, err)
-	assert.Equal(t, []telegram.ID{sub.Header.FeedID}, activeSubIDs)
+	assert.Equal(t, []telegram.ID{header.FeedID}, activeSubIDs)
 
-	subs, err = storage.List(ctx, sub.Header.FeedID, true)
+	subs, err = storage.List(ctx, header.FeedID, true)
 	assert.Nil(t, err)
-	assert.Equal(t, []feed.Subscription{*sub}, subs)
+	assert.Equal(t, 1, len(subs))
+	assert.Equal(t, header, subs[0].Header)
+	assert.Equal(t, "test subscription", subs[0].Name)
+	assert.Equal(t, gormutil.JSONB("{}"), subs[0].Data)
+	assert.Equal(t, (*time.Time)(nil), subs[0].UpdatedAt)
+	assert.Equal(t, null.NewString("", false), subs[0].Error)
 
-	subs, err = storage.List(ctx, sub.Header.FeedID, false)
+	subs, err = storage.List(ctx, header.FeedID, false)
 	assert.Nil(t, err)
 	assert.Empty(t, subs)
 
-	newSub, err := storage.Get(ctx, sub.Header)
+	sub, err = storage.Get(ctx, header)
 	assert.Nil(t, err)
-	assert.Equal(t, sub, newSub)
+	assert.Equal(t, header, sub.Header)
+	assert.Equal(t, "test subscription", sub.Name)
+	assert.Equal(t, gormutil.JSONB("{}"), sub.Data)
+	assert.Equal(t, (*time.Time)(nil), sub.UpdatedAt)
+	assert.Equal(t, null.NewString("", false), sub.Error)
 
-	newSub, err = storage.Shift(ctx, sub.Header.FeedID)
+	sub, err = storage.Shift(ctx, header.FeedID)
 	assert.Nil(t, err)
-	assert.Equal(t, sub, newSub)
+	assert.Equal(t, header, sub.Header)
 
-	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, sub.Header, nil))
+	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, nil))
 
-	sub.Error = null.StringFrom("test error")
-	sub.UpdatedAt = &now
-	assert.Nil(t, storage.Update(ctx, now, sub.Header, errors.New(sub.Error.String)))
+	assert.Nil(t, storage.Update(ctx, now, header, errors.New("lol error")))
 
 	activeSubIDs, err = storage.Active(ctx)
 	assert.Nil(t, err)
 	assert.Empty(t, activeSubIDs)
 
-	subs, err = storage.List(ctx, sub.Header.FeedID, false)
+	subs, err = storage.List(ctx, header.FeedID, false)
 	assert.Nil(t, err)
-	assert.Equal(t, []feed.Subscription{*sub}, subs)
+	assert.Equal(t, 1, len(subs))
+	assert.Equal(t, header, subs[0].Header)
+	assert.Equal(t, now.UnixMilli(), subs[0].UpdatedAt.UnixMilli())
+	assert.Equal(t, null.StringFrom("lol error"), subs[0].Error)
 
-	newSub, err = storage.Get(ctx, sub.Header)
+	sub, err = storage.Get(ctx, header)
 	assert.Nil(t, err)
-	assert.Equal(t, sub, newSub)
+	assert.Equal(t, header, sub.Header)
+	assert.Equal(t, null.StringFrom("lol error"), sub.Error)
 
-	_, err = storage.Shift(ctx, sub.Header.FeedID)
+	_, err = storage.Shift(ctx, header.FeedID)
 	assert.Equal(t, feed.ErrNotFound, err)
 
-	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, sub.Header, errors.New("test error")))
-	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, sub.Header, gormutil.JSONB(`{"x": "1"}`)))
+	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, errors.New("test error")))
+	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, gormutil.JSONB(`{"x": "1"}`)))
 
 	now = now.Add(time.Hour)
 	sub.UpdatedAt = &now
 	sub.Error = null.NewString("", false)
-	assert.Nil(t, storage.Update(ctx, now, sub.Header, nil))
+	assert.Nil(t, storage.Update(ctx, now, header, nil))
 
 	activeSubIDs, err = storage.Active(ctx)
 	assert.Nil(t, err)
-	assert.Equal(t, []telegram.ID{sub.Header.FeedID}, activeSubIDs)
+	assert.Equal(t, []telegram.ID{header.FeedID}, activeSubIDs)
 
-	subs, err = storage.List(ctx, sub.Header.FeedID, true)
+	subs, err = storage.List(ctx, header.FeedID, true)
 	assert.Nil(t, err)
-	assert.Equal(t, []feed.Subscription{*sub}, subs)
+	assert.Equal(t, 1, len(subs))
+	assert.Equal(t, header, subs[0].Header)
+	assert.Equal(t, null.NewString("", false), subs[0].Error)
 
-	newSub, err = storage.Get(ctx, sub.Header)
+	sub, err = storage.Get(ctx, header)
 	assert.Nil(t, err)
-	assert.Equal(t, sub, newSub)
+	assert.Equal(t, null.NewString("", false), sub.Error)
 
-	newSub, err = storage.Shift(ctx, sub.Header.FeedID)
+	sub, err = storage.Shift(ctx, header.FeedID)
 	assert.Nil(t, err)
-	assert.Equal(t, sub, newSub)
+	assert.Equal(t, header, sub.Header)
 
 	now = now.Add(time.Hour)
 	sub.UpdatedAt = &now
-	sub.Data = gormutil.JSONB(`{"x": "1"}`)
-	assert.Equal(t, nil, storage.Update(ctx, now, sub.Header, sub.Data))
+	assert.Equal(t, nil, storage.Update(ctx, now, header, gormutil.JSONB(`{"x": "1"}`)))
 
-	newSub, err = storage.Get(ctx, sub.Header)
+	sub, err = storage.Get(ctx, header)
 	assert.Nil(t, err)
-	assert.Equal(t, sub, newSub)
+	assert.Equal(t, gormutil.JSONB(`{"x": "1"}`), sub.Data)
+	assert.Equal(t, now.UnixMilli(), sub.UpdatedAt.UnixMilli())
 
 	assert.Nil(t, storage.Delete(ctx, sub.Header))
 
