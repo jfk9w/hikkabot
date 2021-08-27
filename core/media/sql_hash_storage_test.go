@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	telegram "github.com/jfk9w-go/telegram-bot-api"
 	media "github.com/jfk9w/hikkabot/core/media"
 	gormutil "github.com/jfk9w/hikkabot/util/gorm"
 	"github.com/stretchr/testify/assert"
@@ -20,45 +21,57 @@ func TestSQLHashStorage(t *testing.T) {
 	storage := (*media.SQLHashStorage)(db.DB)
 	assert.Nil(t, storage.Init(ctx))
 
-	now, err := time.ParseInLocation(time.RFC3339, "2021-07-28T03:00:00+03:00", time.Local)
+	now, err := time.Parse(time.RFC3339, "2021-07-28T03:00:00+03:00")
 	assert.Nil(t, err)
 
-	hash := &media.Hash{
+	ok, err := storage.Check(ctx, &media.Hash{
 		FeedID:    456,
 		URL:       "https://reddit.com",
 		Type:      "md5",
 		Value:     "123",
 		FirstSeen: now,
 		LastSeen:  now,
-	}
+	})
 
-	ok, err := storage.Check(ctx, hash)
 	assert.Nil(t, nil)
 	assert.True(t, ok)
 
-	newHash := new(media.Hash)
+	hash := new(media.Hash)
 	err = storage.Unmask().WithContext(ctx).
-		First(newHash).
+		First(hash).
 		Error
 	assert.Nil(t, err)
-	assert.Equal(t, hash, newHash)
+	assert.Equal(t, telegram.ID(456), hash.FeedID)
+	assert.Equal(t, "https://reddit.com", hash.URL)
+	assert.Equal(t, "md5", hash.Type)
+	assert.Equal(t, "123", hash.Value)
+	assert.Equal(t, int64(0), hash.Collisions)
 
 	now = now.Add(time.Hour)
 	hash.FirstSeen = now
 	hash.LastSeen = now
 	hash.URL = "https://google.com"
 
-	ok, err = storage.Check(ctx, hash)
+	ok, err = storage.Check(ctx, &media.Hash{
+		FeedID:    456,
+		URL:       "https://google.com",
+		Type:      "md5",
+		Value:     "123",
+		FirstSeen: now,
+		LastSeen:  now,
+	})
+
 	assert.Nil(t, err)
 	assert.False(t, ok)
 
 	err = storage.Unmask().WithContext(ctx).
-		First(newHash).
+		First(hash).
 		Error
-	hash.FirstSeen = now.Add(-time.Hour)
-	hash.Collisions = 1
 	assert.Nil(t, err)
-	assert.Equal(t, hash, newHash)
+	assert.Equal(t, "https://google.com", hash.URL)
+	assert.Equal(t, now.Add(-time.Hour).UnixMilli(), hash.FirstSeen.UnixMilli())
+	assert.Equal(t, now.UnixMilli(), hash.LastSeen.UnixMilli())
+	assert.Equal(t, int64(1), hash.Collisions)
 }
 
 func getContext() (context.Context, func()) {
