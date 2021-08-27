@@ -25,7 +25,7 @@ func NewTestDatabase(t *testing.T) *TestDatabase {
 	}
 
 	var db *gorm.DB
-	dsn := fmt.Sprintf("postgresql://postgres:pwd@localhost:%s/postgres", container.GetPort("5432/tcp"))
+	dsn := fmt.Sprintf("postgresql://postgres:pwd@%s/postgres", container.GetHostPort("5432/tcp"))
 	if err := pool.Retry(func() error {
 		db, err = NewPostgres(dsn)
 		return err
