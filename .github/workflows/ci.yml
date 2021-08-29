@@ -54,11 +54,9 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: install go
-        uses: actions/setup-go@v2
       - name: lint
         uses: golangci/golangci-lint-action@v2
         with:
-          skip-go-installation: true
+          go-version: ${{ matrix.go-version }}
           skip-pkg-cache: true
           skip-build-cache: true
