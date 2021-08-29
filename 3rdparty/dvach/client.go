@@ -27,12 +27,12 @@ func (r *response) DecodeFrom(body io.Reader) (err error) {
 		return errors.Wrap(err, "read body")
 	}
 	bufr := bytes.NewReader(buf)
-	if err = flu.DecodeFrom(flu.IO{R: bufr}, flu.JSON{r.value}); err == nil {
+	if err = flu.DecodeFrom(flu.IO{R: bufr}, flu.JSON{Value: r.value}); err == nil {
 		return
 	}
 	err = new(Error)
 	bufr.Reset(buf)
-	if flu.DecodeFrom(flu.IO{R: bufr}, flu.JSON{err}) != nil {
+	if flu.DecodeFrom(flu.IO{R: bufr}, flu.JSON{Value: err}) != nil {
 		err = errors.Errorf("failed to decode response: %s", string(buf))
 	}
 	return
@@ -128,9 +128,7 @@ func (c *Client) GetBoards(ctx context.Context) ([]Board, error) {
 	}
 	boards := make([]Board, 0)
 	for _, boardMapValue := range boardMap {
-		for _, board := range boardMapValue {
-			boards = append(boards, board)
-		}
+		boards = append(boards, boardMapValue...)
 	}
 	return boards, nil
 }

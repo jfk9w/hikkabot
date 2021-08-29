@@ -18,10 +18,14 @@ func main() {
 	defer cancel()
 
 	app, err := app.Create(GitCommit, flu.DefaultClock, flu.File(os.Args[1]))
-	check(err)
-	defer app.Close()
+	if err != nil {
+		logrus.Fatalf("initialize app: %s", err)
+	}
+	defer flu.CloseQuietly(app)
 
-	check(app.ConfigureLogging())
+	if err := app.ConfigureLogging(); err != nil {
+		logrus.Fatalf("configure logging: %s", err)
+	}
 	defer func() {
 		if e := recover(); e != nil {
 			logrus.Panic(e)
@@ -36,14 +40,9 @@ func main() {
 		(*plugin.DvachThread)(dvach),
 	)
 
-	check(app.Run(ctx))
-	flu.AwaitSignal()
-}
-
-func check(err error) error {
-	if err != nil {
-		logrus.Panic(err)
+	if err := app.Run(ctx); err != nil {
+		logrus.Fatalf("run app: %s", err)
 	}
 
-	return err
+	flu.AwaitSignal()
 }

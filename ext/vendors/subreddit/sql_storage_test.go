@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jfk9w-go/flu"
+
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/ext/vendors/subreddit"
 	"github.com/jfk9w/hikkabot/util"
@@ -17,7 +19,7 @@ func TestSQLStorage_Things(t *testing.T) {
 	defer cancel()
 
 	db := gormutil.NewTestDatabase(t)
-	defer db.Close()
+	defer flu.CloseQuietly(db)
 
 	storage := (*subreddit.SQLStorage)(db.DB)
 	assert.Nil(t, storage.Init(ctx))

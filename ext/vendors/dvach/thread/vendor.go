@@ -136,12 +136,6 @@ func (v *Vendor) getPost(ctx context.Context, board string, num int) (dvach.Post
 	return v.DvachClient.GetPost(ctx, board, num)
 }
 
-func (v *Vendor) getThread(ctx context.Context, board string, num int, offset int) ([]dvach.Post, error) {
-	ctx, cancel := context.WithTimeout(ctx, v.GetTimeout)
-	defer cancel()
-	return v.DvachClient.GetThread(ctx, board, num, offset)
-}
-
 func writePost(html *html.Writer, post *dvach.Post, tag string) {
 	if tag == "" {
 		tag = vendors.Hashtag(post.Subject)

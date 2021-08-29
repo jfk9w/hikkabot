@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jfk9w-go/flu"
+
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	feed "github.com/jfk9w/hikkabot/core/feed"
 	gormutil "github.com/jfk9w/hikkabot/util/gorm"
@@ -18,7 +20,7 @@ func TestSQLStorage(t *testing.T) {
 	defer cancel()
 
 	db := gormutil.NewTestDatabase(t)
-	defer db.Close()
+	defer flu.CloseQuietly(db)
 
 	storage := (*feed.SQLStorage)(db.DB)
 	assert.Nil(t, storage.Init(ctx))

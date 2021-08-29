@@ -283,8 +283,6 @@ func (v *Vendor) createMediaRef(header *feed.Header, thing *reddit.ThingData, me
 		} else {
 			ref.Resolver = new(resolvers.Imgur)
 		}
-	case "youtube.com", "www.youtube.com", "youtu.be":
-		ref.Resolver = (*resolvers.YouTube)(ref)
 	case "preview.redd.it":
 		ref.Resolver = media.PlainResolver{HttpClient: v.RedditClient.HttpClient}
 	case "v.redd.it":

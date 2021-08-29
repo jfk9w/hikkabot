@@ -4,8 +4,8 @@ require (
 	github.com/corona10/goimagehash v1.0.3
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/jackc/pgx/v4 v4.13.0 // indirect
-	github.com/jfk9w-go/aconvert-api v0.9.12
-	github.com/jfk9w-go/flu v0.9.25
+	github.com/jfk9w-go/aconvert-api v0.9.13
+	github.com/jfk9w-go/flu v0.9.26
 	github.com/jfk9w-go/telegram-bot-api v0.9.16
 	github.com/lib/pq v1.10.2
 	github.com/ory/dockertest v3.3.5+incompatible
@@ -20,7 +20,7 @@ require (
 	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
 	gopkg.in/guregu/null.v3 v3.5.0
 	gorm.io/driver/postgres v1.1.0
-	gorm.io/gorm v1.21.13
+	gorm.io/gorm v1.21.14
 )
 
 require (

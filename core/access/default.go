@@ -107,7 +107,7 @@ func (c *DefaultControl) NotifyAdmins(ctx context.Context,
 	lastIdx := len(buffer.Pages) - 1
 	userIDs := make([]telegram.ChatID, len(c.userIDs))
 	i := 0
-	for userID, _ := range c.userIDs {
+	for userID := range c.userIDs {
 		userIDs[i] = userID
 		i++
 	}

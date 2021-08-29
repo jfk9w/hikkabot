@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jfk9w-go/flu"
+
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	media "github.com/jfk9w/hikkabot/core/media"
 	gormutil "github.com/jfk9w/hikkabot/util/gorm"
@@ -16,7 +18,7 @@ func TestSQLHashStorage(t *testing.T) {
 	defer cancel()
 
 	db := gormutil.NewTestDatabase(t)
-	defer db.Close()
+	defer flu.CloseQuietly(db)
 
 	storage := (*media.SQLHashStorage)(db.DB)
 	assert.Nil(t, storage.Init(ctx))
@@ -33,7 +35,7 @@ func TestSQLHashStorage(t *testing.T) {
 		LastSeen:  now,
 	})
 
-	assert.Nil(t, nil)
+	assert.Nil(t, err)
 	assert.True(t, ok)
 
 	hash := new(media.Hash)
