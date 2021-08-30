@@ -140,7 +140,7 @@ func (v *Vendor) processPost(
 		if len(data.Auto) != 0 {
 			if out, ok := html.Out.(*output.Paged); ok {
 				if chat, ok := out.Receiver.(*receiver.Chat); ok {
-					button := telegram.Command{Key: "/sub " + post.URL(), Args: data.Auto}.Button("")
+					button := (&telegram.Command{Key: "/sub " + post.URL(), Args: data.Auto}).Button("")
 					button[0] = button[2]
 					chat.ReplyMarkup = telegram.InlineKeyboard([]telegram.Button{button})
 				}

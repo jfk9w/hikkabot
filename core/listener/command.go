@@ -42,7 +42,7 @@ type Command struct {
 	AccessControl
 	Aggregator Aggregator
 	Aliases    map[string]telegram.ID
-	GitCommit  string
+	Version    string
 }
 
 func (l *Command) OnCommand(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
@@ -160,7 +160,9 @@ func (l *Command) List(ctx context.Context, client telegram.Client, cmd telegram
 	// by row
 	keyboard := make([][]telegram.Button, len(subs))
 	for i, sub := range subs {
-		keyboard[i] = []telegram.Button{telegram.Command{Key: changeCmd, Args: []string{sub.Header.String()}}.Button(sub.Name)}
+		keyboard[i] = []telegram.Button{
+			(&telegram.Command{Key: changeCmd, Args: []string{sub.Header.String()}}).Button(sub.Name),
+		}
 	}
 
 	chatLink, err := l.GetChatLink(ctx, client, feedID)
@@ -190,10 +192,10 @@ func (l *Command) Status(ctx context.Context, client telegram.Client, cmd telegr
 		"Message ID: %s\n"+
 		"Username: %s\n"+
 		"Datetime: %s\n"+
-		"Commit: %s\n",
+		"Version: %s\n",
 		cmd.User.ID, cmd.Chat.ID, cmd.Message.ID,
 		client.Username(), time.Now().Format("2006-01-02 15:04:05"),
-		l.GitCommit))
+		l.Version))
 }
 
 func (l *Command) parseHeader(ctx context.Context,

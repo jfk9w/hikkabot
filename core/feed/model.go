@@ -5,11 +5,12 @@ import (
 	"strings"
 	"time"
 
+	gormutil "github.com/jfk9w-go/flu/gorm"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
-	gormutil "github.com/jfk9w/hikkabot/util/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	null "gopkg.in/guregu/null.v3"

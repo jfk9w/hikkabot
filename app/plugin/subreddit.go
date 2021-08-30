@@ -74,7 +74,7 @@ func (p subreddit) CreateVendor(ctx context.Context, app *app.Instance) (feed.Ve
 	}
 
 	vendor := &Vendor{
-		Clock:          app.Clock,
+		Clock:          app,
 		Storage:        storage,
 		CleanDataEvery: config.Data.CleanEvery.GetOrDefault(30 * time.Minute),
 		FreshThingTTL:  config.Storage.FreshTTL.GetOrDefault(7 * 24 * time.Hour),
@@ -122,7 +122,7 @@ func (p subreddit) createRedditClient(ctx context.Context, app *app.Instance,
 	pluginConfig *SubredditConfig) (*reddit.Client, error) {
 
 	config := pluginConfig.Client
-	client := reddit.NewClient(nil, config.Config, app.GitCommit)
+	client := reddit.NewClient(nil, config.Config, app.GetVersion())
 	if err := client.RefreshInBackground(ctx, config.RefreshEvery.GetOrDefault(59*time.Minute)); err != nil {
 		return nil, errors.Wrap(err, "refresh reddit client")
 	}

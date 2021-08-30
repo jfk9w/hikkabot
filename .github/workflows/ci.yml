@@ -27,7 +27,7 @@ jobs:
         run: go install golang.org/x/tools/cmd/cover@latest
       - name: test
         run: |
-          go test -coverprofile=coverage-report ./...
+          go test -coverprofile=coverage-report -v ./...
           go tool cover -html=coverage-report -o coverage-report.html
       - name: upload coverage report artifact
         uses: actions/upload-artifact@v2

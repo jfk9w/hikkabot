@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	gormutil "github.com/jfk9w-go/flu/gorm"
+
 	"github.com/jfk9w-go/flu"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	media "github.com/jfk9w/hikkabot/core/media"
-	gormutil "github.com/jfk9w/hikkabot/util/gorm"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +18,7 @@ func TestSQLHashStorage(t *testing.T) {
 	ctx, cancel := getContext()
 	defer cancel()
 
-	db := gormutil.NewTestDatabase(t)
+	db := gormutil.NewTestPostgres(t)
 	defer flu.CloseQuietly(db)
 
 	storage := (*media.SQLHashStorage)(db.DB)

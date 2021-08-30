@@ -20,7 +20,7 @@ func (d *downloader) DownloadMetadata(ctx context.Context, url string) (*Metadat
 	metadata := new(Metadata)
 	return metadata, backoff.Retry{
 		Retries: d.retries,
-		Backoff: backoff.Constant(time.Second),
+		Backoff: backoff.Const(time.Second),
 		Body: func(ctx context.Context) error {
 			return d.HEAD(url).
 				Context(ctx).
@@ -35,7 +35,7 @@ func (d *downloader) DownloadMetadata(ctx context.Context, url string) (*Metadat
 func (d *downloader) DownloadContents(ctx context.Context, url string, out flu.Output) error {
 	return backoff.Retry{
 		Retries: d.retries,
-		Backoff: backoff.Constant(time.Second),
+		Backoff: backoff.Const(time.Second),
 		Body: func(ctx context.Context) error {
 			return d.GET(url).
 				Context(ctx).

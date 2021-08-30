@@ -3,11 +3,12 @@ package aggregator
 import (
 	"context"
 
+	gormutil "github.com/jfk9w-go/flu/gorm"
+
 	"github.com/jfk9w/hikkabot/core/feed"
 
 	"github.com/jfk9w-go/flu/metrics"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	gormutil "github.com/jfk9w/hikkabot/util/gorm"
 	"github.com/pkg/errors"
 )
 

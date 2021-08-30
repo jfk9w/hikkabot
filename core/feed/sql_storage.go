@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	gormutil "github.com/jfk9w-go/flu/gorm"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
-	gormutil "github.com/jfk9w/hikkabot/util/gorm"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"

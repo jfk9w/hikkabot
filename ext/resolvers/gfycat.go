@@ -33,7 +33,7 @@ func (r Gfycat) Resolve(ctx context.Context, client *fluhttp.Client, url string,
 		Context(ctx).
 		Execute().
 		CheckStatus(http.StatusOK).
-		DecodeBody(flu.JSON{Value: resp}).
+		DecodeBody(flu.JSON(resp)).
 		Error; err != nil {
 		return "", err
 	}

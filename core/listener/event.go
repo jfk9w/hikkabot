@@ -22,7 +22,7 @@ type Event struct {
 
 func (l *Event) OnResume(ctx context.Context, client telegram.Client, sub *feed.Subscription) error {
 	buttons := []telegram.Button{
-		telegram.Command{Key: suspendCommandKey, Args: []string{sub.Header.String()}}.Button("Suspend"),
+		(&telegram.Command{Key: suspendCommandKey, Args: []string{sub.Header.String()}}).Button("Suspend"),
 	}
 
 	html := func(html *html.Writer, chatLink string) *html.Writer {
@@ -37,8 +37,8 @@ func (l *Event) OnResume(ctx context.Context, client telegram.Client, sub *feed.
 
 func (l *Event) OnSuspend(ctx context.Context, client telegram.Client, sub *feed.Subscription) error {
 	buttons := []telegram.Button{
-		telegram.Command{Key: resumeCommandKey, Args: []string{sub.Header.String()}}.Button("Resume"),
-		telegram.Command{Key: deleteCommandKey, Args: []string{sub.Header.String()}}.Button("Delete"),
+		(&telegram.Command{Key: resumeCommandKey, Args: []string{sub.Header.String()}}).Button("Resume"),
+		(&telegram.Command{Key: deleteCommandKey, Args: []string{sub.Header.String()}}).Button("Delete"),
 	}
 
 	html := func(html *html.Writer, chatLink string) *html.Writer {

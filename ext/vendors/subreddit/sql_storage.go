@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
+	gormutil "github.com/jfk9w-go/flu/gorm"
+
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/util"
-	gormutil "github.com/jfk9w/hikkabot/util/gorm"
 	"gorm.io/gorm"
 )
 

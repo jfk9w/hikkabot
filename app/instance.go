@@ -2,94 +2,44 @@ package app
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"path"
-	"runtime"
 	"time"
 
-	"github.com/jfk9w/hikkabot/core/media"
-
-	"github.com/jfk9w/hikkabot/util"
-
-	"github.com/jfk9w/hikkabot/core/access"
-	"github.com/jfk9w/hikkabot/core/listener"
-
-	executor "github.com/jfk9w/hikkabot/core/executor"
-
-	fluhttp "github.com/jfk9w-go/flu/http"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w/hikkabot/core/aggregator"
-
-	"github.com/jfk9w/hikkabot/core/blob"
-
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/app"
+	gormutil "github.com/jfk9w-go/flu/gorm"
+	fluhttp "github.com/jfk9w-go/flu/http"
+	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/core/access"
+	"github.com/jfk9w/hikkabot/core/aggregator"
+	"github.com/jfk9w/hikkabot/core/blob"
+	executor "github.com/jfk9w/hikkabot/core/executor"
 	"github.com/jfk9w/hikkabot/core/feed"
-	gormutil "github.com/jfk9w/hikkabot/util/gorm"
+	"github.com/jfk9w/hikkabot/core/listener"
+	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type Instance struct {
-	GitCommit string
-	Clock     flu.Clock
-
-	config           flu.Input
+	*app.Base
 	converterPlugins []ConverterPlugin
 	vendorPlugins    []VendorPlugin
-	services         []io.Closer
 
 	db           *gorm.DB
-	metrics      metrics.Registry
 	mediaManager *media.Manager
 }
 
-func Create(gitCommit string, clock flu.Clock, config flu.Input) (*Instance, error) {
-	app := &Instance{
-		GitCommit:        gitCommit,
-		Clock:            clock,
-		vendorPlugins:    make([]VendorPlugin, 0),
-		converterPlugins: make([]ConverterPlugin, 0),
-		services:         make([]io.Closer, 0),
-	}
-
-	configs, err := flu.ToString(config)
+func Create(version string, clock flu.Clock, config flu.Input) (*Instance, error) {
+	base, err := app.New(version, clock, config, flu.YAML)
 	if err != nil {
-		return nil, errors.Wrap(err, "read config to string")
+		return nil, err
 	}
 
-	logrus.Tracef("configuration: %s", configs)
-	app.config = flu.Bytes(configs)
-
-	return app, nil
-}
-
-func (app *Instance) GetConfig(value interface{}) error {
-	return flu.DecodeFrom(app.config, flu.YAML{Value: value})
-}
-
-func (app *Instance) Manage(service io.Closer) {
-	app.services = append(app.services, service)
-	logrus.WithField("service", fmt.Sprintf("%T", service)).Infof("init ok")
-}
-
-func (app *Instance) Close() error {
-	for i := len(app.services); i > 0; i-- {
-		service := app.services[i-1]
-		log := logrus.WithField("service", fmt.Sprintf("%T", service))
-		if err := service.Close(); err != nil {
-			log.Warnf("close: %s", err)
-		} else {
-			log.Infof("closed")
-		}
-	}
-
-	return nil
+	return &Instance{
+		Base:             base,
+		converterPlugins: make([]ConverterPlugin, 0),
+		vendorPlugins:    make([]VendorPlugin, 0),
+	}, nil
 }
 
 func (app *Instance) GetDatabase() (*gorm.DB, error) {
@@ -110,52 +60,6 @@ func (app *Instance) GetDatabase() (*gorm.DB, error) {
 	app.Manage((*gormutil.Closer)(db))
 	app.db = db
 	return db, nil
-}
-
-func (app *Instance) GetMetricsRegistry(ctx context.Context) (metrics.Registry, error) {
-	if app.metrics != nil {
-		return app.metrics, nil
-	}
-
-	config := new(struct {
-		Prometheus struct{ Address string }
-		Graphite   struct {
-			Address    string
-			FlushEvery flu.Duration
-		}
-	})
-
-	if err := app.GetConfig(config); err != nil {
-		return nil, err
-	}
-
-	var registry metrics.Registry
-	if address := config.Prometheus.Address; address != "" {
-		collectors := []prometheus.Collector{
-			collectors.NewBuildInfoCollector(),
-			collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-			collectors.NewGoCollector(),
-		}
-
-		listener := metrics.NewPrometheusListener(address).MustRegister(collectors...)
-		app.Manage(util.CloserFunc(func() error { return listener.Close(ctx) }))
-		registry = listener
-	} else if address := config.Graphite.Address; address != "" {
-		client := &metrics.GraphiteClient{
-			Address: address,
-			HGBF:    ".2%f",
-			Metrics: make(map[string]metrics.GraphiteMetric),
-		}
-
-		client.FlushInBackground(ctx, config.Graphite.FlushEvery.GetOrDefault(time.Minute))
-		app.Manage(client)
-		registry = client
-	} else {
-		registry = metrics.DummyRegistry{Log: true}
-	}
-
-	app.metrics = registry.WithPrefix("app")
-	return app.metrics, nil
 }
 
 func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error) {
@@ -192,15 +96,15 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 	config := globalConfig.Media
 	manager := &media.Manager{
 		Context: &media.Context{
-			Clock:    app.Clock,
+			Clock:    app,
 			Storage:  storage,
 			Registry: metrics.WithPrefix("media"),
 			Deduplicator: &media.Deduplicator{
-				Clock:       app.Clock,
+				Clock:       app,
 				HashStorage: hashStorage,
 			},
 			HttpClient: fluhttp.NewClient(nil),
-			SizeBounds: [2]int64{10 << 10, telegram.Video.AttachMaxSize()},
+			SizeBounds: [2]int64{1 << 10, telegram.Video.AttachMaxSize()},
 			Converters: make(map[string]media.Converter),
 			Retries:    config.Retries,
 		},
@@ -230,61 +134,6 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 	app.mediaManager = manager
 
 	return manager, nil
-}
-
-func (app *Instance) ConfigureLogging() error {
-	globalConfig := new(struct {
-		Logging struct {
-			Level, Format string
-			Frame         bool
-		}
-	})
-
-	if err := app.GetConfig(globalConfig); err != nil {
-		return err
-	}
-
-	config := globalConfig.Logging
-	logLevel := logrus.InfoLevel
-	if config.Level != "" {
-		var err error
-		logLevel, err = logrus.ParseLevel(config.Level)
-		if err != nil {
-			return err
-		}
-	}
-
-	logrus.SetLevel(logLevel)
-
-	var formatter logrus.Formatter
-	switch config.Format {
-	case "json":
-		formatter = new(logrus.JSONFormatter)
-
-	case "text":
-		textFormatter := &logrus.TextFormatter{
-			FullTimestamp:          true,
-			PadLevelText:           true,
-			DisableLevelTruncation: true,
-		}
-
-		if config.Frame {
-			textFormatter.CallerPrettyfier = func(frame *runtime.Frame) (function string, file string) {
-				fileName := path.Base(frame.File)
-				fileDir := path.Base(path.Dir(frame.File))
-				return frame.Function, fmt.Sprintf("%s:%d", path.Join(fileDir, fileName), frame.Line)
-			}
-		}
-
-		formatter = textFormatter
-
-	default:
-		return errors.Errorf("invalid logging format: %s", config.Format)
-	}
-
-	logrus.SetFormatter(formatter)
-
-	return nil
 }
 
 func (app *Instance) ApplyVendorPlugins(plugins ...VendorPlugin) {
@@ -325,7 +174,7 @@ func (app *Instance) Run(ctx context.Context) error {
 		AccessControl: accessControl,
 		Aggregator:    aggregator,
 		Aliases:       config.Telegram.Aliases,
-		GitCommit:     app.GitCommit,
+		Version:       app.GetVersion(),
 	}
 
 	app.Manage(bot.CommandListener(listener))
@@ -367,7 +216,7 @@ func (app *Instance) createAggregator(ctx context.Context,
 	config := globalConfig.Aggregator
 	aggregator := &aggregator.Default{
 		Context: &aggregator.Context{
-			Clock:   app.Clock,
+			Clock:   app,
 			Storage: storage,
 			EventListener: &listener.Event{
 				AccessControl: accessControl,
@@ -470,7 +319,7 @@ func (app *Instance) createFeedStorage(ctx context.Context) (feed.Storage, error
 }
 
 func (app *Instance) createBot(ctx context.Context, token string) (*telegram.Bot, error) {
-	bot := telegram.NewBot(fluhttp.NewTransport().
+	bot := telegram.NewBot(ctx, fluhttp.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		NewClient(), token)
 	if _, err := bot.GetMe(ctx); err != nil {

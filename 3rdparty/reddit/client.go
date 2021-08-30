@@ -37,7 +37,7 @@ type Client struct {
 	cancel     func()
 }
 
-func NewClient(httpClient *fluhttp.Client, config *Config, gitCommit string) *Client {
+func NewClient(httpClient *fluhttp.Client, config *Config, version string) *Client {
 	if httpClient == nil {
 		httpClient = fluhttp.NewClient(nil)
 	}
@@ -50,7 +50,7 @@ func NewClient(httpClient *fluhttp.Client, config *Config, gitCommit string) *Cl
 	return &Client{
 		HttpClient: httpClient.
 			AcceptStatus(http.StatusOK).
-			SetHeader("User-Agent", fmt.Sprintf(`hikkabot/%s by /u/%s`, gitCommit, owner)),
+			SetHeader("User-Agent", fmt.Sprintf(`hikkabot/%s by /u/%s`, version, owner)),
 		config: config,
 	}
 }
@@ -112,7 +112,7 @@ func (c *Client) RefreshToken(ctx context.Context) error {
 		Auth(fluhttp.Basic(c.config.ClientID, c.config.ClientSecret)).
 		Context(ctx).
 		Execute().
-		DecodeBody(flu.JSON{Value: resp}).
+		DecodeBody(flu.JSON(resp)).
 		Error; err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func (c *Client) GetListing(ctx context.Context, subreddit, sort string, limit i
 		QueryParam("limit", strconv.Itoa(limit)).
 		Context(ctx).
 		Execute().
-		DecodeBody(flu.JSON{Value: resp}).
+		DecodeBody(flu.JSON(resp)).
 		Error; err != nil {
 		return nil, errors.Wrap(err, "get listing")
 	}
