@@ -354,7 +354,10 @@ func writeHTMLPrefix(html *html.Writer, indexUsers bool, trackClicks bool, thing
 	if out, ok := html.Out.(*output.Paged); ok && trackClicks {
 		if chat, ok := out.Receiver.(*receiver.Chat); ok {
 			buttons = []telegram.Button{
-				(&telegram.Command{Key: clickCommandKey, Args: []string{thing.Subreddit, thing.Name}}).Button("💬"),
+				(&telegram.Command{
+					Key:  clickCommandKey,
+					Args: []string{thing.Subreddit, thing.Name},
+				}).Button("full post with links in PM"),
 			}
 
 			chat.ReplyMarkup = telegram.InlineKeyboard(buttons)
