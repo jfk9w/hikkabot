@@ -20,10 +20,10 @@ func (p *DvachCatalog) VendorID() string {
 	return "2ch/catalog"
 }
 
-func (p *DvachCatalog) CreateVendor(ctx context.Context, app *app.Instance) (feed.Vendor, error) {
+func (p *DvachCatalog) CreateVendor(ctx context.Context, app app.Interface) (feed.Vendor, error) {
 	client, err := p.Unmask().Get(app)
-	if err != nil || client == nil {
-		return nil, err
+	if client == nil {
+		return nil, errors.Wrap(err, "create dvach client")
 	}
 
 	mediaManager, err := app.GetMediaManager(ctx)

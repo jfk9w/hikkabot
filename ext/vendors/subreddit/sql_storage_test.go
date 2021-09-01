@@ -9,10 +9,11 @@ import (
 
 	"github.com/jfk9w-go/flu"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/ext/vendors/subreddit"
 	"github.com/jfk9w/hikkabot/util"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSQLStorage_Things(t *testing.T) {

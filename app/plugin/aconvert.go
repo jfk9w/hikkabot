@@ -7,8 +7,9 @@ import (
 
 	. "github.com/jfk9w-go/aconvert-api"
 	fluhttp "github.com/jfk9w-go/flu/http"
+
 	"github.com/jfk9w/hikkabot/app"
-	media "github.com/jfk9w/hikkabot/core/media"
+	"github.com/jfk9w/hikkabot/core/media"
 )
 
 type Aconvert []string
@@ -21,7 +22,7 @@ func (p Aconvert) MIMETypes() []string {
 	return p
 }
 
-func (p Aconvert) CreateConverter(ctx context.Context, app *app.Instance) (media.Converter, error) {
+func (p Aconvert) CreateConverter(ctx context.Context, app app.Interface) (media.Converter, error) {
 	globalConfig := new(struct {
 		Aconvert struct {
 			Servers []int

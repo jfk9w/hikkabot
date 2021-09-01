@@ -6,8 +6,9 @@ import (
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/telegram-bot-api/ext/media"
-	. "github.com/jfk9w/hikkabot/core/media"
 	"github.com/pkg/errors"
+
+	. "github.com/jfk9w/hikkabot/core/media"
 )
 
 var AconvertMIMETypes = map[string]string{

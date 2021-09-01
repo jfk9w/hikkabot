@@ -20,10 +20,10 @@ func (p *DvachThread) VendorID() string {
 	return "2ch/thread"
 }
 
-func (p *DvachThread) CreateVendor(ctx context.Context, app *app.Instance) (feed.Vendor, error) {
+func (p *DvachThread) CreateVendor(ctx context.Context, app app.Interface) (feed.Vendor, error) {
 	client, err := p.Unmask().Get(app)
-	if err != nil || client == nil {
-		return nil, err
+	if client == nil {
+		return nil, errors.Wrap(err, "create dvach client")
 	}
 
 	mediaManager, err := app.GetMediaManager(ctx)

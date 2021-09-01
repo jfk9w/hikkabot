@@ -3,9 +3,8 @@ package listener
 import (
 	"context"
 
-	"github.com/jfk9w/hikkabot/core/feed"
-
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w/hikkabot/core/feed"
 )
 
 type Aggregator interface {

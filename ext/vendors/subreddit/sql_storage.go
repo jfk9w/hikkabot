@@ -6,9 +6,10 @@ import (
 
 	gormutil "github.com/jfk9w-go/flu/gorm"
 
+	"gorm.io/gorm"
+
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/util"
-	"gorm.io/gorm"
 )
 
 type SQLStorage gorm.DB

@@ -1,4 +1,4 @@
-# hikkabot 
+# hikkabot
 
 [![ci](https://github.com/jfk9w/hikkabot/actions/workflows/ci.yml/badge.svg)](https://github.com/jfk9w/hikkabot/actions/workflows/ci.yml)
 
@@ -32,15 +32,14 @@ Logs are printed to stdout.
 
 ### Vendors
 
-Vendor is a content feed provider. It is responsible for parsing subscription options 
-and loading, parsing and formatting feed updates and media attachments.
+Vendor is a content feed provider. It is responsible for parsing subscription options and loading, parsing and formatting feed updates and media attachments.
 
 A user interacts with a vendor via subscription command. It looks like this:
 `/sub SUB [CHAT_REF] [OPTIONS]`, where:
+
 * `SUB` is the desired subscription. It can be in the form of URL or ID, whatever is required by the vendor.
-* `[CHAT_REF]` is the reference to the chat you wish to add the subscription to. 
-It should either be an alias, a channel username without the leading `@`, or `.` for the current chat.
-Defaults to `.`
+* `[CHAT_REF]` is the reference to the chat you wish to add the subscription to. It should either be an alias, a channel username without the leading `@`, or `.` for the current
+  chat. Defaults to `.`
 * `[OPTIONS]` is a string of subscription options. These are vendor-specific.
 
 #### 2ch/catalog
@@ -55,17 +54,15 @@ Defaults to `.`
 
 A regular expression can be passed in order to filter new threads based on their contents.
 
-`auto` option enables thread subscription button rendering. 
+`auto` option enables thread subscription button rendering.
 `auto` is followed by `[CHAT_REF] [OPTIONS]` which are passed directly to the subscription command when pressing the rendered button.
 
 ###### Examples
 
 * `/sub /b .` will subscribe the current chat to all new thread updates in /b/.
-* `/sub /mobi channel_a (привет|пока)` will subscribe @channel_a to all new threads in /mobi/ 
-where a content substring matches `(привет|пока)` regular expression.
-* `/sub /pr channel_a привет auto channel_b !m` will subscribe @channel_a to all new threads in /pr/
-where a content substring matches `привет` regular expression 
-with thread subscription button targeted at @channel_b with an `!m` option.
+* `/sub /mobi channel_a (привет|пока)` will subscribe @channel_a to all new threads in /mobi/ where a content substring matches `(привет|пока)` regular expression.
+* `/sub /pr channel_a привет auto channel_b !m` will subscribe @channel_a to all new threads in /pr/ where a content substring matches `привет` regular expression with thread
+  subscription button targeted at @channel_b with an `!m` option.
 
 #### 2ch/thread
 
@@ -81,9 +78,8 @@ with thread subscription button targeted at @channel_b with an `!m` option.
 
 `m` option can be passed in order to relay only media updates.
 
-`#hashtag_text` can be passed in order to insert 
-`#hashtag_text` in every thread post instead of a hashtag inferred from
-thread title text. May be useful for thread grouping based on a common subject.
+`#hashtag_text` can be passed in order to insert
+`#hashtag_text` in every thread post instead of a hashtag inferred from thread title text. May be useful for thread grouping based on a common subject.
 
 ###### Examples
 
@@ -103,12 +99,10 @@ thread title text. May be useful for thread grouping based on a common subject.
 
 ###### Options
 
-`!m` option can be passed in order to relay both text and media updates. 
-By default, only media updates are relayed.
+`!m` option can be passed in order to relay both text and media updates. By default, only media updates are relayed.
 
-A floating number between `0` and `1` can be passed in order 
-to specify the ratio of best posts which will be relayed. 
-By default `0.3`, this means that only top 30% of all posts will make it into updates.
+A floating number between `0` and `1` can be passed in order to specify the ratio of best posts which will be relayed. By default `0.3`, this means that only top 30% of all posts
+will make it into updates.
 
 ###### Examples
 
@@ -122,27 +116,22 @@ By default `0.3`, this means that only top 30% of all posts will make it into up
 
 ### Subscription management
 
-All notifications about subscription changes will be sent to `supervisor_id`.
-These will contain buttons to help you manage the subscription during its lifecycle.
-Note that some emoji-coding is used: fire emoji means "started" or "resumed", 
-stop sign means "suspended", and wastebasket means "removed".
+All notifications about subscription changes will be sent to `supervisor_id`. These will contain buttons to help you manage the subscription during its lifecycle. Note that some
+emoji-coding is used: fire emoji means "started" or "resumed", stop sign means "suspended", and wastebasket means "removed".
 
 ### Available commands
 
-In addition to button control there are also commands which you can
-enter manually. Apart from `/sub` mentioned earlier there are also:
+In addition to button control there are also commands which you can enter manually. Apart from `/sub` mentioned earlier there are also:
 
 ###### /status
 
-Returns `OK` for all users enriched with some debug information
-only for the supervisor.
+Returns `OK` for all users enriched with some debug information only for the supervisor.
 
 ###### /clear PATTERN [CHAT_REF]
 
 Removes all subscriptions with errors like `PATTERN`.
 
-`PATTERN` is the value which will be passed to SQL "like" query. So
-something like `%404%` will match `Error code 404: page not found`.
+`PATTERN` is the value which will be passed to SQL "like" query. So something like `%404%` will match `Error code 404: page not found`.
 
 `CHAT_REF` is optional and is the same as in `/sub` command.
 
@@ -152,43 +141,35 @@ Lists subscriptions with buttons for suspending/resuming.
 
 `CHAT_REF` is optional and is the same as in `/sub` command.
 
-`r` is the option you can pass in order to list only active subscriptions.
-By default `/list` will return only suspended subscriptions if there are any,
-otherwise it will return all active subscriptions (so all subscriptions basically).
+`r` is the option you can pass in order to list only active subscriptions. By default `/list` will return only suspended subscriptions if there are any, otherwise it will return
+all active subscriptions (so all subscriptions basically).
 
 #### Example (with pictures)
 
-We start with a fresh channel. Below you can see that `/list` returns
-zero active subscriptions which means there are no subscriptions at all.
-Please ignore message time inconsistencies.
+We start with a fresh channel. Below you can see that `/list` returns zero active subscriptions which means there are no subscriptions at all. Please ignore message time
+inconsistencies.
 
 <img src="https://github.com/jfk9w/hikkabot/raw/master/doc/list-0-subs.png" height="150px"></img>
 
-Let's subscribe our chat to `meirl` subreddit. `0.05` means that only top 5% of the posts
-should make it to our channel. In response we receive a notification which contains
-the button allowing to suspend the subscription:
+Let's subscribe our chat to `meirl` subreddit. `0.05` means that only top 5% of the posts should make it to our channel. In response we receive a notification which contains the
+button allowing to suspend the subscription:
 
 <img src="https://github.com/jfk9w/hikkabot/raw/master/doc/sub-ok.png" height="150px"></img>
 
-Check that `/list` returns the new subscription now. 
-Note that `/list` outputs a button for each subscription. 
-Button action depends on the context: if subscriptions are suspended,
-the button will resume the chosen one and vice versa. 
+Check that `/list` returns the new subscription now. Note that `/list` outputs a button for each subscription. Button action depends on the context: if subscriptions are suspended,
+the button will resume the chosen one and vice versa.
 
 <img src="https://github.com/jfk9w/hikkabot/raw/master/doc/list-1-sub.png" height="150px"></img>
 
-We press the button and receive the notification below. Note that
-suspend and resume notifications are always sent only to the supervisor.
+We press the button and receive the notification below. Note that suspend and resume notifications are always sent only to the supervisor.
 
 <img src="https://github.com/jfk9w/hikkabot/raw/master/doc/sub-suspended.png" height="150px"></img>
 
-The suspend notification contains buttons to resume and delete the suspended subscription.
-We could use the latter, but instead (just to show off) let's use the `/clear` command
+The suspend notification contains buttons to resume and delete the suspended subscription. We could use the latter, but instead (just to show off) let's use the `/clear` command
 (note how we infer the pattern from the error message above):
 
 <img src="https://github.com/jfk9w/hikkabot/raw/master/doc/clear-1-sub.png" height="150px"></img>
 
-That's it! Our channel is as good as new.
-Sorry for using the same pic. 
+That's it! Our channel is as good as new. Sorry for using the same pic.
 
 <img src="https://github.com/jfk9w/hikkabot/raw/master/doc/list-0-subs.png" height="150px"></img>

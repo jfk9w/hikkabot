@@ -6,6 +6,7 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+
 	"github.com/jfk9w/hikkabot/core/executor"
 	"github.com/jfk9w/hikkabot/core/feed"
 )

@@ -13,13 +13,14 @@ import (
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/jfk9w/hikkabot/3rdparty/dvach"
-	feed "github.com/jfk9w/hikkabot/core/feed"
+	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/jfk9w/hikkabot/ext/vendors"
 	dvachVendor "github.com/jfk9w/hikkabot/ext/vendors/dvach"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type Vendor struct {

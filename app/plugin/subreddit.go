@@ -6,20 +6,15 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
-	"github.com/jfk9w/hikkabot/3rdparty/reddit"
+	"github.com/pkg/errors"
+
 	"github.com/jfk9w/hikkabot/3rdparty/viddit"
 	"github.com/jfk9w/hikkabot/app"
 	"github.com/jfk9w/hikkabot/core/feed"
 	. "github.com/jfk9w/hikkabot/ext/vendors/subreddit"
-	"github.com/pkg/errors"
 )
 
 type SubredditConfig struct {
-	Client struct {
-		*reddit.Config `yaml:"-,inline"`
-		RefreshEvery   flu.Duration
-	}
-
 	Storage struct {
 		FreshTTL   flu.Duration
 		CleanEvery flu.Duration
@@ -34,29 +29,28 @@ type SubredditConfig struct {
 	}
 }
 
-var Subreddit app.VendorPlugin = subreddit{}
+type Subreddit RedditClient
 
-type subreddit struct{}
+func (p *Subreddit) Unmask() *RedditClient {
+	return (*RedditClient)(p)
+}
 
-func (p subreddit) VendorID() string {
+func (p *Subreddit) VendorID() string {
 	return "subreddit"
 }
 
-func (p subreddit) CreateVendor(ctx context.Context, app *app.Instance) (feed.Vendor, error) {
-	globalConfig := new(struct{ Subreddit *SubredditConfig })
+func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.Vendor, error) {
+	redditClient, err := p.Unmask().Get(app)
+	if redditClient == nil {
+		return nil, errors.Wrap(err, "create reddit client")
+	}
+
+	globalConfig := new(struct{ Subreddit SubredditConfig })
 	if err := app.GetConfig(globalConfig); err != nil {
 		return nil, errors.Wrap(err, "get config")
 	}
 
-	config := globalConfig.Subreddit
-	if globalConfig.Subreddit == nil {
-		return nil, nil
-	}
-
-	redditClient, err := p.createRedditClient(ctx, app, config)
-	if err != nil {
-		return nil, errors.Wrap(err, "create reddit client")
-	}
+	config := &globalConfig.Subreddit
 
 	vidditClient, err := p.createVidditClient(ctx, app, config)
 	if err != nil {
@@ -91,7 +85,7 @@ func (p subreddit) CreateVendor(ctx context.Context, app *app.Instance) (feed.Ve
 	return vendor, nil
 }
 
-func (p subreddit) createStorage(ctx context.Context, app *app.Instance) (Storage, error) {
+func (p Subreddit) createStorage(ctx context.Context, app app.Interface) (Storage, error) {
 	db, err := app.GetDatabase()
 	if err != nil {
 		return nil, err
@@ -105,26 +99,13 @@ func (p subreddit) createStorage(ctx context.Context, app *app.Instance) (Storag
 	return storage, nil
 }
 
-func (p subreddit) createVidditClient(ctx context.Context, app *app.Instance,
+func (p Subreddit) createVidditClient(ctx context.Context, app app.Interface,
 	pluginConfig *SubredditConfig) (*viddit.Client, error) {
 
 	config := pluginConfig.Viddit
 	client := &viddit.Client{HttpClient: fluhttp.NewClient(nil)}
 	if err := client.RefreshInBackground(ctx, config.RefreshEvery.GetOrDefault(20*time.Minute)); err != nil {
 		return nil, err
-	}
-
-	app.Manage(client)
-	return client, nil
-}
-
-func (p subreddit) createRedditClient(ctx context.Context, app *app.Instance,
-	pluginConfig *SubredditConfig) (*reddit.Client, error) {
-
-	config := pluginConfig.Client
-	client := reddit.NewClient(nil, config.Config, app.GetVersion())
-	if err := client.RefreshInBackground(ctx, config.RefreshEvery.GetOrDefault(59*time.Minute)); err != nil {
-		return nil, errors.Wrap(err, "refresh reddit client")
 	}
 
 	app.Manage(client)

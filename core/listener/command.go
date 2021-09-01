@@ -3,7 +3,9 @@ package listener
 import (
 	"context"
 	"fmt"
+
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
+
 	"github.com/jfk9w/hikkabot/core/feed"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"

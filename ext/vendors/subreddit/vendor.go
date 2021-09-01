@@ -3,7 +3,6 @@ package subreddit
 import (
 	"context"
 	"encoding/json"
-	fluhttp "github.com/jfk9w-go/flu/http"
 	"net"
 	"regexp"
 	"sort"
@@ -11,9 +10,14 @@ import (
 	"strings"
 	"time"
 
+	fluhttp "github.com/jfk9w-go/flu/http"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/3rdparty/viddit"
 	"github.com/jfk9w/hikkabot/core/feed"
@@ -21,8 +25,6 @@ import (
 	"github.com/jfk9w/hikkabot/ext/resolvers"
 	"github.com/jfk9w/hikkabot/ext/vendors"
 	"github.com/jfk9w/hikkabot/util"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type Vendor struct {

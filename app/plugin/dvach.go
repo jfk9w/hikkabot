@@ -6,6 +6,7 @@ import (
 	"github.com/jfk9w-go/flu"
 
 	fluhttp "github.com/jfk9w-go/flu/http"
+
 	"github.com/jfk9w/hikkabot/3rdparty/dvach"
 	"github.com/jfk9w/hikkabot/app"
 )
@@ -20,7 +21,7 @@ type DvachClient struct {
 	getTimeout time.Duration
 }
 
-func (c *DvachClient) Get(app *app.Instance) (*dvach.Client, error) {
+func (c *DvachClient) Get(app app.Interface) (*dvach.Client, error) {
 	if c.value != nil {
 		return c.value, nil
 	}

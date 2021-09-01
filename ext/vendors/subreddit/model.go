@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu/metrics"
+
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/util"
 )

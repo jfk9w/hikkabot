@@ -9,15 +9,17 @@ import (
 	gormutil "github.com/jfk9w-go/flu/gorm"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+
 	"github.com/jfk9w/hikkabot/core/access"
 	"github.com/jfk9w/hikkabot/core/aggregator"
 	"github.com/jfk9w/hikkabot/core/blob"
-	executor "github.com/jfk9w/hikkabot/core/executor"
+	"github.com/jfk9w/hikkabot/core/executor"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/listener"
 	"github.com/jfk9w/hikkabot/core/media"
-	"github.com/pkg/errors"
-	"gorm.io/gorm"
 )
 
 type Instance struct {
@@ -113,10 +115,12 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 
 	for _, plugin := range app.converterPlugins {
 		id := plugin.ConverterID()
+		log := logrus.WithField("converter", id)
 		converter, err := plugin.CreateConverter(ctx, app)
 		if err != nil {
 			return nil, errors.Wrapf(err, "create %s vendor", id)
 		} else if converter == nil {
+			log.Warnf("disabled")
 			continue
 		}
 
@@ -127,6 +131,8 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 
 			manager.Converters[mimeType] = converter
 		}
+
+		log.Infof("init ok")
 	}
 
 	manager.Init(ctx)
@@ -233,10 +239,12 @@ func (app *Instance) createAggregator(ctx context.Context,
 
 	for _, plugin := range app.vendorPlugins {
 		id := plugin.VendorID()
+		log := logrus.WithField("vendor", id)
 		vendor, err := plugin.CreateVendor(ctx, app)
 		if err != nil {
 			return nil, errors.Wrapf(err, "create %s vendor", id)
 		} else if vendor == nil {
+			log.Warnf("disabled")
 			continue
 		}
 
@@ -245,6 +253,7 @@ func (app *Instance) createAggregator(ctx context.Context,
 		}
 
 		aggregator.Vendors[id] = vendor
+		log.Infof("init ok")
 	}
 
 	if err := aggregator.Init(ctx); err != nil {
