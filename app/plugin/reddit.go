@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
+	"github.com/pkg/errors"
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/app"
@@ -31,7 +32,7 @@ func (c *RedditClient) Get(app app.Interface) (*reddit.Client, error) {
 
 	globalConfig := new(struct{ Reddit *RedditConfig })
 	if err := app.GetConfig(globalConfig); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "get config")
 	}
 
 	config := globalConfig.Reddit
@@ -40,7 +41,10 @@ func (c *RedditClient) Get(app app.Interface) (*reddit.Client, error) {
 	}
 
 	client := reddit.NewClient(nil, config.Config, app.GetVersion())
-	client.RefreshInBackground(c.ctx, config.RefreshEvery.GetOrDefault(55*time.Minute))
+	if err := client.RefreshInBackground(c.ctx, config.RefreshEvery.GetOrDefault(55*time.Minute)); err != nil {
+		return nil, errors.Wrap(err, "setup")
+	}
+
 	app.Manage(client)
 	c.value = client
 	return client, nil
