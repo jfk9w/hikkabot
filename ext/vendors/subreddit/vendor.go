@@ -3,6 +3,7 @@ package subreddit
 import (
 	"context"
 	"encoding/json"
+	fluhttp "github.com/jfk9w-go/flu/http"
 	"net"
 	"regexp"
 	"sort"
@@ -134,11 +135,19 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 
 	things, err := v.getListing(ctx, data.Subreddit, 100)
 	if err != nil {
-		if _, ok := err.(net.Error); ok {
+		switch err := err.(type) {
+		case net.Error:
 			log.Warnf("update: failed (network error)")
-		} else if _, ok := err.(*json.SyntaxError); ok {
+		case *json.SyntaxError:
 			log.Warnf("update: failed (json error)")
-		} else {
+		case fluhttp.StatusCodeError:
+			if err.StatusCode >= 400 && err.StatusCode < 500 {
+				_ = queue.Cancel(ctx, err)
+			} else {
+				log.Warnf("update: failed (http %d)", err.StatusCode)
+			}
+
+		default:
 			_ = queue.Cancel(ctx, err)
 		}
 

@@ -3,8 +3,6 @@ package listener
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/jfk9w/hikkabot/core/feed"
 
@@ -45,8 +43,8 @@ type Command struct {
 	Version    string
 }
 
-func (l *Command) OnCommand(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
-	var fun func(context.Context, telegram.Client, telegram.Command) error
+func (l *Command) OnCommand(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
+	var fun func(context.Context, telegram.Client, *telegram.Command) error
 	switch cmd.Key {
 	case "/sub", "/subscribe":
 		fun = l.Subscribe
@@ -78,7 +76,7 @@ func (l *Command) OnCommand(ctx context.Context, client telegram.Client, cmd tel
 	return nil
 }
 
-func (l *Command) Subscribe(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
+func (l *Command) Subscribe(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
 	if len(cmd.Args) == 0 {
 		return ErrSubscribeUsage
 	}
@@ -96,7 +94,7 @@ func (l *Command) Subscribe(ctx context.Context, client telegram.Client, cmd tel
 	return l.Aggregator.Subscribe(ctx, feedID, ref, options)
 }
 
-func (l *Command) Suspend(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
+func (l *Command) Suspend(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
 	ctx, header, err := l.parseHeader(ctx, client, cmd, 0)
 	if err != nil {
 		return err
@@ -104,7 +102,7 @@ func (l *Command) Suspend(ctx context.Context, client telegram.Client, cmd teleg
 	return l.Aggregator.Suspend(ctx, header, feed.ErrSuspendedByUser)
 }
 
-func (l *Command) Resume(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
+func (l *Command) Resume(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
 	ctx, header, err := l.parseHeader(ctx, client, cmd, 0)
 	if err != nil {
 		return err
@@ -112,7 +110,7 @@ func (l *Command) Resume(ctx context.Context, client telegram.Client, cmd telegr
 	return l.Aggregator.Resume(ctx, header)
 }
 
-func (l *Command) Delete(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
+func (l *Command) Delete(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
 	ctx, header, err := l.parseHeader(ctx, client, cmd, 0)
 	if err != nil {
 		return err
@@ -120,7 +118,7 @@ func (l *Command) Delete(ctx context.Context, client telegram.Client, cmd telegr
 	return l.Aggregator.Delete(ctx, header)
 }
 
-func (l *Command) Clear(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
+func (l *Command) Clear(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
 	if len(cmd.Args) < 1 {
 		return ErrClearUsage
 	}
@@ -133,7 +131,7 @@ func (l *Command) Clear(ctx context.Context, client telegram.Client, cmd telegra
 	return l.Aggregator.Clear(ctx, feedID, pattern)
 }
 
-func (l *Command) List(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
+func (l *Command) List(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
 	ctx, feedID, err := l.resolveFeedID(ctx, client, cmd, 0)
 	if err != nil {
 		return err
@@ -185,21 +183,17 @@ func (l *Command) List(ctx context.Context, client telegram.Client, cmd telegram
 	return err
 }
 
-func (l *Command) Status(ctx context.Context, client telegram.Client, cmd telegram.Command) error {
+func (l *Command) Status(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
 	return cmd.Reply(ctx, client, fmt.Sprintf("OK\n"+
 		"User ID: %s\n"+
 		"Chat ID: %s\n"+
-		"Message ID: %s\n"+
 		"Username: %s\n"+
-		"Datetime: %s\n"+
 		"Version: %s\n",
-		cmd.User.ID, cmd.Chat.ID, cmd.Message.ID,
-		client.Username(), time.Now().Format("2006-01-02 15:04:05"),
-		l.Version))
+		cmd.User.ID, cmd.Chat.ID, client.Username(), l.Version))
 }
 
 func (l *Command) parseHeader(ctx context.Context,
-	client telegram.Client, cmd telegram.Command, argumentIndex int) (
+	client telegram.Client, cmd *telegram.Command, argumentIndex int) (
 	context.Context, *feed.Header, error) {
 
 	header, err := feed.ParseHeader(cmd.Args[argumentIndex])
@@ -216,7 +210,7 @@ func (l *Command) parseHeader(ctx context.Context,
 }
 
 func (l *Command) resolveFeedID(ctx context.Context,
-	client telegram.Client, cmd telegram.Command, argumentIndex int) (
+	client telegram.Client, cmd *telegram.Command, argumentIndex int) (
 	context.Context, telegram.ID, error) {
 
 	chatID := cmd.Chat.ID
