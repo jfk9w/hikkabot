@@ -179,7 +179,7 @@ func (app *Instance) Run(ctx context.Context) error {
 
 	app.Manage(bot.CommandListener(listener))
 
-	cmd := telegram.Command{
+	cmd := &telegram.Command{
 		Chat:    &telegram.Chat{ID: supervisor},
 		User:    &telegram.User{ID: supervisor},
 		Message: new(telegram.Message),
