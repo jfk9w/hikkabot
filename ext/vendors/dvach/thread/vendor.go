@@ -9,10 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jfk9w-go/telegram-bot-api/ext/html"
-	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+
+	"github.com/jfk9w-go/telegram-bot-api/ext/html"
+	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 
 	"github.com/jfk9w/hikkabot/3rdparty/dvach"
 	"github.com/jfk9w/hikkabot/core/feed"
@@ -119,11 +120,11 @@ func (v *Vendor) processPost(
 		if !data.MediaOnly {
 			writePost(html, post, data.Tag)
 			for i, media := range media {
-				html.Media(post.Files[i].URL(), media, len(post.Files) == 1)
+				html.Media(post.Files[i].URL(), media, len(post.Files) == 1, true)
 			}
 		} else {
 			for i, media := range media {
-				html.Text(data.Tag).Media(post.Files[i].URL(), media, true)
+				html.Text(data.Tag).Media(post.Files[i].URL(), media, true, true)
 			}
 		}
 

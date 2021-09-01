@@ -10,16 +10,20 @@ import (
 	"strings"
 	"time"
 
-	fluhttp "github.com/jfk9w-go/flu/http"
-
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/telegram-bot-api/ext/html"
-	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
+	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api/ext/html"
+	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
+	"github.com/jfk9w-go/telegram-bot-api/ext/output"
+	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
+
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/3rdparty/viddit"
+	"github.com/jfk9w/hikkabot/core/event"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/jfk9w/hikkabot/ext/resolvers"
@@ -27,9 +31,12 @@ import (
 	"github.com/jfk9w/hikkabot/util"
 )
 
+var clickCommandKey = "sr_c"
+
 type Vendor struct {
-	Clock          flu.Clock
+	flu.Clock
 	Storage        Storage
+	EventStorage   event.Storage
 	CleanDataEvery time.Duration
 	FreshThingTTL  time.Duration
 	RedditClient   *reddit.Client
@@ -109,6 +116,8 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 			data.MediaOnly = false
 		case "u":
 			data.IndexUsers = true
+		case "t":
+			data.TrackClicks = true
 		default:
 			var err error
 			data.Top, err = strconv.ParseFloat(option, 64)
@@ -233,14 +242,18 @@ func (v *Vendor) processThing(ctx context.Context,
 		return nil, nil
 	}
 
-	if thing.IsSelf {
-		if data.MediaOnly {
-			log.Debug("update: skip (media only)")
-			return nil, nil
-		}
+	if thing.IsSelf && data.MediaOnly {
+		log.Debug("update: skip (media only)")
+		return nil, nil
+	}
 
+	return v.writeHTML(header, data, thing)
+}
+
+func (v *Vendor) writeHTML(header *feed.Header, data *Data, thing *reddit.ThingData) (feed.WriteHTML, error) {
+	if thing.IsSelf {
 		return func(html *html.Writer) error {
-			writeHTMLPrefix(html, data.IndexUsers, thing).
+			writeHTMLPrefix(html, data.IndexUsers, false, thing).
 				Bold(thing.Title).Text("\n").
 				MarkupString(thing.SelfTextHTML)
 			return nil
@@ -249,9 +262,9 @@ func (v *Vendor) processThing(ctx context.Context,
 
 	mediaRef := v.createMediaRef(header, thing, data.MediaOnly)
 	return func(html *html.Writer) error {
-		writeHTMLPrefix(html, data.IndexUsers, thing).
+		writeHTMLPrefix(html, data.IndexUsers, data.TrackClicks, thing).
 			Text(thing.Title).Text("\n").
-			Media(thing.URL, mediaRef, true)
+			Media(thing.URL, mediaRef, true, !data.TrackClicks)
 		return nil
 	}, nil
 }
@@ -335,12 +348,27 @@ func (v *Vendor) deleteStaleThings(ctx context.Context, now time.Time) error {
 	return nil
 }
 
-func writeHTMLPrefix(html *html.Writer, indexUsers bool, thing *reddit.ThingData) *html.Writer {
-	html = html.
-		Text(getSubredditName(thing.Subreddit)).Text(" ").
-		Link("💬", thing.PermalinkURL()).Text("\n")
-	if indexUsers && thing.Author != "" {
-		html = html.Text(`u/`).Text(vendors.Hashtag(thing.Author)).Text("\n")
+func writeHTMLPrefix(html *html.Writer, indexUsers bool, trackClicks bool, thing *reddit.ThingData) *html.Writer {
+	html = html.Text(getSubredditName(thing.Subreddit))
+	var buttons []telegram.Button
+	if out, ok := html.Out.(*output.Paged); ok && trackClicks {
+		if chat, ok := out.Receiver.(*receiver.Chat); ok {
+			buttons = []telegram.Button{
+				(&telegram.Command{Key: clickCommandKey, Args: []string{thing.Subreddit, thing.Name}}).Button("💬"),
+			}
+
+			chat.ReplyMarkup = telegram.InlineKeyboard(buttons)
+			out.PageCount = 1
+			out.PageSize = telegram.MaxCaptionSize
+			html.Text("\n")
+		}
+	}
+
+	if len(buttons) == 0 {
+		html = html.Text(" ").Link("💬", thing.PermalinkURL()).Text("\n")
+		if indexUsers && thing.Author != "" {
+			html = html.Text(`u/`).Text(vendors.Hashtag(thing.Author)).Text("\n")
+		}
 	}
 
 	return html

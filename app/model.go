@@ -8,6 +8,7 @@ import (
 	"github.com/jfk9w-go/flu"
 	"gorm.io/gorm"
 
+	"github.com/jfk9w/hikkabot/core/event"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
 )
@@ -18,6 +19,7 @@ type Interface interface {
 	GetConfig(value interface{}) error
 	GetMediaManager(ctx context.Context) (*media.Manager, error)
 	GetDatabase() (*gorm.DB, error)
+	GetEventStorage(ctx context.Context) (event.Storage, error)
 	Manage(service io.Closer)
 }
 

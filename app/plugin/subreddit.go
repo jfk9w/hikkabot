@@ -67,14 +67,22 @@ func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.V
 		return nil, errors.Wrap(err, "get media manager")
 	}
 
-	vendor := &Vendor{
-		Clock:          app,
-		Storage:        storage,
-		CleanDataEvery: config.Data.CleanEvery.GetOrDefault(30 * time.Minute),
-		FreshThingTTL:  config.Storage.FreshTTL.GetOrDefault(7 * 24 * time.Hour),
-		RedditClient:   redditClient,
-		VidditClient:   vidditClient,
-		MediaManager:   mediaManager,
+	eventStorage, err := app.GetEventStorage(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "get event storage")
+	}
+
+	vendor := &Tracked{
+		Vendor: &Vendor{
+			Clock:          app,
+			Storage:        storage,
+			CleanDataEvery: config.Data.CleanEvery.GetOrDefault(30 * time.Minute),
+			FreshThingTTL:  config.Storage.FreshTTL.GetOrDefault(7 * 24 * time.Hour),
+			RedditClient:   redditClient,
+			VidditClient:   vidditClient,
+			MediaManager:   mediaManager,
+		},
+		Storage: eventStorage,
 	}
 
 	if err := vendor.ScheduleMaintenance(ctx, config.Storage.CleanEvery.GetOrDefault(time.Hour)); err != nil {

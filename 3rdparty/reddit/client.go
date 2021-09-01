@@ -3,7 +3,6 @@ package reddit
 import (
 	"context"
 	"fmt"
-	"html"
 	"net/http"
 	"strconv"
 	"strings"
@@ -127,32 +126,30 @@ func (c *Client) GetListing(ctx context.Context, subreddit, sort string, limit i
 		limit = 25
 	}
 
-	resp := new(struct {
-		Data struct {
-			Children []Thing `json:"children"`
-		} `json:"data"`
-	})
-
+	resp := new(Listing)
 	if err := c.HttpClient.GET(Host+"/r/"+subreddit+"/"+sort).
 		Auth(c.Auth()).
 		QueryParam("limit", strconv.Itoa(limit)).
 		Context(ctx).
 		Execute().
-		DecodeBody(flu.JSON(resp)).
+		DecodeBody(resp).
 		Error; err != nil {
 		return nil, errors.Wrap(err, "get listing")
 	}
 
-	for i := range resp.Data.Children {
-		child := &resp.Data.Children[i]
-		var err error
-		id := strings.Split(child.Data.Name, "_")[1]
-		child.Data.ID, err = strconv.ParseUint(id, 36, 64)
-		if err != nil {
-			return nil, errors.Wrapf(err, "parse id: %s", id)
-		}
-		child.Data.SelfTextHTML = html.UnescapeString(child.Data.SelfTextHTML)
-		child.Data.CreatedAt = time.Unix(int64(child.Data.CreatedSecs), 0)
+	return resp.Data.Children, nil
+}
+
+func (c *Client) GetPosts(ctx context.Context, subreddit string, ids ...string) ([]Thing, error) {
+	resp := new(Listing)
+	if err := c.HttpClient.GET(Host+"/r/"+subreddit+"/api/info").
+		Auth(c.Auth()).
+		QueryParam("id", strings.Join(ids, ",")).
+		Context(ctx).
+		Execute().
+		DecodeBody(resp).
+		Error; err != nil {
+		return nil, errors.Wrap(err, "get posts")
 	}
 
 	return resp.Data.Children, nil

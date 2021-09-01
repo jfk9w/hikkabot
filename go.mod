@@ -6,7 +6,7 @@ require (
 	github.com/jackc/pgx/v4 v4.13.0 // indirect
 	github.com/jfk9w-go/aconvert-api v0.9.14
 	github.com/jfk9w-go/flu v0.9.27
-	github.com/jfk9w-go/telegram-bot-api v0.9.18
+	github.com/jfk9w-go/telegram-bot-api v0.9.19
 	github.com/lib/pq v1.10.2
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1

@@ -17,11 +17,11 @@ type Data struct {
 	LastCleanSecs int64          `json:"last_clean,omitempty"`
 	MediaOnly     bool           `json:"media_only,omitempty"`
 	IndexUsers    bool           `json:"index_users,omitempty"`
+	TrackClicks   bool           `json:"track_clicks,omitempty"`
 }
 
 func (d *Data) Labels() metrics.Labels {
-	return metrics.Labels{}.
-		Add("top", d.Top)
+	return metrics.Labels{}.Add("top", d.Top)
 }
 
 type Storage interface {

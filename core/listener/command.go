@@ -8,9 +8,10 @@ import (
 
 	"github.com/jfk9w/hikkabot/core/feed"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+
+	telegram "github.com/jfk9w-go/telegram-bot-api"
 )
 
 var (
@@ -43,6 +44,7 @@ type Command struct {
 	Aggregator Aggregator
 	Aliases    map[string]telegram.ID
 	Version    string
+	Vendors    []Vendor
 }
 
 func (l *Command) OnCommand(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
@@ -62,17 +64,32 @@ func (l *Command) OnCommand(ctx context.Context, client telegram.Client, cmd *te
 		fun = l.List
 	case "/status":
 		fun = l.Status
-	default:
-		return errors.New("invalid command")
 	}
 
-	if err := fun(ctx, client, cmd); err != nil {
-		return err
+	if fun != nil {
+		if err := fun(ctx, client, cmd); err != nil {
+			return err
+		}
+
+		if cmd.CallbackQueryID != "" {
+			return cmd.Reply(ctx, client, "OK")
+		}
+
+		return nil
 	}
 
-	if len(cmd.Key) == 1 {
-		// callback query
-		return cmd.Reply(ctx, client, "OK")
+	for _, vendor := range l.Vendors {
+		if ok, err := vendor.OnCommand(ctx, client, cmd); ok {
+			if err != nil {
+				return cmd.Reply(ctx, client, err.Error())
+			}
+
+			if cmd.CallbackQueryID != "" {
+				return cmd.Reply(ctx, client, "OK")
+			}
+
+			return nil
+		}
 	}
 
 	return nil

@@ -8,10 +8,13 @@ import (
 	"github.com/jfk9w-go/flu/app"
 	gormutil "github.com/jfk9w-go/flu/gorm"
 	fluhttp "github.com/jfk9w-go/flu/http"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+
+	telegram "github.com/jfk9w-go/telegram-bot-api"
+
+	"github.com/jfk9w/hikkabot/core/event"
 
 	"github.com/jfk9w/hikkabot/core/access"
 	"github.com/jfk9w/hikkabot/core/aggregator"
@@ -26,9 +29,11 @@ type Instance struct {
 	*app.Base
 	converterPlugins []ConverterPlugin
 	vendorPlugins    []VendorPlugin
+	vendorListeners  []listener.Vendor
 
 	db           *gorm.DB
 	mediaManager *media.Manager
+	eventStorage event.Storage
 }
 
 func Create(version string, clock flu.Clock, config flu.Input) (*Instance, error) {
@@ -41,6 +46,7 @@ func Create(version string, clock flu.Clock, config flu.Input) (*Instance, error
 		Base:             base,
 		converterPlugins: make([]ConverterPlugin, 0),
 		vendorPlugins:    make([]VendorPlugin, 0),
+		vendorListeners:  make([]listener.Vendor, 0),
 	}, nil
 }
 
@@ -142,6 +148,25 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 	return manager, nil
 }
 
+func (app *Instance) GetEventStorage(ctx context.Context) (event.Storage, error) {
+	if app.eventStorage != nil {
+		return app.eventStorage, nil
+	}
+
+	db, err := app.GetDatabase()
+	if err != nil {
+		return nil, errors.Wrap(err, "get database")
+	}
+
+	storage := (*event.SQLStorage)(db)
+	if err := storage.Init(ctx); err != nil {
+		return nil, errors.Wrap(err, "create event storage")
+	}
+
+	app.eventStorage = storage
+	return storage, nil
+}
+
 func (app *Instance) ApplyVendorPlugins(plugins ...VendorPlugin) {
 	app.vendorPlugins = append(app.vendorPlugins, plugins...)
 }
@@ -180,6 +205,7 @@ func (app *Instance) Run(ctx context.Context) error {
 		AccessControl: accessControl,
 		Aggregator:    aggregator,
 		Aliases:       config.Telegram.Aliases,
+		Vendors:       app.vendorListeners,
 		Version:       app.GetVersion(),
 	}
 
@@ -250,6 +276,10 @@ func (app *Instance) createAggregator(ctx context.Context,
 
 		if _, ok := aggregator.Vendors[id]; ok {
 			return nil, errors.Wrapf(err, "duplicate vendor %s", id)
+		}
+
+		if listener, ok := vendor.(listener.Vendor); ok {
+			app.vendorListeners = append(app.vendorListeners, listener)
 		}
 
 		aggregator.Vendors[id] = vendor

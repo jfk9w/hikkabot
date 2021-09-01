@@ -1,6 +1,15 @@
 package reddit
 
-import "time"
+import (
+	"html"
+	"io"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jfk9w-go/flu"
+	"github.com/pkg/errors"
+)
 
 type Media struct {
 	RedditVideo struct {
@@ -51,4 +60,31 @@ type Thing struct {
 
 func (t Thing) TableName() string {
 	return "reddit"
+}
+
+type Listing struct {
+	Data struct {
+		Children []Thing `json:"children"`
+	} `json:"data"`
+}
+
+func (l *Listing) DecodeFrom(body io.Reader) error {
+	if err := flu.DecodeFrom(flu.IO{R: body}, flu.JSON(l)); err != nil {
+		return err
+	}
+
+	for i := range l.Data.Children {
+		child := &l.Data.Children[i]
+		var err error
+		id := strings.Split(child.Data.Name, "_")[1]
+		child.Data.ID, err = strconv.ParseUint(id, 36, 64)
+		if err != nil {
+			return errors.Wrapf(err, "parse id: %s", id)
+		}
+
+		child.Data.SelfTextHTML = html.UnescapeString(child.Data.SelfTextHTML)
+		child.Data.CreatedAt = time.Unix(int64(child.Data.CreatedSecs), 0)
+	}
+
+	return nil
 }

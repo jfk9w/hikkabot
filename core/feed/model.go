@@ -9,11 +9,12 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	null "gopkg.in/guregu/null.v3"
+
+	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 )
 
 var (
@@ -167,4 +168,7 @@ type Vendor interface {
 type Blob interface {
 	flu.Input
 	flu.Output
+}
+
+type Event struct {
 }

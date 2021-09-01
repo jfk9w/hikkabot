@@ -7,6 +7,10 @@ import (
 	"github.com/jfk9w/hikkabot/core/feed"
 )
 
+type Vendor interface {
+	OnCommand(ctx context.Context, client telegram.Client, cmd *telegram.Command) (bool, error)
+}
+
 type Aggregator interface {
 	Subscribe(ctx context.Context, feedID telegram.ID, ref string, options []string) error
 	Suspend(ctx context.Context, header *feed.Header, err error) error
