@@ -266,7 +266,7 @@ func (v *Vendor) writeHTML(header *feed.Header, data *Data, thing *reddit.ThingD
 					(&telegram.Command{
 						Key:  clickCommandKey,
 						Args: []string{thing.Subreddit, thing.Name},
-					}).Button("✉️ full post ✉️"),
+					}).Button("✉️ full post in pm ✉️"),
 				}
 
 				chat.ReplyMarkup = telegram.InlineKeyboard(buttons)
