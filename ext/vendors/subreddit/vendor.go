@@ -247,26 +247,51 @@ func (v *Vendor) processThing(ctx context.Context,
 		return nil, nil
 	}
 
-	return v.writeHTML(header, data, thing)
+	writeHTML = v.writeHTML(header, data, thing)
+	return
 }
 
-func (v *Vendor) writeHTML(header *feed.Header, data *Data, thing *reddit.ThingData) (feed.WriteHTML, error) {
-	if thing.IsSelf {
-		return func(html *html.Writer) error {
-			writeHTMLPrefix(html, data.IndexUsers, false, thing).
-				Bold(thing.Title).Text("\n").
-				MarkupString(thing.SelfTextHTML)
-			return nil
-		}, nil
+func (v *Vendor) writeHTML(header *feed.Header, data *Data, thing *reddit.ThingData) feed.WriteHTML {
+	var mediaRef tgmedia.Ref
+	if !thing.IsSelf {
+		mediaRef = v.createMediaRef(header, thing, data.MediaOnly)
 	}
 
-	mediaRef := v.createMediaRef(header, thing, data.MediaOnly)
 	return func(html *html.Writer) error {
-		writeHTMLPrefix(html, data.IndexUsers, data.TrackClicks, thing).
-			Text(thing.Title).Text("\n").
-			Media(thing.URL, mediaRef, true, !data.TrackClicks)
+		html.Text(getSubredditName(thing.Subreddit))
+		var buttons []telegram.Button
+		if out, ok := html.Out.(*output.Paged); ok && data.TrackClicks {
+			if chat, ok := out.Receiver.(*receiver.Chat); ok {
+				buttons = []telegram.Button{
+					(&telegram.Command{
+						Key:  clickCommandKey,
+						Args: []string{thing.Subreddit, thing.Name},
+					}).Button("✉️ full post ✉️"),
+				}
+
+				chat.ReplyMarkup = telegram.InlineKeyboard(buttons)
+				out.PageCount = 1
+				out.PageSize = telegram.MaxCaptionSize
+				html.Text("\n")
+			}
+		}
+
+		if len(buttons) == 0 {
+			html = html.Text(" ").Link("💬", thing.PermalinkURL()).Text("\n")
+			if data.IndexUsers && thing.Author != "" {
+				html = html.Text(`u/`).Text(vendors.Hashtag(thing.Author)).Text("\n")
+			}
+		}
+
+		if thing.IsSelf {
+			html.Bold(thing.Title).Text("\n").MarkupString(thing.SelfTextHTML)
+		} else {
+			html.Text(thing.Title).Text("\n").
+				Media(thing.URL, mediaRef, true, !data.TrackClicks)
+		}
+
 		return nil
-	}, nil
+	}
 }
 
 func (v *Vendor) createMediaRef(header *feed.Header, thing *reddit.ThingData, mediaOnly bool) tgmedia.Ref {
@@ -346,35 +371,6 @@ func (v *Vendor) deleteStaleThings(ctx context.Context, now time.Time) error {
 	}
 
 	return nil
-}
-
-func writeHTMLPrefix(html *html.Writer, indexUsers bool, trackClicks bool, thing *reddit.ThingData) *html.Writer {
-	html = html.Text(getSubredditName(thing.Subreddit))
-	var buttons []telegram.Button
-	if out, ok := html.Out.(*output.Paged); ok && trackClicks {
-		if chat, ok := out.Receiver.(*receiver.Chat); ok {
-			buttons = []telegram.Button{
-				(&telegram.Command{
-					Key:  clickCommandKey,
-					Args: []string{thing.Subreddit, thing.Name},
-				}).Button("full post with links in PM"),
-			}
-
-			chat.ReplyMarkup = telegram.InlineKeyboard(buttons)
-			out.PageCount = 1
-			out.PageSize = telegram.MaxCaptionSize
-			html.Text("\n")
-		}
-	}
-
-	if len(buttons) == 0 {
-		html = html.Text(" ").Link("💬", thing.PermalinkURL()).Text("\n")
-		if indexUsers && thing.Author != "" {
-			html = html.Text(`u/`).Text(vendors.Hashtag(thing.Author)).Text("\n")
-		}
-	}
-
-	return html
 }
 
 func getSubredditName(subreddit string) string {

@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jfk9w-go/telegram-bot-api/ext/html"
-
-	"github.com/jfk9w/hikkabot/core/feed"
-
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api/ext/html"
+
+	"github.com/jfk9w/hikkabot/core/feed"
 )
 
 var (
@@ -48,7 +47,7 @@ type Command struct {
 }
 
 func (l *Command) OnCommand(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
-	var fun func(context.Context, telegram.Client, *telegram.Command) error
+	var fun telegram.CommandListenerFunc
 	switch cmd.Key {
 	case "/sub", "/subscribe":
 		fun = l.Subscribe

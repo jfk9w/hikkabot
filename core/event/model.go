@@ -24,6 +24,5 @@ func (l *Log) TableName() string {
 }
 
 type Storage interface {
-	IsKnownUser(ctx context.Context, userID telegram.ID) (bool, error)
 	SaveEvent(ctx context.Context, row *Log) error
 }
