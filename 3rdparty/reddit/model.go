@@ -9,6 +9,7 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/pkg/errors"
+	null "gopkg.in/guregu/null.v3"
 )
 
 type Media struct {
@@ -32,20 +33,20 @@ func (mc MediaContainer) FallbackURL() string {
 }
 
 type ThingData struct {
-	ID                  uint64    `json:"-" gorm:"primaryKey;not null;autoIncrement:false"`
-	CreatedAt           time.Time `json:"-" gorm:"not null"`
-	Title               string    `json:"title" gorm:"-"`
-	Subreddit           string    `json:"subreddit" gorm:"not null"`
-	Name                string    `json:"name" gorm:"-"`
-	Domain              string    `json:"domain" gorm:"not null"`
-	URL                 string    `json:"URL" gorm:"-"`
-	Ups                 int       `json:"ups" gorm:"not null"`
-	SelfTextHTML        string    `json:"selftext_html" gorm:"-"`
-	IsSelf              bool      `json:"is_self" gorm:"-"`
-	CreatedSecs         float32   `json:"created_utc" gorm:"-"`
+	ID                  string      `json:"name" gorm:"primaryKey"`
+	NumID               uint64      `json:"-" gorm:"not null"`
+	CreatedAt           time.Time   `json:"-" gorm:"not null"`
+	Title               string      `json:"title" gorm:"-"`
+	Subreddit           string      `json:"subreddit" gorm:"not null;index"`
+	Domain              string      `json:"domain" gorm:"not null"`
+	URL                 null.String `json:"url"`
+	Ups                 int         `json:"ups" gorm:"not null"`
+	SelfTextHTML        string      `json:"selftext_html" gorm:"-"`
+	IsSelf              bool        `json:"is_self" gorm:"not null"`
+	CreatedSecs         float32     `json:"created_utc" gorm:"-"`
 	MediaContainer      `gorm:"-"`
 	CrosspostParentList []MediaContainer `json:"crosspost_parent_list" gorm:"-"`
-	Permalink           string           `json:"permalink" gorm:"-"`
+	Permalink           string           `json:"permalink" gorm:"not null"`
 	Author              string           `json:"author" gorm:"not null"`
 }
 
@@ -76,8 +77,8 @@ func (l *Listing) DecodeFrom(body io.Reader) error {
 	for i := range l.Data.Children {
 		child := &l.Data.Children[i]
 		var err error
-		id := strings.Split(child.Data.Name, "_")[1]
-		child.Data.ID, err = strconv.ParseUint(id, 36, 64)
+		id := strings.Split(child.Data.ID, "_")[1]
+		child.Data.NumID, err = strconv.ParseUint(id, 36, 64)
 		if err != nil {
 			return errors.Wrapf(err, "parse id: %s", id)
 		}

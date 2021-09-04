@@ -51,19 +51,19 @@ func (s *SQLStorage) GetPercentile(ctx context.Context, subreddit string, top fl
 		Error
 }
 
-func (s *SQLStorage) GetFreshThingIDs(ctx context.Context, subreddit string, ids util.Uint64Set) (util.Uint64Set, error) {
-	freshIDs := make([]uint64, 0)
+func (s *SQLStorage) GetFreshThingIDs(ctx context.Context, ids util.StringSet) (util.StringSet, error) {
+	freshIDs := make([]string, 0)
 	if err := s.Unmask().WithContext(ctx).Raw( /* language=SQL */ `
 		select id from reddit
-		where subreddit = ? and id in ?
-		order by id`,
-		subreddit, ids.Slice()).
+		where id in ?
+		order by num_id`,
+		ids.Slice()).
 		Scan(&freshIDs).
 		Error; err != nil {
 		return nil, err
 	}
 
-	set := make(util.Uint64Set, len(freshIDs))
+	set := make(util.StringSet, len(freshIDs))
 	for _, id := range freshIDs {
 		set.Add(id)
 	}

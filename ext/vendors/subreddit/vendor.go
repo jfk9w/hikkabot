@@ -15,11 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
-	"github.com/jfk9w-go/telegram-bot-api/ext/output"
-	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/3rdparty/viddit"
@@ -27,11 +23,8 @@ import (
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/jfk9w/hikkabot/ext/resolvers"
-	"github.com/jfk9w/hikkabot/ext/vendors"
 	"github.com/jfk9w/hikkabot/util"
 )
-
-var clickCommandKey = "sr_c"
 
 type Vendor struct {
 	flu.Clock
@@ -64,7 +57,7 @@ func (v *Vendor) ScheduleMaintenance(ctx context.Context, every time.Duration) e
 				return
 			case now := <-ticker.C:
 				if err := v.deleteStaleThings(ctx, now); err != nil {
-					if ctx.Err() != nil {
+					if flu.IsContextRelated(err) {
 						return
 					}
 
@@ -107,17 +100,20 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 	data := &Data{
 		Subreddit: subreddit,
 		Top:       0.3,
-		MediaOnly: true,
 	}
 
 	for _, option := range options {
 		switch option {
 		case "!m":
-			data.MediaOnly = false
+			data.Layout.HideMedia = true
+			data.Layout.ShowText = true
 		case "u":
-			data.IndexUsers = true
-		case "t":
-			data.TrackClicks = true
+			data.Layout.ShowAuthor = true
+		case "p":
+			data.Layout.ShowPaywall = true
+			data.Layout.HideMediaLink = true
+			data.Layout.HideLink = true
+			data.Layout.HideTitle = true
 		default:
 			var err error
 			data.Top, err = strconv.ParseFloat(option, 64)
@@ -127,7 +123,6 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 		}
 	}
 
-	data.SentIDs = make(util.Uint64Set)
 	return &feed.Draft{
 		SubID: data.Subreddit,
 		Name:  getSubredditName(data.Subreddit),
@@ -137,7 +132,7 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 
 func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 	data := new(Data)
-	data.SentIDs = make(util.Uint64Set)
+	data.SentIDs = make(util.StringSet)
 	if err := queue.GetData(ctx, data); err != nil {
 		return
 	}
@@ -187,7 +182,7 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		if dirty {
 			now := v.Clock.Now()
 			if now.Sub(time.Unix(data.LastCleanSecs, 0)) >= v.CleanDataEvery {
-				freshIDs, err := v.Storage.GetFreshThingIDs(ctx, data.Subreddit, data.SentIDs)
+				freshIDs, err := v.Storage.GetFreshThingIDs(ctx, data.SentIDs)
 				if err != nil {
 					_ = queue.Cancel(ctx, errors.Wrap(err, "get fresh things"))
 					return
@@ -242,62 +237,33 @@ func (v *Vendor) processThing(ctx context.Context,
 		return nil, nil
 	}
 
-	if thing.IsSelf && data.MediaOnly {
-		log.Debug("update: skip (media only)")
+	if thing.IsSelf && !data.Layout.ShowText {
+		log.Debug("update: skip (hide text)")
 		return nil, nil
 	}
 
-	writeHTML = v.writeHTML(header, data, thing)
+	if !thing.IsSelf && data.Layout.HideMedia {
+		log.Debug("update: skip (hide media)")
+		return nil, nil
+	}
+
+	writeHTML = v.writeHTML(header, data.Layout, thing)
 	return
 }
 
-func (v *Vendor) writeHTML(header *feed.Header, data *Data, thing *reddit.ThingData) feed.WriteHTML {
+func (v *Vendor) writeHTML(header *feed.Header, layout Layout, thing *reddit.ThingData) feed.WriteHTML {
 	var mediaRef tgmedia.Ref
-	if !thing.IsSelf {
-		mediaRef = v.createMediaRef(header, thing, data.MediaOnly)
+	if !thing.IsSelf && !layout.HideMedia {
+		mediaRef = v.createMediaRef(header, thing, !layout.ShowText)
 	}
 
-	return func(html *html.Writer) error {
-		html.Text(getSubredditName(thing.Subreddit))
-		var buttons []telegram.Button
-		if out, ok := html.Out.(*output.Paged); ok && data.TrackClicks {
-			if chat, ok := out.Receiver.(*receiver.Chat); ok {
-				buttons = []telegram.Button{
-					(&telegram.Command{
-						Key:  clickCommandKey,
-						Args: []string{thing.Subreddit, thing.Name},
-					}).Button("✉️ full post in pm ✉️"),
-				}
-
-				chat.ReplyMarkup = telegram.InlineKeyboard(buttons)
-				out.PageCount = 1
-				out.PageSize = telegram.MaxCaptionSize
-				html.Text("\n")
-			}
-		}
-
-		if len(buttons) == 0 {
-			html = html.Text(" ").Link("💬", thing.PermalinkURL()).Text("\n")
-			if data.IndexUsers && thing.Author != "" {
-				html = html.Text(`u/`).Text(vendors.Hashtag(thing.Author)).Text("\n")
-			}
-		}
-
-		if thing.IsSelf {
-			html.Bold(thing.Title).Text("\n").MarkupString(thing.SelfTextHTML)
-		} else {
-			html.Text(thing.Title).Text("\n").
-				Media(thing.URL, mediaRef, true, !data.TrackClicks)
-		}
-
-		return nil
-	}
+	return layout.WriteHTML(thing, mediaRef)
 }
 
 func (v *Vendor) createMediaRef(header *feed.Header, thing *reddit.ThingData, mediaOnly bool) tgmedia.Ref {
 	ref := &media.Ref{
 		FeedID: header.FeedID,
-		URL:    thing.URL,
+		URL:    thing.URL.String,
 		Dedup:  mediaOnly,
 	}
 

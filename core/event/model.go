@@ -20,7 +20,7 @@ type Log struct {
 }
 
 func (l *Log) TableName() string {
-	return "event_log"
+	return "event"
 }
 
 type Storage interface {

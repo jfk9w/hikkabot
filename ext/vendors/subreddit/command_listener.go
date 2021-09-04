@@ -17,15 +17,15 @@ import (
 	"github.com/jfk9w/hikkabot/core/feed"
 )
 
-type Clicker struct {
+type CommandListener struct {
 	event.Storage
 	*Vendor
 }
 
-func (v *Clicker) OnCommand(ctx context.Context, client telegram.Client, cmd *telegram.Command) (bool, error) {
+func (l *CommandListener) OnCommand(ctx context.Context, client telegram.Client, cmd *telegram.Command) (bool, error) {
 	switch cmd.Key {
 	case clickCommandKey:
-		err := v.Click(ctx, client, cmd)
+		err := l.Click(ctx, client, cmd)
 		if err != nil {
 			if tgerr := new(telegram.Error); errors.As(err, tgerr) && tgerr.ErrorCode == http.StatusForbidden {
 				err = cmd.Start(ctx, client)
@@ -38,7 +38,7 @@ func (v *Clicker) OnCommand(ctx context.Context, client telegram.Client, cmd *te
 	return false, nil
 }
 
-func (v *Clicker) Click(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
+func (l *CommandListener) Click(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
 	if len(cmd.Args) < 2 {
 		return errors.Errorf("expected two arguments")
 	}
@@ -48,17 +48,11 @@ func (v *Clicker) Click(ctx context.Context, client telegram.Client, cmd *telegr
 
 	header := &feed.Header{
 		SubID:  subreddit,
-		Vendor: "tracker",
+		Vendor: "click_tracker",
 		FeedID: cmd.User.ID,
 	}
 
-	data := &Data{
-		MediaOnly:   false,
-		IndexUsers:  true,
-		TrackClicks: false,
-	}
-
-	things, err := v.RedditClient.GetPosts(ctx, subreddit, thingID)
+	things, err := l.RedditClient.GetPosts(ctx, subreddit, thingID)
 	if err != nil {
 		return errors.Wrap(err, "get post")
 	}
@@ -78,7 +72,8 @@ func (v *Clicker) Click(ctx context.Context, client telegram.Client, cmd *telegr
 		},
 	}
 
-	writeHTML := v.writeHTML(header, data, &things[0].Data)
+	layout := Layout{ShowAuthor: true, ShowText: true}
+	writeHTML := l.writeHTML(header, layout, &things[0].Data)
 	if err := writeHTML(writer); err != nil {
 		return err
 	}
@@ -88,7 +83,7 @@ func (v *Clicker) Click(ctx context.Context, client telegram.Client, cmd *telegr
 	}
 
 	log := &event.Log{
-		Time:      v.Now(),
+		Time:      l.Now(),
 		Type:      "click",
 		ChatID:    cmd.Chat.ID,
 		UserID:    cmd.User.ID,
@@ -97,7 +92,7 @@ func (v *Clicker) Click(ctx context.Context, client telegram.Client, cmd *telegr
 		ThingID:   null.StringFrom(thingID),
 	}
 
-	if err := v.SaveEvent(ctx, log); err != nil {
+	if err := l.SaveEvent(ctx, log); err != nil {
 		logrus.WithFields(cmd.Labels().Map()).Warnf("save event: %s", err)
 	}
 

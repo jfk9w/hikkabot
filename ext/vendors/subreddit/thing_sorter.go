@@ -9,7 +9,7 @@ func (ts thingSorter) Len() int {
 }
 
 func (ts thingSorter) Less(i, j int) bool {
-	return ts[i].Data.ID < ts[j].Data.ID
+	return ts[i].Data.NumID < ts[j].Data.NumID
 }
 
 func (ts thingSorter) Swap(i, j int) {

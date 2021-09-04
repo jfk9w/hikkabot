@@ -72,7 +72,7 @@ func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.V
 		return nil, errors.Wrap(err, "get event storage")
 	}
 
-	vendor := &Clicker{
+	vendor := &CommandListener{
 		Vendor: &Vendor{
 			Clock:          app,
 			Storage:        storage,
