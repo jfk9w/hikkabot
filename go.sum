@@ -322,8 +322,8 @@ github.com/jfk9w-go/aconvert-api v0.9.14 h1:KWCWxyW2ikX30Ikg1FWSel/JDLVoUE208usy
 github.com/jfk9w-go/aconvert-api v0.9.14/go.mod h1:2E8Foj1Hag5lijfNqfnAnP+PaFnsYsHgl5USzpd5gM4=
 github.com/jfk9w-go/flu v0.9.27 h1:8hdBr0IDAyXmdlX8w9wfXbqVygyC4OKemwsI/ALS6E8=
 github.com/jfk9w-go/flu v0.9.27/go.mod h1:mVl382GTXeCykmO0vkRVeU08cmH0dieMQv6dt3E8kQ0=
-github.com/jfk9w-go/telegram-bot-api v0.9.21 h1:BOBULGHJg8JDJSW6WfQ1+ENVbYdH4WE/4Ip2g9zKzok=
-github.com/jfk9w-go/telegram-bot-api v0.9.21/go.mod h1:XYbmuc27jMj/QzdU7XImaV6Af/xs541wfOPjqyT9xsA=
+github.com/jfk9w-go/telegram-bot-api v0.9.22 h1:Xz5pYx8pXPtYxiEWHJYgnwMfqvxzrKwaXp52yEOkgPU=
+github.com/jfk9w-go/telegram-bot-api v0.9.22/go.mod h1:XYbmuc27jMj/QzdU7XImaV6Af/xs541wfOPjqyT9xsA=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
 github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
 github.com/jinzhu/now v1.1.2 h1:eVKgfIdy9b6zbWBMgFpfDPoAMifwSZagU9HmEU6zgiI=
