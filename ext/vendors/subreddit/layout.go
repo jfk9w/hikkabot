@@ -34,22 +34,24 @@ func (l Layout) WriteHTML(thing *reddit.ThingData, mediaRef tgmedia.Ref) feed.Wr
 						(&telegram.Command{
 							Key:  clickCommandKey,
 							Args: []string{thing.Subreddit, thing.ID},
-						}).Button("ℹ️"),
+						}).Button("Get info"),
 					}
 
 					out.PageCount = 1
 					out.PageSize = telegram.MaxCaptionSize
-				} else if l.ShowPreference {
-					buttons = []telegram.Button{
+				}
+
+				if l.ShowPreference {
+					buttons = append(buttons,
 						(&telegram.Command{
 							Key:  likeCommandKey,
 							Args: []string{thing.Subreddit, thing.ID},
-						}).Button("👍️ 0"),
+						}).Button("👍"),
 						(&telegram.Command{
 							Key:  dislikeCommandKey,
 							Args: []string{thing.Subreddit, thing.ID},
-						}).Button("👎 0"),
-					}
+						}).Button("👎"),
+					)
 				}
 
 				chat.ReplyMarkup = telegram.InlineKeyboard(buttons)

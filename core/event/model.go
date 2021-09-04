@@ -10,11 +10,11 @@ import (
 )
 
 type Log struct {
-	Time      time.Time   `gorm:"not null"`
-	Type      string      `gorm:"not null"`
-	ChatID    telegram.ID `gorm:"not null"`
-	UserID    telegram.ID `gorm:"not null"`
-	MessageID telegram.ID `gorm:"not null"`
+	Time      time.Time   `gorm:"not null;index"`
+	Type      string      `gorm:"not null;index:event_idx"`
+	ChatID    telegram.ID `gorm:"not null;index:event_idx"`
+	UserID    telegram.ID `gorm:"not null;index:event_idx"`
+	MessageID telegram.ID `gorm:"not null;index:event_idx"`
 	Subreddit null.String
 	ThingID   null.String
 }
@@ -25,4 +25,5 @@ func (l *Log) TableName() string {
 
 type Storage interface {
 	SaveEvent(ctx context.Context, row *Log) error
+	SaveUniqueEvent(ctx context.Context, row *Log) error
 }
