@@ -25,5 +25,4 @@ func (l *Log) TableName() string {
 
 type Storage interface {
 	SaveEvent(ctx context.Context, row *Log) error
-	SaveUniqueEvent(ctx context.Context, row *Log) error
 }
