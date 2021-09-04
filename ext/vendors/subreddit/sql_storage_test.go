@@ -46,7 +46,7 @@ func TestSQLStorage_Things(t *testing.T) {
 		First(thing).
 		Error
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(1), thing.Data.ID)
+	assert.Equal(t, "1", thing.Data.ID)
 	assert.Equal(t, 10, thing.Data.Ups)
 	assert.Equal(t, now.UnixMilli(), thing.Data.CreatedAt.UnixMilli())
 	assert.Equal(t, now.UnixMilli(), thing.LastSeen.UnixMilli())
