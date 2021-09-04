@@ -11,10 +11,10 @@ import (
 
 type Log struct {
 	Time      time.Time   `gorm:"not null;index"`
-	Type      string      `gorm:"not null;index:event_idx"`
-	ChatID    telegram.ID `gorm:"not null;index:event_idx"`
-	UserID    telegram.ID `gorm:"not null;index:event_idx"`
-	MessageID telegram.ID `gorm:"not null;index:event_idx"`
+	Type      string      `gorm:"not null;index:idx_event"`
+	ChatID    telegram.ID `gorm:"not null;index:idx_event"`
+	UserID    telegram.ID `gorm:"not null;index:idx_event"`
+	MessageID telegram.ID `gorm:"not null;index:idx_event"`
 	Subreddit null.String
 	ThingID   null.String
 }
