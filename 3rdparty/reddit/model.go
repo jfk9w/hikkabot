@@ -46,7 +46,7 @@ type ThingData struct {
 	CreatedSecs         float32     `json:"created_utc" gorm:"-"`
 	MediaContainer      `gorm:"-"`
 	CrosspostParentList []MediaContainer `json:"crosspost_parent_list" gorm:"-"`
-	Permalink           string           `json:"permalink" gorm:"not null"`
+	Permalink           string           `json:"permalink" gorm:"-"`
 	Author              string           `json:"author" gorm:"not null"`
 }
 

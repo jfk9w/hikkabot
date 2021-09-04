@@ -114,6 +114,8 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 			data.Layout.HideMediaLink = true
 			data.Layout.HideLink = true
 			data.Layout.HideTitle = true
+		case "l":
+			data.Layout.ShowPreference = true
 		default:
 			var err error
 			data.Top, err = strconv.ParseFloat(option, 64)

@@ -59,4 +59,6 @@ require (
 	gorm.io/driver/postgres v1.1.0 // indirect
 )
 
+replace github.com/jfk9w-go/telegram-bot-api => ../jfk9w-go/telegram-bot-api
+
 go 1.17

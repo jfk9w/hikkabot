@@ -33,9 +33,55 @@ func (l *CommandListener) OnCommand(ctx context.Context, client telegram.Client,
 		}
 
 		return true, err
+	case likeCommandKey, dislikeCommandKey:
+		return true, l.Pref(ctx, client, cmd)
 	}
 
 	return false, nil
+}
+
+func (l *CommandListener) Pref(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
+	if len(cmd.Args) < 2 {
+		return errors.Errorf("expected two arguments")
+	}
+
+	if err := l.DeleteEvents(ctx, cmd.Chat.ID, cmd.Message.ID, cmd.User.ID, "like", "dislike"); err != nil {
+		return errors.Wrap(err, "delete events")
+	}
+
+	subreddit := cmd.Args[0]
+	thingID := cmd.Args[1]
+	eventType := "like"
+	if cmd.Key == dislikeCommandKey {
+		eventType = "dislike"
+	}
+
+	log := &event.Log{
+		Time:      l.Now(),
+		Type:      eventType,
+		ChatID:    cmd.Chat.ID,
+		UserID:    cmd.User.ID,
+		MessageID: cmd.Message.ID,
+		Subreddit: null.StringFrom(subreddit),
+		ThingID:   null.StringFrom(thingID),
+	}
+
+	if err := l.SaveEvent(ctx, log); err != nil {
+		return errors.Wrap(err, "save event")
+	}
+
+	stats, err := l.CountEvents(ctx, cmd.Chat.ID, cmd.Message.ID, "like", "dislike")
+	if err != nil {
+		return errors.Wrap(err, "count events")
+	}
+
+	ref := telegram.MessageRef{ChatID: cmd.Chat.ID, ID: cmd.Message.ID}
+	markup := telegram.InlineKeyboard(PreferenceButtons(subreddit, thingID, stats["like"], stats["dislike"]))
+	if _, err := client.EditMessageReplyMarkup(ctx, ref, markup); err != nil {
+		return errors.Wrap(err, "edit reply markup")
+	}
+
+	return nil
 }
 
 func (l *CommandListener) Click(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {

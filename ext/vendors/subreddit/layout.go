@@ -1,6 +1,8 @@
 package subreddit
 
 import (
+	"fmt"
+
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
@@ -39,19 +41,8 @@ func (l Layout) WriteHTML(thing *reddit.ThingData, mediaRef tgmedia.Ref) feed.Wr
 
 					out.PageCount = 1
 					out.PageSize = telegram.MaxCaptionSize
-				}
-
-				if l.ShowPreference {
-					buttons = append(buttons,
-						(&telegram.Command{
-							Key:  likeCommandKey,
-							Args: []string{thing.Subreddit, thing.ID},
-						}).Button("👍"),
-						(&telegram.Command{
-							Key:  dislikeCommandKey,
-							Args: []string{thing.Subreddit, thing.ID},
-						}).Button("👎"),
-					)
+				} else if l.ShowPreference {
+					buttons = PreferenceButtons(thing.Subreddit, thing.ID, 0, 0)
 				}
 
 				chat.ReplyMarkup = telegram.InlineKeyboard(buttons)
@@ -88,5 +79,18 @@ func (l Layout) WriteHTML(thing *reddit.ThingData, mediaRef tgmedia.Ref) feed.Wr
 		}
 
 		return nil
+	}
+}
+
+func PreferenceButtons(subreddit, thingID string, likes, dislikes int64) []telegram.Button {
+	return []telegram.Button{
+		(&telegram.Command{
+			Key:  likeCommandKey,
+			Args: []string{subreddit, thingID},
+		}).Button(fmt.Sprintf("👍 %d", likes)),
+		(&telegram.Command{
+			Key:  dislikeCommandKey,
+			Args: []string{subreddit, thingID},
+		}).Button(fmt.Sprintf("👎 %d", dislikes)),
 	}
 }
