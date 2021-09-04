@@ -49,24 +49,7 @@ func (l *CommandListener) Pref(ctx context.Context, client telegram.Client, cmd 
 		return errors.Wrap(err, "delete events")
 	}
 
-	subreddit := cmd.Args[0]
-	thingID := cmd.Args[1]
-	eventType := "like"
-	if cmd.Key == dislikeCommandKey {
-		eventType = "dislike"
-	}
-
-	log := &event.Log{
-		Time:      l.Now(),
-		Type:      eventType,
-		ChatID:    cmd.Chat.ID,
-		UserID:    cmd.User.ID,
-		MessageID: cmd.Message.ID,
-		Subreddit: null.StringFrom(subreddit),
-		ThingID:   null.StringFrom(thingID),
-	}
-
-	if err := l.SaveEvent(ctx, log); err != nil {
+	if err := l.SaveEvent(ctx, l.newEvent(cmd)); err != nil {
 		return errors.Wrap(err, "save event")
 	}
 
@@ -76,6 +59,7 @@ func (l *CommandListener) Pref(ctx context.Context, client telegram.Client, cmd 
 	}
 
 	ref := telegram.MessageRef{ChatID: cmd.Chat.ID, ID: cmd.Message.ID}
+	subreddit, thingID := cmd.Args[0], cmd.Args[1]
 	markup := telegram.InlineKeyboard(PreferenceButtons(subreddit, thingID, stats["like"], stats["dislike"]))
 	if _, err := client.EditMessageReplyMarkup(ctx, ref, markup); err != nil {
 		return errors.Wrap(err, "edit reply markup")
@@ -89,9 +73,7 @@ func (l *CommandListener) Click(ctx context.Context, client telegram.Client, cmd
 		return errors.Errorf("expected two arguments")
 	}
 
-	subreddit := cmd.Args[0]
-	thingID := cmd.Args[1]
-
+	subreddit, thingID := cmd.Args[0], cmd.Args[1]
 	header := &feed.Header{
 		SubID:  subreddit,
 		Vendor: "click_tracker",
@@ -128,19 +110,31 @@ func (l *CommandListener) Click(ctx context.Context, client telegram.Client, cmd
 		return err
 	}
 
-	log := &event.Log{
-		Time:      l.Now(),
-		Type:      "click",
-		ChatID:    cmd.Chat.ID,
-		UserID:    cmd.User.ID,
-		MessageID: cmd.Message.ID,
-		Subreddit: null.StringFrom(subreddit),
-		ThingID:   null.StringFrom(thingID),
-	}
-
-	if err := l.SaveEvent(ctx, log); err != nil {
+	if err := l.SaveEvent(ctx, l.newEvent(cmd)); err != nil {
 		logrus.WithFields(cmd.Labels().Map()).Warnf("save event: %s", err)
 	}
 
 	return nil
+}
+
+func (l *CommandListener) newEvent(cmd *telegram.Command) *event.Log {
+	var eventType string
+	switch cmd.Key {
+	case clickCommandKey:
+		eventType = "click"
+	case likeCommandKey:
+		eventType = "like"
+	case dislikeCommandKey:
+		eventType = "dislike"
+	}
+
+	return &event.Log{
+		Time:      l.Now(),
+		Type:      eventType,
+		ChatID:    cmd.Chat.ID,
+		UserID:    cmd.User.ID,
+		MessageID: cmd.Message.ID,
+		Subreddit: null.StringFrom(cmd.Args[0]),
+		ThingID:   null.StringFrom(cmd.Args[1]),
+	}
 }
