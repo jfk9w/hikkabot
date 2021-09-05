@@ -83,7 +83,7 @@ func PaywallButton(subreddit, thingID string) telegram.Button {
 	return (&telegram.Command{
 		Key:  clickCommandKey,
 		Args: []string{subreddit, thingID},
-	}).Button("Get info")
+	}).Button("ℹ️")
 }
 
 func PreferenceButtons(subreddit, thingID string, likes, dislikes int64, paywall bool) []telegram.Button {
