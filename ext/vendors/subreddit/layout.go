@@ -32,17 +32,14 @@ func (l Layout) WriteHTML(thing *reddit.ThingData, mediaRef tgmedia.Ref) feed.Wr
 			if chat, ok := out.Receiver.(*receiver.Chat); ok {
 				var buttons []telegram.Button
 				if l.ShowPaywall {
-					buttons = []telegram.Button{
-						(&telegram.Command{
-							Key:  clickCommandKey,
-							Args: []string{thing.Subreddit, thing.ID},
-						}).Button("Get info"),
-					}
-
+					buttons = []telegram.Button{PaywallButton(thing.Subreddit, thing.ID)}
 					out.PageCount = 1
 					out.PageSize = telegram.MaxCaptionSize
-				} else if l.ShowPreference {
-					buttons = PreferenceButtons(thing.Subreddit, thing.ID, 0, 0)
+				}
+
+				if l.ShowPreference {
+					buttons = append(buttons,
+						PreferenceButtons(thing.Subreddit, thing.ID, 0, 0, l.ShowPaywall)...)
 				}
 
 				chat.ReplyMarkup = telegram.InlineKeyboard(buttons)
@@ -82,15 +79,27 @@ func (l Layout) WriteHTML(thing *reddit.ThingData, mediaRef tgmedia.Ref) feed.Wr
 	}
 }
 
-func PreferenceButtons(subreddit, thingID string, likes, dislikes int64) []telegram.Button {
+func PaywallButton(subreddit, thingID string) telegram.Button {
+	return (&telegram.Command{
+		Key:  clickCommandKey,
+		Args: []string{subreddit, thingID},
+	}).Button("Get info")
+}
+
+func PreferenceButtons(subreddit, thingID string, likes, dislikes int64, paywall bool) []telegram.Button {
+	args := []string{subreddit, thingID}
+	if paywall {
+		args = append(args, "p")
+	}
+
 	return []telegram.Button{
 		(&telegram.Command{
 			Key:  likeCommandKey,
-			Args: []string{subreddit, thingID},
+			Args: args,
 		}).Button(fmt.Sprintf("👍 %d", likes)),
 		(&telegram.Command{
 			Key:  dislikeCommandKey,
-			Args: []string{subreddit, thingID},
+			Args: args,
 		}).Button(fmt.Sprintf("👎 %d", dislikes)),
 	}
 }

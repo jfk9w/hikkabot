@@ -60,8 +60,18 @@ func (l *CommandListener) Pref(ctx context.Context, client telegram.Client, cmd 
 
 	ref := telegram.MessageRef{ChatID: cmd.Chat.ID, ID: cmd.Message.ID}
 	subreddit, thingID := cmd.Args[0], cmd.Args[1]
-	markup := telegram.InlineKeyboard(PreferenceButtons(subreddit, thingID, stats["like"], stats["dislike"]))
-	if _, err := client.EditMessageReplyMarkup(ctx, ref, markup); err != nil {
+	paywall := false
+	if len(cmd.Args) > 2 {
+		paywall = cmd.Args[2] == "p"
+	}
+
+	var buttons []telegram.Button
+	if paywall {
+		buttons = []telegram.Button{PaywallButton(subreddit, thingID)}
+	}
+
+	buttons = append(buttons, PreferenceButtons(subreddit, thingID, stats["like"], stats["dislike"], paywall)...)
+	if _, err := client.EditMessageReplyMarkup(ctx, ref, telegram.InlineKeyboard(buttons)); err != nil {
 		return errors.Wrap(err, "edit reply markup")
 	}
 
