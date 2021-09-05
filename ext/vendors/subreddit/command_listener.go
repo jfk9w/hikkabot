@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	null "gopkg.in/guregu/null.v3"
+	"gorm.io/gorm"
 
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
@@ -45,17 +46,32 @@ func (l *CommandListener) Pref(ctx context.Context, client telegram.Client, cmd 
 		return errors.Errorf("expected two arguments")
 	}
 
-	if err := l.DeleteEvents(ctx, cmd.Chat.ID, cmd.Message.ID, cmd.User.ID, "like", "dislike"); err != nil {
-		return errors.Wrap(err, "delete events")
+	var stats map[string]int64
+	update := func(storage event.Storage) error {
+		if err := storage.DeleteEvents(ctx, cmd.Chat.ID, cmd.Message.ID, cmd.User.ID, "like", "dislike"); err != nil {
+			return errors.Wrap(err, "delete events")
+		}
+
+		if err := storage.SaveEvent(ctx, l.newEvent(cmd)); err != nil {
+			return errors.Wrap(err, "save event")
+		}
+
+		var err error
+		stats, err = storage.CountEvents(ctx, cmd.Chat.ID, cmd.Message.ID, "like", "dislike")
+		if err != nil {
+			return errors.Wrap(err, "count events")
+		}
+
+		return nil
 	}
 
-	if err := l.SaveEvent(ctx, l.newEvent(cmd)); err != nil {
-		return errors.Wrap(err, "save event")
-	}
-
-	stats, err := l.CountEvents(ctx, cmd.Chat.ID, cmd.Message.ID, "like", "dislike")
-	if err != nil {
-		return errors.Wrap(err, "count events")
+	if storage, ok := l.Storage.(*event.SQLStorage); ok {
+		if err := storage.Unmask().WithContext(ctx).
+			Transaction(func(tx *gorm.DB) error { return update((*event.SQLStorage)(tx)) }); err != nil {
+			return err
+		}
+	} else if err := update(l.Storage); err != nil {
+		return err
 	}
 
 	ref := telegram.MessageRef{ChatID: cmd.Chat.ID, ID: cmd.Message.ID}

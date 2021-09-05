@@ -19,7 +19,6 @@ import (
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/3rdparty/viddit"
-	"github.com/jfk9w/hikkabot/core/event"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/jfk9w/hikkabot/ext/resolvers"
@@ -29,7 +28,6 @@ import (
 type Vendor struct {
 	flu.Clock
 	Storage        Storage
-	EventStorage   event.Storage
 	CleanDataEvery time.Duration
 	FreshThingTTL  time.Duration
 	RedditClient   *reddit.Client
