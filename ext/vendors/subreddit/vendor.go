@@ -99,7 +99,7 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 
 	data := &Data{
 		Subreddit: subreddit,
-		Top:       0.3,
+		Top:       0.1,
 	}
 
 	for _, option := range options {
