@@ -28,8 +28,6 @@ import (
 	"github.com/jfk9w/hikkabot/util"
 )
 
-var ErrSuppressed = errors.New("suppressed")
-
 type Vendor struct {
 	flu.Clock
 	Storage        Storage
@@ -238,29 +236,25 @@ func (v *Vendor) processThing(ctx context.Context, now time.Time,
 
 		sentIDs := data.SentIDs.Slice()
 		getPercentile := func(storage Storage) error {
-			var boost float64
-			if len(sentIDs) == 0 {
-				boost = 1
-			} else {
+			boost := 0.
+			if len(sentIDs) > 0 {
 				score, err := storage.Score(ctx, header.FeedID, sentIDs)
 				if err != nil {
 					return errors.Wrap(err, "score")
 				}
 
-				if score.First == nil || now.Sub(*score.First) < v.ConstantPeriod {
-					boost = 1
-				} else {
+				if score.First != nil && now.Sub(*score.First) >= v.ConstantPeriod {
 					thingRatio := float64(score.LikedThings) / float64(len(data.SentIDs))
 					if members < 50 {
 						members = 50
 					}
 
 					userRatio := (1./data.Top*float64(score.Likes) - float64(score.Dislikes)) / float64(members)
-					boost = 3 * thingRatio * userRatio
+					boost = 5 * thingRatio * userRatio
 				}
 			}
 
-			top := data.Top * boost
+			top := data.Top * (boost + 1)
 			if top < 0.01 {
 				top = 0.01
 			}
