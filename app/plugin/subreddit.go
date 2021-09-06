@@ -27,6 +27,8 @@ type SubredditConfig struct {
 	Data struct {
 		CleanEvery flu.Duration
 	}
+
+	ConstantPeriod flu.Duration
 }
 
 type Subreddit RedditClient
@@ -92,6 +94,7 @@ func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.V
 			VidditClient:   vidditClient,
 			TelegramClient: bot,
 			MediaManager:   mediaManager,
+			ConstantPeriod: config.ConstantPeriod.GetOrDefault(6 * 24 * time.Hour),
 			Metrics:        metrics.WithPrefix("subreddit"),
 		},
 		Storage: eventStorage,

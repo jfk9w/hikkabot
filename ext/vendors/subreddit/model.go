@@ -18,6 +18,13 @@ var (
 	dislikeCommandKey = "src_dl"
 )
 
+type Score struct {
+	First       *time.Time
+	LikedThings int
+	Likes       int
+	Dislikes    int
+}
+
 type Data struct {
 	Subreddit     string         `json:"subreddit"`
 	SentIDs       util.StringSet `json:"sent_ids,omitempty"`
@@ -35,5 +42,5 @@ type Storage interface {
 	DeleteStaleThings(ctx context.Context, until time.Time) (int64, error)
 	GetPercentile(ctx context.Context, subreddit string, top float64) (int, error)
 	GetFreshThingIDs(ctx context.Context, ids util.StringSet) (util.StringSet, error)
-	CountUniqueEvents(ctx context.Context, chatID telegram.ID, subreddit string, since time.Time) (map[string]int64, error)
+	Score(ctx context.Context, chatID telegram.ID, thingIDs []string) (*Score, error)
 }

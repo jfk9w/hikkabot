@@ -38,7 +38,7 @@ func (c *Client) RefreshInBackground(ctx context.Context, every time.Duration) e
 				return
 			case <-ticker.C:
 				for err := c.refresh(ctx); err != nil; err = c.refresh(ctx) {
-					if ctx.Err() != nil {
+					if flu.IsContextRelated(err) {
 						return
 					}
 

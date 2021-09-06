@@ -35,6 +35,7 @@ type Vendor struct {
 	Storage        Storage
 	CleanDataEvery time.Duration
 	FreshThingTTL  time.Duration
+	ConstantPeriod time.Duration
 	RedditClient   *reddit.Client
 	MediaManager   *media.Manager
 	VidditClient   *viddit.Client
@@ -104,7 +105,7 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 
 	data := &Data{
 		Subreddit: subreddit,
-		Top:       0.1,
+		Top:       0.05,
 	}
 
 	for _, option := range options {
@@ -172,11 +173,12 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		return
 	}
 
+	now := v.Clock.Now()
 	percentile := -1
 	dirty := true
 	for i := range things {
 		thing := &things[i]
-		writeHTML, err := v.processThing(ctx, queue.Header, data, log, &percentile, &thing.Data)
+		writeHTML, err := v.processThing(ctx, now, queue.Header, data, log, &percentile, &thing.Data)
 		if err != nil {
 			_ = queue.Cancel(ctx, err)
 			return
@@ -187,7 +189,6 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		}
 
 		if dirty {
-			now := v.Clock.Now()
 			if now.Sub(time.Unix(data.LastCleanSecs, 0)) >= v.CleanDataEvery {
 				freshIDs, err := v.Storage.GetFreshThingIDs(ctx, data.SentIDs)
 				if err != nil {
@@ -214,7 +215,7 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 	}
 }
 
-func (v *Vendor) processThing(ctx context.Context,
+func (v *Vendor) processThing(ctx context.Context, now time.Time,
 	header *feed.Header, data *Data, log *logrus.Entry,
 	percentile *int, thing *reddit.ThingData) (
 	writeHTML feed.WriteHTML, err error) {
@@ -235,24 +236,36 @@ func (v *Vendor) processThing(ctx context.Context,
 			return nil, errors.Wrap(err, "get chat member count")
 		}
 
+		sentIDs := data.SentIDs.Slice()
 		getPercentile := func(storage Storage) error {
-			stats, err := storage.CountUniqueEvents(ctx, header.FeedID, data.Subreddit, v.Now().Add(-v.FreshThingTTL))
-			if err != nil {
-				return errors.Wrap(err, "count unique events")
+			var boost float64
+			if len(sentIDs) == 0 {
+				boost = 1
+			} else {
+				score, err := storage.Score(ctx, header.FeedID, sentIDs)
+				if err != nil {
+					return errors.Wrap(err, "score")
+				}
+
+				if score.First == nil || now.Sub(*score.First) < v.ConstantPeriod {
+					boost = 1
+				} else {
+					thingRatio := float64(score.LikedThings) / float64(len(data.SentIDs))
+					if members < 50 {
+						members = 50
+					}
+
+					userRatio := (1./data.Top*float64(score.Likes) - float64(score.Dislikes)) / float64(members)
+					boost = 3 * thingRatio * userRatio
+				}
 			}
 
-			likes := stats["click"]
-			if stats["like"] > likes {
-				likes = stats["like"]
+			top := data.Top * boost
+			if top < 0.01 {
+				top = 0.01
 			}
 
-			boost := ((1./data.Top-1.)*float64(likes) - float64(stats["dislike"])) / float64(members)
-			v.Metrics.Gauge("boost", header.Labels()).Set(boost)
-			top := data.Top * (1 + boost)
-			if top <= 0 {
-				return ErrSuppressed
-			}
-
+			v.Metrics.Gauge("top", header.Labels()).Set(top)
 			*percentile, err = storage.GetPercentile(ctx, data.Subreddit, top)
 			if err != nil {
 				return errors.Wrap(err, "get percentile")

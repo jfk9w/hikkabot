@@ -6,9 +6,10 @@ import (
 
 	gormutil "github.com/jfk9w-go/flu/gorm"
 
+	telegram "github.com/jfk9w-go/telegram-bot-api"
+
 	"gorm.io/gorm"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/core/event"
 	"github.com/jfk9w/hikkabot/util"
@@ -73,27 +74,16 @@ func (s *SQLStorage) GetFreshThingIDs(ctx context.Context, ids util.StringSet) (
 	return set, nil
 }
 
-func (s *SQLStorage) CountUniqueEvents(ctx context.Context, chatID telegram.ID, subreddit string, since time.Time) (map[string]int64, error) {
-	rows := make([]struct {
-		Type   string
-		Events int64
-	}, 0)
-
-	if err := s.Unmask().WithContext(ctx).Raw( /* language=SQL */ `
-		select type, count(distinct user_id) as events
+func (s *SQLStorage) Score(ctx context.Context, chatID telegram.ID, thingIDs []string) (*Score, error) {
+	score := new(Score)
+	return score, s.Unmask().WithContext(ctx).Raw( /* language=SQL */ `
+		select min(time) as first,
+		       count(distinct case when type in ('click', 'like') then thing_id end) as liked_things,
+		       count(distinct case when type in ('click', 'like') then user_id end) as likes,
+		       count(distinct case when type = 'dislike' then user_id end) as dislikes
 		from event
-		where chat_id = ? and subreddit = ? and time >= ?
-		group by type`,
-		chatID, subreddit, since).
-		Scan(&rows).
-		Error; err != nil {
-		return nil, err
-	}
-
-	stats := make(map[string]int64)
-	for _, row := range rows {
-		stats[row.Type] = row.Events
-	}
-
-	return stats, nil
+		where chat_id = ? and thing_id in ?`,
+		chatID, thingIDs).
+		Scan(score).
+		Error
 }
