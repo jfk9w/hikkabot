@@ -34,6 +34,7 @@ type Instance struct {
 	db           *gorm.DB
 	mediaManager *media.Manager
 	eventStorage event.Storage
+	bot          *telegram.Bot
 }
 
 func Create(version string, clock flu.Clock, config flu.Input) (*Instance, error) {
@@ -188,9 +189,9 @@ func (app *Instance) Run(ctx context.Context) error {
 		return errors.Wrap(err, "get config")
 	}
 
-	bot, err := app.createBot(ctx, config.Telegram.Token)
+	bot, err := app.GetBot(ctx)
 	if err != nil {
-		return errors.Wrap(err, "create bot")
+		return errors.Wrap(err, "get bot")
 	}
 
 	supervisor := config.Telegram.Supervisor
@@ -357,13 +358,24 @@ func (app *Instance) createFeedStorage(ctx context.Context) (feed.Storage, error
 	return storage, nil
 }
 
-func (app *Instance) createBot(ctx context.Context, token string) (*telegram.Bot, error) {
+func (app *Instance) GetBot(ctx context.Context) (*telegram.Bot, error) {
+	if app.bot != nil {
+		return app.bot, nil
+	}
+
+	globalConfig := new(struct{ Telegram struct{ Token string } })
+	if err := app.GetConfig(globalConfig); err != nil {
+		return nil, errors.Wrap(err, "get config")
+	}
+
+	config := globalConfig.Telegram
 	bot := telegram.NewBot(ctx, fluhttp.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
-		NewClient(), token)
+		NewClient(), config.Token)
 	if _, err := bot.GetMe(ctx); err != nil {
 		return nil, errors.Wrap(err, "get me")
 	}
 
+	app.bot = bot
 	return bot, nil
 }

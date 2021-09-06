@@ -12,8 +12,11 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/jfk9w-go/flu/metrics"
+	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 
@@ -25,6 +28,8 @@ import (
 	"github.com/jfk9w/hikkabot/util"
 )
 
+var ErrSuppressed = errors.New("suppressed")
+
 type Vendor struct {
 	flu.Clock
 	Storage        Storage
@@ -33,6 +38,8 @@ type Vendor struct {
 	RedditClient   *reddit.Client
 	MediaManager   *media.Manager
 	VidditClient   *viddit.Client
+	TelegramClient telegram.Client
+	Metrics        metrics.Registry
 	work           flu.WaitGroup
 	cancel         func()
 }
@@ -223,10 +230,46 @@ func (v *Vendor) processThing(ctx context.Context,
 	}
 
 	if *percentile < 0 {
-		var err error
-		*percentile, err = v.Storage.GetPercentile(ctx, data.Subreddit, data.Top)
+		members, err := v.TelegramClient.GetChatMemberCount(ctx, header.FeedID)
 		if err != nil {
-			return nil, errors.Wrapf(err, "get %.2f percentile for %s", data.Top, data.Subreddit)
+			return nil, errors.Wrap(err, "get chat member count")
+		}
+
+		getPercentile := func(storage Storage) error {
+			stats, err := storage.CountUniqueEvents(ctx, header.FeedID, data.Subreddit, v.Now().Add(-v.FreshThingTTL))
+			if err != nil {
+				return errors.Wrap(err, "count unique events")
+			}
+
+			likes := stats["click"]
+			if stats["like"] > likes {
+				likes = stats["like"]
+			}
+
+			boost := ((1./data.Top-1.)*float64(likes) - float64(stats["dislike"])) / float64(members)
+			v.Metrics.Gauge("boost", header.Labels()).Set(boost)
+			top := data.Top * (1 + boost)
+			if top <= 0 {
+				return ErrSuppressed
+			}
+
+			*percentile, err = storage.GetPercentile(ctx, data.Subreddit, top)
+			if err != nil {
+				return errors.Wrap(err, "get percentile")
+			}
+
+			return nil
+		}
+
+		if storage, ok := v.Storage.(*SQLStorage); ok {
+			err = storage.Unmask().WithContext(ctx).
+				Transaction(func(tx *gorm.DB) error { return getPercentile((*SQLStorage)(tx)) })
+		} else {
+			err = getPercentile(v.Storage)
+		}
+
+		if err != nil {
+			return nil, errors.Wrap(err, "get percentile")
 		}
 	}
 

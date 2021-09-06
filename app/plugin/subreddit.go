@@ -72,6 +72,16 @@ func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.V
 		return nil, errors.Wrap(err, "get event storage")
 	}
 
+	bot, err := app.GetBot(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "get bot")
+	}
+
+	metrics, err := app.GetMetricsRegistry(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "get metrics registry")
+	}
+
 	vendor := &CommandListener{
 		Vendor: &Vendor{
 			Clock:          app,
@@ -80,7 +90,9 @@ func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.V
 			FreshThingTTL:  config.Storage.FreshTTL.GetOrDefault(7 * 24 * time.Hour),
 			RedditClient:   redditClient,
 			VidditClient:   vidditClient,
+			TelegramClient: bot,
 			MediaManager:   mediaManager,
+			Metrics:        metrics.WithPrefix("subreddit"),
 		},
 		Storage: eventStorage,
 	}

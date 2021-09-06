@@ -6,8 +6,10 @@ import (
 
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/metrics"
 	"gorm.io/gorm"
 
+	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w/hikkabot/core/event"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
@@ -17,9 +19,11 @@ type Interface interface {
 	flu.Clock
 	GetVersion() string
 	GetConfig(value interface{}) error
+	GetMetricsRegistry(ctx context.Context) (metrics.Registry, error)
 	GetMediaManager(ctx context.Context) (*media.Manager, error)
 	GetDatabase() (*gorm.DB, error)
 	GetEventStorage(ctx context.Context) (event.Storage, error)
+	GetBot(ctx context.Context) (*telegram.Bot, error)
 	Manage(service io.Closer)
 }
 

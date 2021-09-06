@@ -6,6 +6,8 @@ import (
 
 	"github.com/jfk9w-go/flu/metrics"
 
+	telegram "github.com/jfk9w-go/telegram-bot-api"
+
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/util"
 )
@@ -33,4 +35,5 @@ type Storage interface {
 	DeleteStaleThings(ctx context.Context, until time.Time) (int64, error)
 	GetPercentile(ctx context.Context, subreddit string, top float64) (int, error)
 	GetFreshThingIDs(ctx context.Context, ids util.StringSet) (util.StringSet, error)
+	CountUniqueEvents(ctx context.Context, chatID telegram.ID, subreddit string, since time.Time) (map[string]int64, error)
 }
