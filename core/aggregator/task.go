@@ -2,17 +2,17 @@ package aggregator
 
 import (
 	"context"
-	"time"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	null "gopkg.in/guregu/null.v3"
+
 	telegram "github.com/jfk9w-go/telegram-bot-api"
 	tghtml "github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	null "gopkg.in/guregu/null.v3"
 
 	"github.com/jfk9w/hikkabot/core/feed"
 )
@@ -52,11 +52,8 @@ func (t *Task) Execute(ctx context.Context) error {
 			log.Debugf("refresh: %d updates ok", updates)
 		}
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(t.Interval):
-			continue
+		if err := flu.Sleep(ctx, t.Interval); err != nil {
+			return err
 		}
 	}
 }

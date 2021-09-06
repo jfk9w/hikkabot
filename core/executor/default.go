@@ -48,9 +48,9 @@ func (e *Default) Submit(id interface{}, task Task) {
 	rt := new(runningTask)
 	rt.cancel = rt.work.Go(e.ctx, func(ctx context.Context) {
 		err := task.Execute(ctx)
+		log.Debugf("completed: %s", err)
 		defer e.mu.Lock().Unlock()
 		delete(e.tasks, id)
-		defer log.Debugf("completed: %s", err)
 	})
 
 	e.tasks[id] = rt
