@@ -6,18 +6,17 @@ import (
 	"net"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/flu/metrics"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
+	"github.com/jfk9w-go/telegram-bot-api"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
@@ -26,6 +25,11 @@ import (
 	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/jfk9w/hikkabot/ext/resolvers"
 	"github.com/jfk9w/hikkabot/util"
+)
+
+const (
+	Step = 0.04
+	Min  = Step / 2
 )
 
 type Vendor struct {
@@ -120,12 +124,6 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 			data.Layout.HideTitle = true
 		case "l":
 			data.Layout.ShowPreference = true
-		default:
-			var err error
-			data.Top, err = strconv.ParseFloat(option, 64)
-			if err != nil || data.Top <= 0 {
-				return nil, errors.Wrap(err, "top must be positive")
-			}
 		}
 	}
 
@@ -249,14 +247,15 @@ func (v *Vendor) processThing(ctx context.Context, now time.Time,
 						members = 50
 					}
 
-					userRatio := (1./data.Top*float64(score.Likes) - float64(score.Dislikes)) / float64(members)
-					boost = 5 * thingRatio * userRatio
+					likesWeight := (1. - Step) / Step
+					userRatio := (likesWeight*float64(score.Likes) - float64(score.Dislikes)) / float64(members)
+					boost = 50 * thingRatio * userRatio
 				}
 			}
 
-			top := data.Top * (boost + 1)
-			if top < 0.01 {
-				top = 0.01
+			top := Step * (boost + 1)
+			if top < Min {
+				top = Min
 			}
 
 			v.Metrics.Gauge("top", header.Labels()).Set(top)
