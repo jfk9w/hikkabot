@@ -179,7 +179,6 @@ func (app *Instance) ApplyConverterPlugins(plugins ...ConverterPlugin) {
 func (app *Instance) Run(ctx context.Context) error {
 	config := new(struct {
 		Telegram struct {
-			Token      string
 			Supervisor telegram.ID
 			Aliases    map[string]telegram.ID
 		}
