@@ -105,11 +105,7 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 		subreddit = things[0].Data.Subreddit
 	}
 
-	data := &Data{
-		Subreddit: subreddit,
-		Top:       0.05,
-	}
-
+	data := &Data{Subreddit: subreddit}
 	for _, option := range options {
 		switch option {
 		case "!m":

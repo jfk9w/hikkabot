@@ -6,7 +6,7 @@ import (
 
 	"github.com/jfk9w-go/flu/metrics"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/util"
@@ -28,13 +28,12 @@ type Score struct {
 type Data struct {
 	Subreddit     string         `json:"subreddit"`
 	SentIDs       util.StringSet `json:"sent_ids,omitempty"`
-	Top           float64        `json:"top"`
 	LastCleanSecs int64          `json:"last_clean,omitempty"`
 	Layout        Layout         `json:"layout,omitempty"`
 }
 
 func (d *Data) Labels() metrics.Labels {
-	return metrics.Labels{}.Add("top", d.Top)
+	return metrics.Labels{}
 }
 
 type Storage interface {
