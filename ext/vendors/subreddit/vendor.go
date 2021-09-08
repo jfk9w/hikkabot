@@ -29,7 +29,7 @@ import (
 
 const (
 	Step = 0.04
-	Min  = Step / 2
+	Min  = Step / 4
 )
 
 type Vendor struct {
@@ -237,6 +237,7 @@ func (v *Vendor) processThing(ctx context.Context, now time.Time,
 					return errors.Wrap(err, "score")
 				}
 
+				log.Debugf("score = %v", score)
 				if score.First != nil && now.Sub(*score.First) >= v.ConstantPeriod {
 					thingRatio := float64(score.LikedThings) / float64(len(data.SentIDs))
 					if members < 50 {
@@ -246,6 +247,7 @@ func (v *Vendor) processThing(ctx context.Context, now time.Time,
 					likesWeight := (1. - Step) / Step
 					userRatio := (likesWeight*float64(score.Likes) - float64(score.Dislikes)) / float64(members)
 					boost = 50 * thingRatio * userRatio
+					log.Debugf("lw = %f, ur = %f, b = %f", likesWeight, userRatio, boost)
 				}
 			}
 
