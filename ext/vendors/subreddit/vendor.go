@@ -246,7 +246,7 @@ func (v *Vendor) processThing(ctx context.Context, now time.Time,
 
 					likesWeight := (1. - Step) / Step
 					userRatio := (likesWeight*float64(score.Likes) - float64(score.Dislikes)) / float64(members)
-					boost = 50 * thingRatio * userRatio
+					boost = 25 * thingRatio * userRatio
 					log.Debugf("lw = %f, ur = %f, b = %f", likesWeight, userRatio, boost)
 				}
 			}
