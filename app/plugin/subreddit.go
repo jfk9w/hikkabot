@@ -28,7 +28,13 @@ type SubredditConfig struct {
 		CleanEvery flu.Duration
 	}
 
-	ConstantPeriod flu.Duration
+	Pacing struct {
+		Stable     flu.Duration
+		Base, Min  app.OptionalFloat64
+		Multiplier app.OptionalFloat64
+		MinMembers app.OptionalInt64
+		MaxBatch   app.OptionalInt64
+	}
 }
 
 type Subreddit RedditClient
@@ -84,18 +90,28 @@ func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.V
 		return nil, errors.Wrap(err, "get metrics registry")
 	}
 
+	pacing := config.Pacing
 	vendor := &CommandListener{
 		Vendor: &Vendor{
-			Clock:          app,
-			Storage:        storage,
+			Context: Context{
+				Metrics:        metrics.WithPrefix("subreddit"),
+				Clock:          app,
+				Storage:        storage,
+				MediaManager:   mediaManager,
+				RedditClient:   redditClient,
+				VidditClient:   vidditClient,
+				TelegramClient: bot,
+			},
+			Pacing: Pacing{
+				Stable:     pacing.Stable.GetOrDefault(48 * time.Hour),
+				Base:       pacing.Base.GetOrDefault(0.04),
+				Min:        pacing.Min.GetOrDefault(0.01),
+				Multiplier: pacing.Multiplier.GetOrDefault(10.),
+				MinMembers: pacing.MinMembers.GetOrDefault(50),
+				MaxBatch:   int(pacing.MaxBatch.GetOrDefault(3)),
+			},
 			CleanDataEvery: config.Data.CleanEvery.GetOrDefault(30 * time.Minute),
 			FreshThingTTL:  config.Storage.FreshTTL.GetOrDefault(7 * 24 * time.Hour),
-			RedditClient:   redditClient,
-			VidditClient:   vidditClient,
-			TelegramClient: bot,
-			MediaManager:   mediaManager,
-			ConstantPeriod: config.ConstantPeriod.GetOrDefault(3 * 24 * time.Hour),
-			Metrics:        metrics.WithPrefix("subreddit"),
 		},
 		Storage: eventStorage,
 	}

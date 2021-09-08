@@ -4,11 +4,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 
 	"github.com/jfk9w-go/telegram-bot-api"
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
+	"github.com/jfk9w/hikkabot/3rdparty/viddit"
+	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/jfk9w/hikkabot/util"
 )
 
@@ -17,6 +20,24 @@ var (
 	likeCommandKey    = "sr_l"
 	dislikeCommandKey = "src_dl"
 )
+
+type Context struct {
+	flu.Clock
+	Metrics        metrics.Registry
+	Storage        Storage
+	MediaManager   *media.Manager
+	RedditClient   *reddit.Client
+	VidditClient   *viddit.Client
+	TelegramClient telegram.Client
+}
+
+type Pacing struct {
+	Stable     time.Duration
+	Base, Min  float64
+	Multiplier float64
+	MinMembers int64
+	MaxBatch   int
+}
 
 type Score struct {
 	First       *time.Time

@@ -4,12 +4,12 @@ import (
 	"context"
 	"io"
 
-	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
 	"gorm.io/gorm"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
+
 	"github.com/jfk9w/hikkabot/core/event"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
@@ -38,9 +38,22 @@ type ConverterPlugin interface {
 	CreateConverter(ctx context.Context, app Interface) (media.Converter, error)
 }
 
-type Config struct {
-	Aconvert struct {
-		Servers []int
-		Probe   *aconvert.Probe
+type OptionalFloat64 float64
+
+func (v *OptionalFloat64) GetOrDefault(defaultValue float64) float64 {
+	if v == nil {
+		return defaultValue
 	}
+
+	return float64(*v)
+}
+
+type OptionalInt64 int64
+
+func (v *OptionalInt64) GetOrDefault(defaultValue int64) int64 {
+	if v == nil {
+		return defaultValue
+	}
+
+	return int64(*v)
 }

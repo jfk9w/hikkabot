@@ -11,16 +11,13 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
-	"github.com/jfk9w-go/flu/metrics"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/jfk9w-go/telegram-bot-api"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/3rdparty/viddit"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/jfk9w/hikkabot/ext/resolvers"
@@ -33,16 +30,10 @@ const (
 )
 
 type Vendor struct {
-	flu.Clock
-	Storage        Storage
+	Context
+	Pacing
 	CleanDataEvery time.Duration
 	FreshThingTTL  time.Duration
-	ConstantPeriod time.Duration
-	RedditClient   *reddit.Client
-	MediaManager   *media.Manager
-	VidditClient   *viddit.Client
-	TelegramClient telegram.Client
-	Metrics        metrics.Registry
 	work           flu.WaitGroup
 	cancel         func()
 }
@@ -168,6 +159,7 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 	now := v.Clock.Now()
 	percentile := -1
 	dirty := true
+	submitted := 0
 	for i := range things {
 		thing := &things[i]
 		writeHTML, err := v.processThing(ctx, now, queue.Header, data, log, &percentile, &thing.Data)
@@ -204,6 +196,11 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		if err := queue.Proceed(ctx, writeHTML, data); err != nil {
 			return
 		}
+
+		submitted++
+		if submitted >= v.MaxBatch {
+			return
+		}
 	}
 }
 
@@ -238,15 +235,15 @@ func (v *Vendor) processThing(ctx context.Context, now time.Time,
 				}
 
 				log.Debugf("score = %v", score)
-				if score.First != nil && now.Sub(*score.First) >= v.ConstantPeriod {
+				if score.First != nil && now.Sub(*score.First) >= v.Stable {
 					thingRatio := float64(score.LikedThings) / float64(len(data.SentIDs))
-					if members < 50 {
-						members = 50
+					if members < v.MinMembers {
+						members = v.MinMembers
 					}
 
-					likesWeight := (1. - Step) / Step
+					likesWeight := (1. - v.Base) / v.Base
 					userRatio := (likesWeight*float64(score.Likes) - float64(score.Dislikes)) / float64(members)
-					boost = 10 * thingRatio * userRatio
+					boost = v.Base * thingRatio * userRatio
 					log.Debugf("lw = %f, ur = %f, b = %f", likesWeight, userRatio, boost)
 				}
 			}
