@@ -231,7 +231,7 @@ func (v *Vendor) processThing(ctx context.Context, now time.Time,
 		sentIDs := data.SentIDs.Slice()
 		getPercentile := func(storage Storage) error {
 			boost := 0.
-			if len(sentIDs) > 0 {
+			if (data.Layout.ShowPreference || data.Layout.ShowPaywall) && len(sentIDs) > 0 {
 				score, err := storage.Score(ctx, header.FeedID, sentIDs)
 				if err != nil {
 					return errors.Wrap(err, "score")
