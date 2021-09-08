@@ -146,7 +146,7 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 			log.Warnf("update: failed (network error)")
 		case *json.SyntaxError:
 			log.Warnf("update: failed (json error)")
-		case fluhttp.StatusCodeError:
+		case *fluhttp.StatusCodeError:
 			if err.StatusCode >= 400 && err.StatusCode < 500 {
 				_ = queue.Cancel(ctx, err)
 			} else {
