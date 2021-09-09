@@ -30,10 +30,10 @@ type SubredditConfig struct {
 
 	Pacing struct {
 		Stable     flu.Duration
-		Base, Min  app.OptionalFloat64
-		Multiplier app.OptionalFloat64
-		MinMembers app.OptionalInt64
-		MaxBatch   app.OptionalInt64
+		Base, Min  *float64
+		Multiplier *float64
+		MinMembers *int64
+		MaxBatch   *int64
 	}
 }
 
@@ -104,11 +104,11 @@ func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.V
 			},
 			Pacing: Pacing{
 				Stable:     pacing.Stable.GetOrDefault(48 * time.Hour),
-				Base:       pacing.Base.GetOrDefault(0.04),
-				Min:        pacing.Min.GetOrDefault(0.01),
-				Multiplier: pacing.Multiplier.GetOrDefault(10.),
-				MinMembers: pacing.MinMembers.GetOrDefault(50),
-				MaxBatch:   int(pacing.MaxBatch.GetOrDefault(3)),
+				Base:       getFloat(pacing.Base, 0.04),
+				Min:        getFloat(pacing.Min, 0.01),
+				Multiplier: getFloat(pacing.Multiplier, 10.),
+				MinMembers: getInt(pacing.MinMembers, 50),
+				MaxBatch:   int(getInt(pacing.MaxBatch, 3)),
 			},
 			CleanDataEvery: config.Data.CleanEvery.GetOrDefault(30 * time.Minute),
 			FreshThingTTL:  config.Storage.FreshTTL.GetOrDefault(7 * 24 * time.Hour),
@@ -149,4 +149,20 @@ func (p Subreddit) createVidditClient(ctx context.Context, app app.Interface,
 
 	app.Manage(client)
 	return client, nil
+}
+
+func getFloat(value *float64, defaultValue float64) float64 {
+	if value != nil {
+		return *value
+	}
+
+	return defaultValue
+}
+
+func getInt(value *int64, defaultValue int64) int64 {
+	if value != nil {
+		return *value
+	}
+
+	return defaultValue
 }
