@@ -132,19 +132,14 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 
 	things, err := v.getListing(ctx, data.Subreddit, 100)
 	if err != nil {
-		switch err := err.(type) {
-		case net.Error:
+		if nerr := new(net.Error); errors.As(err, nerr) {
 			log.Warnf("update: failed (network error)")
-		case *json.SyntaxError:
+		} else if jerr := new(json.SyntaxError); errors.As(err, jerr) {
 			log.Warnf("update: failed (json error)")
-		case *fluhttp.StatusCodeError:
-			if err.StatusCode >= 400 && err.StatusCode < 500 {
-				_ = queue.Cancel(ctx, err)
-			} else {
-				log.Warnf("update: failed (http %d)", err.StatusCode)
-			}
-
-		default:
+		} else if serr := new(fluhttp.StatusCodeError); errors.As(err, serr) &&
+			serr.StatusCode < 400 && serr.StatusCode >= 500 {
+			log.Warnf("update: failed (http %d)", serr.StatusCode)
+		} else {
 			_ = queue.Cancel(ctx, err)
 		}
 

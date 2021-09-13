@@ -71,7 +71,7 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 	log := queue.Log(ctx, data)
 	posts, err := v.DvachClient.GetThread(ctx, data.Board, data.Num, data.Offset)
 	if err != nil {
-		if err, ok := err.(*dvach.Error); ok && -err.Code == http.StatusNotFound {
+		if derr := new(dvach.Error); errors.As(err, derr) && derr.Code == -http.StatusNotFound {
 			_ = queue.Cancel(ctx, err)
 		} else {
 			log.Warnf("update: failed")
