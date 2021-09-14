@@ -5,9 +5,8 @@ import (
 	"strings"
 	"time"
 
-	gormutil "github.com/jfk9w-go/flu/gorm"
-
 	"github.com/jfk9w-go/flu"
+	gormutil "github.com/jfk9w-go/flu/gorm"
 	"github.com/jfk9w-go/flu/metrics"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

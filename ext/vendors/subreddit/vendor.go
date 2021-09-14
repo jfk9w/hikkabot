@@ -11,22 +11,16 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
+	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
-
-	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/jfk9w/hikkabot/ext/resolvers"
 	"github.com/jfk9w/hikkabot/util"
-)
-
-const (
-	Step = 0.04
-	Min  = Step / 4
 )
 
 type Vendor struct {

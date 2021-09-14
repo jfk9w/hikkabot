@@ -9,7 +9,7 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/pkg/errors"
-	null "gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3"
 )
 
 type Media struct {

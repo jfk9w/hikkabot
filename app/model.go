@@ -6,9 +6,8 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
-	"gorm.io/gorm"
-
 	"github.com/jfk9w-go/telegram-bot-api"
+	"gorm.io/gorm"
 
 	"github.com/jfk9w/hikkabot/core/event"
 	"github.com/jfk9w/hikkabot/core/feed"

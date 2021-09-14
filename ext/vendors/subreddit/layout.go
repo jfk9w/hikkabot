@@ -3,7 +3,7 @@ package subreddit
 import (
 	"fmt"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"

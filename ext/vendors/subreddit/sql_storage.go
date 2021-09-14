@@ -5,9 +5,7 @@ import (
 	"time"
 
 	gormutil "github.com/jfk9w-go/flu/gorm"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-
+	"github.com/jfk9w-go/telegram-bot-api"
 	"gorm.io/gorm"
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"

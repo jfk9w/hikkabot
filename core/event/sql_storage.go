@@ -3,9 +3,8 @@ package event
 import (
 	"context"
 
+	"github.com/jfk9w-go/telegram-bot-api"
 	"gorm.io/gorm"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
 )
 
 type SQLStorage gorm.DB

@@ -5,10 +5,8 @@ import (
 	"testing"
 	"time"
 
-	gormutil "github.com/jfk9w-go/flu/gorm"
-
 	"github.com/jfk9w-go/flu"
-
+	gormutil "github.com/jfk9w-go/flu/gorm"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/jfk9w/hikkabot/3rdparty/reddit"

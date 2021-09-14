@@ -4,15 +4,14 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	null "gopkg.in/guregu/null.v3"
-	"gorm.io/gorm"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/guregu/null.v3"
+	"gorm.io/gorm"
 
 	"github.com/jfk9w/hikkabot/core/event"
 	"github.com/jfk9w/hikkabot/core/feed"

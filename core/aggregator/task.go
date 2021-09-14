@@ -5,14 +5,13 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	null "gopkg.in/guregu/null.v3"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 	tghtml "github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/jfk9w/hikkabot/core/feed"
 )

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jfk9w-go/flu"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 	tghtml "github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"

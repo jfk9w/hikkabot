@@ -8,12 +8,10 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/flu/metrics"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-
-	"github.com/jfk9w-go/telegram-bot-api/ext/media"
-
 	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
 
 	"github.com/jfk9w/hikkabot/core/feed"

@@ -4,9 +4,8 @@ import (
 	"context"
 	"time"
 
-	null "gopkg.in/guregu/null.v3"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
+	"gopkg.in/guregu/null.v3"
 )
 
 type Log struct {

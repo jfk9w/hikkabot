@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w/hikkabot/core/feed"
-
-	"github.com/jfk9w-go/flu/metrics"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/sirupsen/logrus"
 )
 
 type writeHTMLWithChatLink func(html *html.Writer, chatLink string) *html.Writer

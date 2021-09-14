@@ -5,10 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/sirupsen/logrus"
 )
 
 var URL = "https://viddit.red"

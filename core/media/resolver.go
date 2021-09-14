@@ -3,9 +3,8 @@ package media
 import (
 	"context"
 
-	"github.com/pkg/errors"
-
 	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/pkg/errors"
 )
 
 type PlainResolver struct {

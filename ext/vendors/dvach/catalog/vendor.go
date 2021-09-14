@@ -7,15 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	tghtml "github.com/jfk9w-go/telegram-bot-api/ext/html"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/jfk9w/hikkabot/3rdparty/dvach"
 	"github.com/jfk9w/hikkabot/core/feed"

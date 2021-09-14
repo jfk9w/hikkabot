@@ -6,15 +6,11 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-
-	"github.com/jfk9w/hikkabot/core/feed"
-
 	"github.com/jfk9w-go/flu"
 	"github.com/sirupsen/logrus"
-)
 
-type FileStorageConfig struct {
-}
+	"github.com/jfk9w/hikkabot/core/feed"
+)
 
 type FileStorage struct {
 	Directory string

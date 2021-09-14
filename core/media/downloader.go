@@ -5,9 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jfk9w-go/flu/backoff"
-
 	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/backoff"
 	fluhttp "github.com/jfk9w-go/flu/http"
 )
 

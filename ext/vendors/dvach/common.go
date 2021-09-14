@@ -2,7 +2,7 @@ package dvach
 
 import (
 	fluhttp "github.com/jfk9w-go/flu/http"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 
 	"github.com/jfk9w/hikkabot/3rdparty/dvach"
 	"github.com/jfk9w/hikkabot/core/media"

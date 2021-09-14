@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-
 	fluhttp "github.com/jfk9w-go/flu/http"
 
 	"github.com/jfk9w/hikkabot/3rdparty/dvach"

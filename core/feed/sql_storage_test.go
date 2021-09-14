@@ -5,14 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jfk9w-go/flu/gorm"
-
 	"github.com/jfk9w-go/flu"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/flu/gorm"
+	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	null "gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/jfk9w/hikkabot/core/feed"
 )

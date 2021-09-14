@@ -11,7 +11,7 @@ import (
 
 	"github.com/corona10/goimagehash"
 	"github.com/jfk9w-go/flu"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"golang.org/x/image/bmp"
 

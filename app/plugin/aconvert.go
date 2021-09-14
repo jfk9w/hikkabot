@@ -3,13 +3,12 @@ package plugin
 import (
 	"context"
 
-	"github.com/jfk9w/hikkabot/ext/converters"
-
 	. "github.com/jfk9w-go/aconvert-api"
 	fluhttp "github.com/jfk9w-go/flu/http"
 
 	"github.com/jfk9w/hikkabot/app"
 	"github.com/jfk9w/hikkabot/core/media"
+	"github.com/jfk9w/hikkabot/ext/converters"
 )
 
 type Aconvert []string

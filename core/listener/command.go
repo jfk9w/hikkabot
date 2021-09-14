@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-
-	telegram "github.com/jfk9w-go/telegram-bot-api"
-	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 
 	"github.com/jfk9w/hikkabot/core/feed"
 )

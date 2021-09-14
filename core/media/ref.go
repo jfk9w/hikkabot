@@ -3,13 +3,12 @@ package media
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/metrics"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type Ref struct {

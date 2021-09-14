@@ -4,12 +4,11 @@ import (
 	"context"
 
 	gormutil "github.com/jfk9w-go/flu/gorm"
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/telegram-bot-api"
+	"github.com/pkg/errors"
 
 	"github.com/jfk9w/hikkabot/core/feed"
-
-	"github.com/jfk9w-go/flu/metrics"
-	"github.com/pkg/errors"
 )
 
 type Default struct {
