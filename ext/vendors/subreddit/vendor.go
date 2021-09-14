@@ -231,10 +231,9 @@ func (v *Vendor) processThing(ctx context.Context, now time.Time,
 						members = pacing.MinMembers
 					}
 
-					likesWeight := (1. - pacing.Base) / pacing.Base
-					userRatio := (likesWeight*float64(score.Likes) - float64(score.Dislikes)) / float64(members)
+					userRatio := (float64(score.Likes) - float64(score.Dislikes)) / float64(members)
 					boost = pacing.Multiplier * thingRatio * userRatio
-					log.Debugf("lw = %f, ur = %f, b = %f", likesWeight, userRatio, boost)
+					log.Debugf("ur = %f, b = %f", userRatio, boost)
 				}
 			}
 
