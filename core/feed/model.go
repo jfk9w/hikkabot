@@ -11,9 +11,9 @@ import (
 	"github.com/jfk9w-go/flu/metrics"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	null "gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3"
 
-	telegram "github.com/jfk9w-go/telegram-bot-api"
+	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 )
 
@@ -100,10 +100,6 @@ type Update struct {
 	Error     error
 }
 
-type HasLabels interface {
-	Labels() metrics.Labels
-}
-
 type Queue struct {
 	Header *Header
 	C      chan Update
@@ -127,7 +123,7 @@ func (q *Queue) GetData(ctx context.Context, value interface{}) error {
 	return nil
 }
 
-func (q *Queue) Log(ctx context.Context, data HasLabels) *logrus.Entry {
+func (q *Queue) Log(ctx context.Context, data metrics.Labeled) *logrus.Entry {
 	return logrus.WithContext(ctx).
 		WithFields(q.Header.Labels().Map()).
 		WithFields(data.Labels().Map())
@@ -168,7 +164,4 @@ type Vendor interface {
 type Blob interface {
 	flu.Input
 	flu.Output
-}
-
-type Event struct {
 }
