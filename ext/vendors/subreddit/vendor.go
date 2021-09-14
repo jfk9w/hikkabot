@@ -226,7 +226,7 @@ func (v *Vendor) processThing(ctx context.Context, now time.Time,
 
 				log.Debugf("score = %v", score)
 				if score.First != nil && now.Sub(*score.First) >= pacing.Stable {
-					thingRatio := float64(score.LikedThings) / float64(len(data.SentIDs))
+					thingRatio := (float64(score.LikedThings) - float64(score.DislikedThings)) / float64(len(data.SentIDs))
 					if members < pacing.MinMembers {
 						members = pacing.MinMembers
 					}

@@ -77,6 +77,7 @@ func (s *SQLStorage) Score(ctx context.Context, chatID telegram.ID, thingIDs []s
 	return score, s.Unmask().WithContext(ctx).Raw( /* language=SQL */ `
 		select min(time) as first,
 		       count(distinct case when type in ('click', 'like') then thing_id end) as liked_things,
+		       count(distinct case when type = 'dislike' then user_id end) as disliked_things,
 		       count(distinct case when type in ('click', 'like') then user_id end) as likes,
 		       count(distinct case when type = 'dislike' then user_id end) as dislikes
 		from event

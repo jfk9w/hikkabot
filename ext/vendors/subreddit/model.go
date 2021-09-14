@@ -39,10 +39,11 @@ type Pacing struct {
 }
 
 type Score struct {
-	First       *time.Time
-	LikedThings int
-	Likes       int
-	Dislikes    int
+	First          *time.Time
+	LikedThings    int
+	DislikedThings int
+	Likes          int
+	Dislikes       int
 }
 
 type Data struct {
