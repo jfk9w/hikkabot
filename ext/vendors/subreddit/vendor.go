@@ -126,9 +126,9 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 
 	things, err := v.getListing(ctx, data.Subreddit, 100)
 	if err != nil {
-		if nerr := new(net.Error); errors.As(err, nerr) {
+		if errors.As(err, new(net.Error)) {
 			log.Warnf("update: failed (network error)")
-		} else if jerr := new(json.SyntaxError); errors.As(err, jerr) {
+		} else if errors.As(err, new(*json.SyntaxError)) {
 			log.Warnf("update: failed (json error)")
 		} else if serr := new(fluhttp.StatusCodeError); errors.As(err, serr) &&
 			serr.StatusCode < 400 && serr.StatusCode >= 500 {
