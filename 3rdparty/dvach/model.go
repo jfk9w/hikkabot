@@ -147,7 +147,7 @@ type Error struct {
 	Err  string `json:"Error"`
 }
 
-func (e Error) Error() string {
+func (e *Error) Error() string {
 	return fmt.Sprintf("%d %s", e.Code, e.Err)
 }
 
