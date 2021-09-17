@@ -73,7 +73,7 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		if derr := new(dvach.Error); errors.As(err, derr) && derr.Code == -http.StatusNotFound {
 			_ = queue.Cancel(ctx, err)
 		} else {
-			log.Warnf("update: failed")
+			log.Warnf("update: failed (%v)", err)
 		}
 
 		return
