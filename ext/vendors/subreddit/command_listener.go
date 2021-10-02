@@ -114,25 +114,36 @@ func (l *CommandListener) Click(ctx context.Context, client telegram.Client, cmd
 		return errors.Wrap(err, "post not found")
 	}
 
+	buffer := receiver.NewBuffer()
 	writer := &html.Writer{
 		Context: ctx,
 		Out: &output.Paged{
-			Receiver: &receiver.Chat{
-				Sender:    client,
-				ID:        cmd.User.ID,
-				ParseMode: telegram.HTML,
-			},
+			Receiver:  buffer,
+			PageCount: 1,
+			PageSize:  telegram.MaxCaptionSize,
 		},
 	}
 
-	layout := Layout{ShowAuthor: true, ShowText: true}
+	layout := Layout{ShowAuthor: true, ShowText: true, HideMedia: true}
 	writeHTML := l.writeHTML(header, layout, &things[0].Data)
 	if err := writeHTML(writer); err != nil {
-		return err
+		return errors.Wrap(err, "write html")
 	}
 
 	if err := writer.Flush(); err != nil {
-		return err
+		return errors.Wrap(err, "flush html")
+	}
+
+	ref := telegram.MessageRef{
+		ChatID: cmd.Chat.ID,
+		ID:     cmd.Message.ID,
+	}
+
+	if _, err := client.CopyMessage(ctx, cmd.User.ID, ref, &telegram.CopyOptions{
+		Caption:   buffer.Pages[0],
+		ParseMode: telegram.HTML,
+	}); err != nil {
+		return errors.Wrap(err, "copy message")
 	}
 
 	if err := l.SaveEvent(ctx, l.newEvent(cmd)); err != nil {
