@@ -35,6 +35,9 @@ func (l Layout) WriteHTML(thing *reddit.ThingData, mediaRef tgmedia.Ref) feed.Wr
 					buttons = []telegram.Button{PaywallButton(thing.Subreddit, thing.ID)}
 					out.PageCount = 1
 					out.PageSize = telegram.MaxCaptionSize
+				}
+
+				if !l.ShowText && !l.HideMedia {
 					chat.SkipOnMediaError = true
 				}
 

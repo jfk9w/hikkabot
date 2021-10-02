@@ -11,14 +11,15 @@ import (
 
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-
+	"github.com/jfk9w-go/telegram-bot-api/ext/output"
+	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
 	"github.com/jfk9w/hikkabot/3rdparty/dvach"
 	"github.com/jfk9w/hikkabot/core/feed"
 	"github.com/jfk9w/hikkabot/core/media"
 	"github.com/jfk9w/hikkabot/ext/vendors"
 	dvachVendor "github.com/jfk9w/hikkabot/ext/vendors/dvach"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type Vendor struct {
@@ -122,6 +123,12 @@ func (v *Vendor) processPost(
 				html.Media(post.Files[i].URL(), media, len(post.Files) == 1, true)
 			}
 		} else {
+			if output, ok := html.Out.(*output.Paged); ok {
+				if chat, ok := output.Receiver.(*receiver.Chat); ok {
+					chat.SkipOnMediaError = true
+				}
+			}
+
 			for i, media := range media {
 				html.Text(data.Tag).Media(post.Files[i].URL(), media, true, true)
 			}
