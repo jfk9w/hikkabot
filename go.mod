@@ -60,5 +60,3 @@ require (
 )
 
 go 1.17
-
-replace github.com/jfk9w-go/aconvert-api => ../aconvert-api
