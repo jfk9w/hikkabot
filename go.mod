@@ -4,8 +4,8 @@ require (
 	github.com/corona10/goimagehash v1.0.3
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/jackc/pgx/v4 v4.13.0 // indirect
-	github.com/jfk9w-go/aconvert-api v0.9.14
-	github.com/jfk9w-go/flu v0.9.27
+	github.com/jfk9w-go/aconvert-api v0.9.15
+	github.com/jfk9w-go/flu v0.9.28
 	github.com/jfk9w-go/telegram-bot-api v0.9.25
 	github.com/lib/pq v1.10.2
 	github.com/pkg/errors v0.9.1
@@ -15,7 +15,7 @@ require (
 	golang.org/x/exp v0.0.0-20210812203943-8c280c88aa00
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d
 	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d
-	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
+	golang.org/x/sys v0.0.0-20211004093028-2c5d950f24ef // indirect
 	gopkg.in/guregu/null.v3 v3.5.0
 	gorm.io/gorm v1.21.14
 )
@@ -51,7 +51,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.30.0 // indirect
+	github.com/prometheus/common v0.31.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
@@ -60,3 +60,5 @@ require (
 )
 
 go 1.17
+
+replace github.com/jfk9w-go/aconvert-api => ../aconvert-api

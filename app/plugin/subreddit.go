@@ -6,12 +6,11 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
-	"github.com/pkg/errors"
-
 	"github.com/jfk9w/hikkabot/3rdparty/viddit"
 	"github.com/jfk9w/hikkabot/app"
 	"github.com/jfk9w/hikkabot/core/feed"
 	. "github.com/jfk9w/hikkabot/ext/vendors/subreddit"
+	"github.com/pkg/errors"
 )
 
 type SubredditConfig struct {

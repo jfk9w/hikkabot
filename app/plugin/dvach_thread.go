@@ -3,11 +3,10 @@ package plugin
 import (
 	"context"
 
-	"github.com/pkg/errors"
-
 	"github.com/jfk9w/hikkabot/app"
 	"github.com/jfk9w/hikkabot/core/feed"
 	. "github.com/jfk9w/hikkabot/ext/vendors/dvach/thread"
+	"github.com/pkg/errors"
 )
 
 type DvachThread DvachClient
