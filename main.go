@@ -6,6 +6,7 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/sirupsen/logrus"
+	"gorm.io/driver/postgres"
 
 	"hikkabot/app"
 	"hikkabot/app/plugin"
@@ -17,6 +18,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	app.GormDialects["postgres"] = postgres.Open
 	app, err := app.Create(GitCommit, flu.DefaultClock, flu.File(os.Args[1]))
 	if err != nil {
 		logrus.Fatalf("initialize app: %s", err)
