@@ -4,8 +4,8 @@ import (
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/telegram-bot-api"
 
-	"github.com/jfk9w/hikkabot/3rdparty/dvach"
-	"github.com/jfk9w/hikkabot/core/media"
+	"hikkabot/3rdparty/dvach"
+	"hikkabot/core/media"
 )
 
 func NewMediaRef(httpClient *fluhttp.Client, feedID telegram.ID, file dvach.File, dedup bool) *media.Ref {

@@ -8,10 +8,10 @@ import (
 	"github.com/jfk9w-go/flu/metrics"
 	"github.com/jfk9w-go/telegram-bot-api"
 
-	"github.com/jfk9w/hikkabot/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/3rdparty/viddit"
-	"github.com/jfk9w/hikkabot/core/media"
-	"github.com/jfk9w/hikkabot/util"
+	"hikkabot/3rdparty/reddit"
+	"hikkabot/3rdparty/viddit"
+	"hikkabot/core/media"
+	"hikkabot/util"
 )
 
 var (

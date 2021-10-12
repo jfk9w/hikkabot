@@ -6,22 +6,23 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/app"
-	gormutil "github.com/jfk9w-go/flu/gorm"
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/jfk9w/hikkabot/core/access"
-	"github.com/jfk9w/hikkabot/core/aggregator"
-	"github.com/jfk9w/hikkabot/core/blob"
-	"github.com/jfk9w/hikkabot/core/event"
-	"github.com/jfk9w/hikkabot/core/executor"
-	"github.com/jfk9w/hikkabot/core/feed"
-	"github.com/jfk9w/hikkabot/core/listener"
-	"github.com/jfk9w/hikkabot/core/media"
+	"hikkabot/core/access"
+	"hikkabot/core/aggregator"
+	"hikkabot/core/blob"
+	"hikkabot/core/event"
+	"hikkabot/core/executor"
+	"hikkabot/core/feed"
+	"hikkabot/core/listener"
+	"hikkabot/core/media"
 )
+
+var GormDialects = app.GormDialects
 
 type Instance struct {
 	*app.Base
@@ -29,7 +30,7 @@ type Instance struct {
 	vendorPlugins    []VendorPlugin
 	vendorListeners  []listener.Vendor
 
-	db           *gorm.DB
+	dbconn       string
 	mediaManager *media.Manager
 	eventStorage event.Storage
 	bot          *telegram.Bot
@@ -49,24 +50,17 @@ func Create(version string, clock flu.Clock, config flu.Input) (*Instance, error
 	}, nil
 }
 
-func (app *Instance) GetDatabase() (*gorm.DB, error) {
-	if app.db != nil {
-		return app.db, nil
+func (app *Instance) GetDefaultDatabase() (*gorm.DB, error) {
+	if app.dbconn == "" {
+		config := new(struct{ Database string })
+		if err := app.GetConfig(config); err != nil {
+			return nil, err
+		}
+
+		app.dbconn = config.Database
 	}
 
-	config := new(struct{ Database string })
-	if err := app.GetConfig(config); err != nil {
-		return nil, err
-	}
-
-	db, err := gormutil.NewPostgres(config.Database)
-	if err != nil {
-		return nil, errors.Wrap(err, "open postgres")
-	}
-
-	app.Manage((*gormutil.Closer)(db))
-	app.db = db
-	return db, nil
+	return app.GetDatabase("postgres", app.dbconn)
 }
 
 func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error) {
@@ -152,7 +146,7 @@ func (app *Instance) GetEventStorage(ctx context.Context) (event.Storage, error)
 		return app.eventStorage, nil
 	}
 
-	db, err := app.GetDatabase()
+	db, err := app.GetDefaultDatabase()
 	if err != nil {
 		return nil, errors.Wrap(err, "get database")
 	}
@@ -298,7 +292,7 @@ func (app *Instance) createTaskExecutor(ctx context.Context) *executor.Default {
 }
 
 func (app *Instance) createHashStorage(ctx context.Context) (media.HashStorage, error) {
-	db, err := app.GetDatabase()
+	db, err := app.GetDefaultDatabase()
 	if err != nil {
 		return nil, errors.Wrap(err, "get database")
 	}
@@ -342,7 +336,7 @@ func (app *Instance) createFileStorage(ctx context.Context) (*blob.FileStorage, 
 }
 
 func (app *Instance) createFeedStorage(ctx context.Context) (feed.Storage, error) {
-	db, err := app.GetDatabase()
+	db, err := app.GetDefaultDatabase()
 	if err != nil {
 		return nil, err
 	}

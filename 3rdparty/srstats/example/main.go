@@ -6,7 +6,7 @@ import (
 	fluhttp "github.com/jfk9w-go/flu/http"
 	"github.com/sirupsen/logrus"
 
-	"github.com/jfk9w/hikkabot/3rdparty/srstats"
+	"hikkabot/3rdparty/srstats"
 )
 
 func main() {

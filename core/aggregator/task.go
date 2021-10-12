@@ -13,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/jfk9w/hikkabot/core/feed"
+	"hikkabot/core/feed"
 )
 
 type Task struct {

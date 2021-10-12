@@ -5,7 +5,7 @@ import (
 
 	"github.com/jfk9w-go/telegram-bot-api"
 
-	"github.com/jfk9w/hikkabot/core/feed"
+	"hikkabot/core/feed"
 )
 
 type Vendor interface {

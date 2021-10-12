@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/image/bmp"
 
-	"github.com/jfk9w/hikkabot/core/feed"
+	"hikkabot/core/feed"
 )
 
 type readImageFunc func(io.Reader) (image.Image, error)

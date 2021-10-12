@@ -3,10 +3,11 @@ package plugin
 import (
 	"context"
 
+	"hikkabot/app"
+	"hikkabot/core/media"
+	"hikkabot/ext/converters"
+
 	. "github.com/jfk9w-go/aconvert-api"
-	"github.com/jfk9w/hikkabot/app"
-	"github.com/jfk9w/hikkabot/core/media"
-	"github.com/jfk9w/hikkabot/ext/converters"
 	"github.com/pkg/errors"
 )
 

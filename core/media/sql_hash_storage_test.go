@@ -6,18 +6,17 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	gormutil "github.com/jfk9w-go/flu/gorm"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/jfk9w/hikkabot/core/media"
+	"hikkabot/common"
+	"hikkabot/core/media"
 )
 
 func TestSQLHashStorage(t *testing.T) {
 	ctx, cancel := getContext()
 	defer cancel()
 
-	db := gormutil.NewTestPostgres(t)
+	db := common.NewTestPostgres(t)
 	defer flu.CloseQuietly(db)
 
 	storage := (*media.SQLHashStorage)(db.DB)

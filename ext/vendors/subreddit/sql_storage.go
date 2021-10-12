@@ -8,9 +8,9 @@ import (
 	"github.com/jfk9w-go/telegram-bot-api"
 	"gorm.io/gorm"
 
-	"github.com/jfk9w/hikkabot/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/core/event"
-	"github.com/jfk9w/hikkabot/util"
+	"hikkabot/3rdparty/reddit"
+	"hikkabot/core/event"
+	"hikkabot/util"
 )
 
 type SQLStorage gorm.DB

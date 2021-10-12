@@ -6,8 +6,8 @@ import (
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
 
-	"github.com/jfk9w/hikkabot/3rdparty/dvach"
-	"github.com/jfk9w/hikkabot/app"
+	"hikkabot/3rdparty/dvach"
+	"hikkabot/app"
 )
 
 type DvachConfig struct {

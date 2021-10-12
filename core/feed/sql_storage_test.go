@@ -11,15 +11,15 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
-
-	"github.com/jfk9w/hikkabot/core/feed"
+	"hikkabot/common"
+	"hikkabot/core/feed"
 )
 
 func TestSQLStorage(t *testing.T) {
 	ctx, cancel := getContext()
 	defer cancel()
 
-	db := gorm.NewTestPostgres(t)
+	db := common.NewTestPostgres(t)
 	defer flu.CloseQuietly(db)
 
 	storage := (*feed.SQLStorage)(db.DB)

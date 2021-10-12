@@ -4,12 +4,13 @@ import (
 	"context"
 	"time"
 
+	"hikkabot/3rdparty/viddit"
+	"hikkabot/app"
+	"hikkabot/core/feed"
+	. "hikkabot/ext/vendors/subreddit"
+
 	"github.com/jfk9w-go/flu"
 	fluhttp "github.com/jfk9w-go/flu/http"
-	"github.com/jfk9w/hikkabot/3rdparty/viddit"
-	"github.com/jfk9w/hikkabot/app"
-	"github.com/jfk9w/hikkabot/core/feed"
-	. "github.com/jfk9w/hikkabot/ext/vendors/subreddit"
 	"github.com/pkg/errors"
 )
 
@@ -124,7 +125,7 @@ func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.V
 }
 
 func (p Subreddit) createStorage(ctx context.Context, app app.Interface) (Storage, error) {
-	db, err := app.GetDatabase()
+	db, err := app.GetDefaultDatabase()
 	if err != nil {
 		return nil, err
 	}

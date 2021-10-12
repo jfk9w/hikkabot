@@ -6,19 +6,18 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	gormutil "github.com/jfk9w-go/flu/gorm"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/jfk9w/hikkabot/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/ext/vendors/subreddit"
-	"github.com/jfk9w/hikkabot/util"
+	"hikkabot/3rdparty/reddit"
+	"hikkabot/common"
+	"hikkabot/ext/vendors/subreddit"
+	"hikkabot/util"
 )
 
 func TestSQLStorage_Things(t *testing.T) {
 	ctx, cancel := getContext()
 	defer cancel()
 
-	db := gormutil.NewTestPostgres(t)
+	db := common.NewTestPostgres(t)
 	defer flu.CloseQuietly(db)
 
 	storage := (*subreddit.SQLStorage)(db.DB)

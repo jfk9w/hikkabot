@@ -1,6 +1,6 @@
 # hikkabot
 
-[![ci](https://github.com/jfk9w/hikkabot/actions/workflows/ci.yml/badge.svg)](https://github.com/jfk9w/hikkabot/actions/workflows/ci.yml)
+[![ci](https://hikkabot/actions/workflows/ci.yml/badge.svg)](https://hikkabot/actions/workflows/ci.yml)
 
 Telegram bot which allows relaying third-party feed updates to Telegram chats.
 
@@ -8,14 +8,14 @@ Telegram bot which allows relaying third-party feed updates to Telegram chats.
 
 Hikkabot requires a configuration file. The path must be provided as the first command-line argument.
 
-You can use [this template](https://github.com/jfk9w/hikkabot/raw/master/config_template.yml) to build the configuration upon.
+You can use [this template](https://hikkabot/raw/master/config_template.yml) to build the configuration upon.
 
 ### Installation and execution
 
 Install using Go package manager:
 
 ```bash
-$ go install github.com/jfk9w/hikkabot
+$ go install hikkabot
 $ hikkabot config.yml
 ```
 
@@ -111,8 +111,8 @@ will make it into updates.
 
 ###### Post samples
 
-<img src="https://github.com/jfk9w/hikkabot/raw/master/doc/subreddit-image.png" height="400px"></img>
-<img src="https://github.com/jfk9w/hikkabot/raw/master/doc/subreddit-text.png" height="300px"></img>
+<img src="https://hikkabot/raw/master/doc/subreddit-image.png" height="400px"></img>
+<img src="https://hikkabot/raw/master/doc/subreddit-text.png" height="300px"></img>
 
 ### Subscription management
 
@@ -149,27 +149,27 @@ all active subscriptions (so all subscriptions basically).
 We start with a fresh channel. Below you can see that `/list` returns zero active subscriptions which means there are no subscriptions at all. Please ignore message time
 inconsistencies.
 
-<img src="https://github.com/jfk9w/hikkabot/raw/master/doc/list-0-subs.png" height="150px"></img>
+<img src="https://hikkabot/raw/master/doc/list-0-subs.png" height="150px"></img>
 
 Let's subscribe our chat to `meirl` subreddit. `0.05` means that only top 5% of the posts should make it to our channel. In response we receive a notification which contains the
 button allowing to suspend the subscription:
 
-<img src="https://github.com/jfk9w/hikkabot/raw/master/doc/sub-ok.png" height="150px"></img>
+<img src="https://hikkabot/raw/master/doc/sub-ok.png" height="150px"></img>
 
 Check that `/list` returns the new subscription now. Note that `/list` outputs a button for each subscription. Button action depends on the context: if subscriptions are suspended,
 the button will resume the chosen one and vice versa.
 
-<img src="https://github.com/jfk9w/hikkabot/raw/master/doc/list-1-sub.png" height="150px"></img>
+<img src="https://hikkabot/raw/master/doc/list-1-sub.png" height="150px"></img>
 
 We press the button and receive the notification below. Note that suspend and resume notifications are always sent only to the supervisor.
 
-<img src="https://github.com/jfk9w/hikkabot/raw/master/doc/sub-suspended.png" height="150px"></img>
+<img src="https://hikkabot/raw/master/doc/sub-suspended.png" height="150px"></img>
 
 The suspend notification contains buttons to resume and delete the suspended subscription. We could use the latter, but instead (just to show off) let's use the `/clear` command
 (note how we infer the pattern from the error message above):
 
-<img src="https://github.com/jfk9w/hikkabot/raw/master/doc/clear-1-sub.png" height="150px"></img>
+<img src="https://hikkabot/raw/master/doc/clear-1-sub.png" height="150px"></img>
 
 That's it! Our channel is as good as new. Sorry for using the same pic.
 
-<img src="https://github.com/jfk9w/hikkabot/raw/master/doc/list-0-subs.png" height="150px"></img>
+<img src="https://hikkabot/raw/master/doc/list-0-subs.png" height="150px"></img>

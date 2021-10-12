@@ -16,11 +16,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/jfk9w/hikkabot/3rdparty/dvach"
-	"github.com/jfk9w/hikkabot/core/feed"
-	"github.com/jfk9w/hikkabot/core/media"
-	"github.com/jfk9w/hikkabot/ext/vendors"
-	dvachVendor "github.com/jfk9w/hikkabot/ext/vendors/dvach"
+	"hikkabot/3rdparty/dvach"
+	"hikkabot/core/feed"
+	"hikkabot/core/media"
+	"hikkabot/ext/vendors"
+	dvachVendor "hikkabot/ext/vendors/dvach"
 )
 
 type Vendor struct {

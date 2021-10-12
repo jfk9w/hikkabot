@@ -1,6 +1,6 @@
 package catalog
 
-import "github.com/jfk9w/hikkabot/3rdparty/dvach"
+import "hikkabot/3rdparty/dvach"
 
 type threadSorter []dvach.Post
 

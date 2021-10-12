@@ -16,11 +16,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/jfk9w/hikkabot/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/core/feed"
-	"github.com/jfk9w/hikkabot/core/media"
-	"github.com/jfk9w/hikkabot/ext/resolvers"
-	"github.com/jfk9w/hikkabot/util"
+	"hikkabot/3rdparty/reddit"
+	"hikkabot/core/feed"
+	"hikkabot/core/media"
+	"hikkabot/ext/resolvers"
+	"hikkabot/util"
 )
 
 type Vendor struct {

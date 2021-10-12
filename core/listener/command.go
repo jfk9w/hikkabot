@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/jfk9w/hikkabot/core/feed"
+	"hikkabot/core/feed"
 )
 
 var (

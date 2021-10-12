@@ -10,7 +10,7 @@ import (
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
 	"github.com/pkg/errors"
 
-	"github.com/jfk9w/hikkabot/core/feed"
+	"hikkabot/core/feed"
 )
 
 type DefaultControl struct {
@@ -39,7 +39,7 @@ func (c *DefaultControl) getChatLinkFromCache(chatID telegram.ID) (string, bool)
 
 func (c *DefaultControl) GetChatLink(ctx context.Context, client telegram.Client, chatID telegram.ID) (string, error) {
 	if chatID > 0 {
-		return "tg://resolve?domain=" + client.Username(), nil
+		return "tg://resolve?domain=" + string(client.Username()), nil
 	}
 
 	if inviteLink, ok := c.getChatLinkFromCache(chatID); ok {

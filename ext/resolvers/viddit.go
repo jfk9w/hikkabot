@@ -3,7 +3,7 @@ package resolvers
 import (
 	"context"
 
-	"github.com/jfk9w/hikkabot/3rdparty/viddit"
+	"hikkabot/3rdparty/viddit"
 
 	fluhttp "github.com/jfk9w-go/flu/http"
 )

@@ -7,8 +7,8 @@ import (
 	"github.com/jfk9w-go/flu"
 	"github.com/sirupsen/logrus"
 
-	"github.com/jfk9w/hikkabot/app"
-	"github.com/jfk9w/hikkabot/app/plugin"
+	"hikkabot/app"
+	"hikkabot/app/plugin"
 )
 
 var GitCommit = "dev"

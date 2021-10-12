@@ -3,7 +3,7 @@ package catalog
 import (
 	"github.com/jfk9w-go/flu/metrics"
 
-	"github.com/jfk9w/hikkabot/ext/vendors"
+	"hikkabot/ext/vendors"
 )
 
 type Data struct {

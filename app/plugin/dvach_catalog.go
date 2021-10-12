@@ -3,9 +3,10 @@ package plugin
 import (
 	"context"
 
-	"github.com/jfk9w/hikkabot/app"
-	"github.com/jfk9w/hikkabot/core/feed"
-	. "github.com/jfk9w/hikkabot/ext/vendors/dvach/catalog"
+	"hikkabot/app"
+	"hikkabot/core/feed"
+	. "hikkabot/ext/vendors/dvach/catalog"
+
 	"github.com/pkg/errors"
 )
 

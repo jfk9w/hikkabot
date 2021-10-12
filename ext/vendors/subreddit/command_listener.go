@@ -13,8 +13,8 @@ import (
 	"gopkg.in/guregu/null.v3"
 	"gorm.io/gorm"
 
-	"github.com/jfk9w/hikkabot/core/event"
-	"github.com/jfk9w/hikkabot/core/feed"
+	"hikkabot/core/event"
+	"hikkabot/core/feed"
 )
 
 type CommandListener struct {

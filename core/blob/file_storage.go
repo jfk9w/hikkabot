@@ -9,7 +9,7 @@ import (
 	"github.com/jfk9w-go/flu"
 	"github.com/sirupsen/logrus"
 
-	"github.com/jfk9w/hikkabot/core/feed"
+	"hikkabot/core/feed"
 )
 
 type FileStorage struct {

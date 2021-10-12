@@ -7,8 +7,8 @@ import (
 	"github.com/jfk9w-go/flu"
 	"github.com/pkg/errors"
 
-	"github.com/jfk9w/hikkabot/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/app"
+	"hikkabot/3rdparty/reddit"
+	"hikkabot/app"
 )
 
 type RedditConfig struct {

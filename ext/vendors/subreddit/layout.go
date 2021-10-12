@@ -9,9 +9,9 @@ import (
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
 
-	"github.com/jfk9w/hikkabot/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/core/feed"
-	"github.com/jfk9w/hikkabot/ext/vendors"
+	"hikkabot/3rdparty/reddit"
+	"hikkabot/core/feed"
+	"hikkabot/ext/vendors"
 )
 
 type Layout struct {

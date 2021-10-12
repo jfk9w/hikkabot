@@ -14,7 +14,7 @@ import (
 	"github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
 
-	"github.com/jfk9w/hikkabot/core/feed"
+	"hikkabot/core/feed"
 )
 
 type Storage interface {
