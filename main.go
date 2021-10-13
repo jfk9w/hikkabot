@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 
 	"github.com/jfk9w-go/flu"
@@ -12,20 +13,31 @@ import (
 	"hikkabot/app/plugin"
 )
 
+var (
+	dryRun = flag.Bool("dry-run", false, "Prints out the collected config.")
+	stdin  = flag.Bool("stdin", false, "Accept config input from stdin.")
+)
+
 var GitCommit = "dev"
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	flag.Parse()
 
-	var config flu.Input
-	if len(os.Args) == 1 {
-		config = flu.IO{R: os.Stdin}
-	} else {
-		config = flu.File(os.Args[1])
+	config, err := config(flag.Args(), *stdin)
+	if err != nil {
+		logrus.Fatalf("get config: %s", err)
+	}
+
+	if *dryRun {
+		println(config.Unmask().String())
+		return
 	}
 
 	app.GormDialects["postgres"] = postgres.Open
+	run(config)
+}
+
+func run(config flu.Input) {
 	app, err := app.Create(GitCommit, flu.DefaultClock, config)
 	if err != nil {
 		logrus.Fatalf("initialize app: %s", err)
@@ -43,9 +55,13 @@ func main() {
 		}
 	}()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	app.ApplyConverterPlugins(plugin.Aconvert{"video/webm"})
+
 	dvach := new(plugin.DvachClient)
 	reddit := plugin.NewRedditClient(ctx)
-	app.ApplyConverterPlugins(plugin.Aconvert{"video/webm"})
 	app.ApplyVendorPlugins(
 		(*plugin.Subreddit)(reddit),
 		(*plugin.DvachCatalog)(dvach),
@@ -57,4 +73,22 @@ func main() {
 	}
 
 	flu.AwaitSignal()
+}
+
+func config(args []string, stdin bool) (*flu.ByteBuffer, error) {
+	configsLen := len(args)
+	if stdin {
+		configsLen += 1
+	}
+
+	configs := make([]flu.Input, configsLen)
+	for i, arg := range args {
+		configs[i] = flu.File(arg)
+	}
+
+	if stdin {
+		configs[configsLen-1] = flu.IO{R: os.Stdin}
+	}
+
+	return app.CollectConfig("HIKKABOT_", configs...)
 }

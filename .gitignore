@@ -1,3 +1,2 @@
 .idea/
-config/
-*.sqlite3
+.vscode/launch.json
