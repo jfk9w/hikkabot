@@ -5,8 +5,6 @@ on:
 name: publish
 jobs:
   publish:
-    env:
-      IMAGE_NAME: ghcr.io/jfk9w/hikkabot
     strategy:
       matrix:
         os: [ ubuntu-latest ]
@@ -22,8 +20,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: set tag
         run: |
-          case $GITHUB_REF in refs/heads/master)
-            TAG=latest;;
+          case $GITHUB_REF in refs/heads/*)
+            TAG=${GITHUB_REF#refs/heads/};;
           case $GITHUB_REF in refs/tags/*)
             TAG=${GITHUB_REF#refs/tags/};;
           esac
