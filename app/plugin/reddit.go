@@ -12,6 +12,7 @@ import (
 )
 
 type RedditConfig struct {
+	Enabled        bool
 	*reddit.Config `yaml:"-,inline"`
 	RefreshEvery   flu.Duration
 }
@@ -30,13 +31,13 @@ func (c *RedditClient) Get(app app.Interface) (*reddit.Client, error) {
 		return c.value, nil
 	}
 
-	globalConfig := new(struct{ Reddit *RedditConfig })
+	globalConfig := new(struct{ Reddit RedditConfig })
 	if err := app.GetConfig(globalConfig); err != nil {
 		return nil, errors.Wrap(err, "get config")
 	}
 
 	config := globalConfig.Reddit
-	if config == nil {
+	if !config.Enabled {
 		return nil, nil
 	}
 

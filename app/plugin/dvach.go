@@ -11,6 +11,7 @@ import (
 )
 
 type DvachConfig struct {
+	Enabled    bool
 	Usercode   string
 	GetTimeout flu.Duration
 }
@@ -25,13 +26,13 @@ func (c *DvachClient) Get(app app.Interface) (*dvach.Client, error) {
 		return c.value, nil
 	}
 
-	globalConfig := new(struct{ Dvach *DvachConfig })
+	globalConfig := new(struct{ Dvach DvachConfig })
 	if err := app.GetConfig(globalConfig); err != nil {
 		return nil, err
 	}
 
 	config := globalConfig.Dvach
-	if config == nil {
+	if !config.Enabled {
 		return nil, nil
 	}
 

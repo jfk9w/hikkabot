@@ -11,6 +11,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+type AconvertConfig struct {
+	Enabled bool
+	*Config `yaml:"-,inline"`
+}
+
 type Aconvert []string
 
 func (p Aconvert) ConverterID() string {
@@ -23,7 +28,7 @@ func (p Aconvert) MIMETypes() []string {
 
 func (p Aconvert) CreateConverter(ctx context.Context, app app.Interface) (media.Converter, error) {
 	globalConfig := new(struct {
-		Aconvert *Config
+		Aconvert AconvertConfig
 	})
 
 	if err := app.GetConfig(globalConfig); err != nil {
@@ -31,7 +36,7 @@ func (p Aconvert) CreateConverter(ctx context.Context, app app.Interface) (media
 	}
 
 	config := globalConfig.Aconvert
-	if config == nil {
+	if !config.Enabled {
 		return nil, nil
 	}
 
@@ -40,6 +45,6 @@ func (p Aconvert) CreateConverter(ctx context.Context, app app.Interface) (media
 		return nil, errors.Wrap(err, "get metrics registry")
 	}
 
-	client := NewClient(ctx, metrics.WithPrefix("aconvert"), config)
+	client := NewClient(ctx, metrics.WithPrefix("aconvert"), config.Config)
 	return (*converters.Aconvert)(client), nil
 }
