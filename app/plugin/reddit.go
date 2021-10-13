@@ -40,6 +40,10 @@ func (c *RedditClient) Get(app app.Interface) (*reddit.Client, error) {
 		return nil, nil
 	}
 
+	if config.MaxRetries == 0 {
+		config.MaxRetries = 3
+	}
+
 	client := reddit.NewClient(nil, config.Config, app.GetVersion())
 	if err := client.RefreshInBackground(c.ctx, config.RefreshEvery.GetOrDefault(55*time.Minute)); err != nil {
 		return nil, errors.Wrap(err, "setup")

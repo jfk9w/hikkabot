@@ -7,4 +7,4 @@ RUN go build -ldflags "-X main.GitCommit=$VERSION" -o /app
 FROM alpine:3.14.2
 COPY --from=builder /app /usr/bin/app
 RUN apk add --no-cache tzdata
-CMD app
+ENTRYPOINT app

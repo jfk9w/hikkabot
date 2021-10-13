@@ -6,7 +6,7 @@ require (
 	github.com/corona10/goimagehash v1.0.3
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/jfk9w-go/aconvert-api v0.9.15
-	github.com/jfk9w-go/flu v0.9.30
+	github.com/jfk9w-go/flu v0.9.31
 	github.com/jfk9w-go/telegram-bot-api v0.9.33
 	github.com/lib/pq v1.10.3
 	github.com/ory/dockertest v3.3.5+incompatible

@@ -22,7 +22,10 @@ import (
 	"hikkabot/core/media"
 )
 
-var GormDialects = app.GormDialects
+var (
+	GormDialects  = app.GormDialects
+	DefaultConfig = app.DefaultConfig
+)
 
 type Instance struct {
 	*app.Base
@@ -36,7 +39,12 @@ type Instance struct {
 	bot          *telegram.Bot
 }
 
-func Create(version string, clock flu.Clock, config flu.Input) (*Instance, error) {
+func Create(version string, clock flu.Clock) (*Instance, error) {
+	config, err := app.DefaultConfig("HIKKABOT_", flu.YAML).Collect()
+	if err != nil {
+		return nil, errors.Wrap(err, "collect config")
+	}
+
 	base, err := app.New(version, clock, config, flu.YAML)
 	if err != nil {
 		return nil, err
@@ -213,6 +221,28 @@ func (app *Instance) Run(ctx context.Context) error {
 	return listener.Status(ctx, bot, cmd)
 }
 
+func (app *Instance) Aux() (bool, error) {
+	config := new(struct {
+		DryRun  bool
+		Version bool
+	})
+
+	if err := app.GetConfig(config); err != nil {
+		return false, errors.Wrap(err, "get config")
+	}
+
+	switch {
+	case config.DryRun:
+		print(app.GetRawConfig().String())
+		return true, nil
+	case config.Version:
+		println(app.GetVersion())
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func (app *Instance) createAggregator(ctx context.Context,
 	bot *telegram.Bot, accessControl *access.DefaultControl) (*aggregator.Default, error) {
 
@@ -319,6 +349,10 @@ func (app *Instance) createFileStorage(ctx context.Context) (*blob.FileStorage, 
 	}
 
 	config := globalConfig.Files
+	if config.Directory == "" {
+		config.Directory = "tmp"
+	}
+
 	storage := &blob.FileStorage{
 		Directory: config.Directory,
 		TTL:       config.TTL.GetOrDefault(10 * time.Minute),

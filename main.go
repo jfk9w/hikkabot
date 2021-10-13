@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
-	"os"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/sirupsen/logrus"
@@ -13,37 +11,22 @@ import (
 	"hikkabot/app/plugin"
 )
 
-var (
-	dryRun = flag.Bool("dry-run", false, "Prints out the collected config.")
-	stdin  = flag.Bool("stdin", false, "Accept config input from stdin.")
-)
-
 var GitCommit = "dev"
 
 func main() {
-	flag.Parse()
-
-	config, err := config(flag.Args(), *stdin)
-	if err != nil {
-		logrus.Fatalf("get config: %s", err)
-	}
-
-	if *dryRun {
-		println(config.Unmask().String())
-		return
-	}
-
 	app.GormDialects["postgres"] = postgres.Open
-	run(config)
-}
-
-func run(config flu.Input) {
-	app, err := app.Create(GitCommit, flu.DefaultClock, config)
+	app, err := app.Create(GitCommit, flu.DefaultClock)
 	if err != nil {
 		logrus.Fatalf("initialize app: %s", err)
 	}
 
 	defer flu.CloseQuietly(app)
+
+	if ok, err := app.Aux(); ok {
+		return
+	} else if err != nil {
+		logrus.Fatalf("process aux command: %s", err)
+	}
 
 	if err := app.ConfigureLogging(); err != nil {
 		logrus.Fatalf("configure logging: %s", err)
@@ -73,22 +56,4 @@ func run(config flu.Input) {
 	}
 
 	flu.AwaitSignal()
-}
-
-func config(args []string, stdin bool) (*flu.ByteBuffer, error) {
-	configsLen := len(args)
-	if stdin {
-		configsLen += 1
-	}
-
-	configs := make([]flu.Input, configsLen)
-	for i, arg := range args {
-		configs[i] = flu.File(arg)
-	}
-
-	if stdin {
-		configs[configsLen-1] = flu.IO{R: os.Stdin}
-	}
-
-	return app.CollectConfig("HIKKABOT_", configs...)
 }

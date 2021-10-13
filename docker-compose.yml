@@ -1,0 +1,27 @@
+version: '3.7'
+services:
+  db:
+    image: postgres:latest
+    restart: always
+    networks:
+      - hikkabot
+    environment:
+      POSTGRES_PASSWORD: pwd
+  app:
+    depends_on:
+      - db
+    image: ghcr.io/jfk9w/hikkabot:master
+    restart: always
+    networks:
+      - hikkabot
+    environment:
+      HIKKABOT_DATABASE: "postgresql://postgres:pwd@db:5432/postgres"
+      HIKKABOT_AGGREGATOR_REFRESHEVERY: "5s"
+      HIKKABOT_ACONVERT_PROBE_FILE: "/probe.webm"
+      HIKKABOT_ACONVERT_PROBE_FORMAT: "mp4"
+      HIKKABOT_PROMETHEUS_ADDRESS: "http://localhost:8092/metrics"
+      HIKKABOT_SUBREDDIT_CONSTANTPERIOD: "1s"
+    volumes:
+      - ./probe.webm:/probe.webm:ro
+networks:
+  hikkabot:
