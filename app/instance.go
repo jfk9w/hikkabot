@@ -10,6 +10,7 @@ import (
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	"hikkabot/core/access"
@@ -20,11 +21,6 @@ import (
 	"hikkabot/core/feed"
 	"hikkabot/core/listener"
 	"hikkabot/core/media"
-)
-
-var (
-	GormDialects  = app.GormDialects
-	DefaultConfig = app.DefaultConfig
 )
 
 type Instance struct {
@@ -45,6 +41,7 @@ func Create(version string, clock flu.Clock) (*Instance, error) {
 		return nil, errors.Wrap(err, "collect config")
 	}
 
+	app.GormDialects["postgres"] = postgres.Open
 	base, err := app.New(version, clock, config, flu.YAML)
 	if err != nil {
 		return nil, err
