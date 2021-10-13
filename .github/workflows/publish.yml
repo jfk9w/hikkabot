@@ -21,6 +21,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: build image
-        uses: |
+        run: |
           docker build -t ghcr.io/${{ GITHUB_REPOSITORY }}:${{ GITHUB_REF }} --build-arg VERSION=${{ GITHUB_REF }} .
           docker push ghcr.io/${{ GITHUB_REPOSITORY }}:${{ GITHUB_REF }}
