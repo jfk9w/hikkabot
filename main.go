@@ -18,8 +18,15 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var config flu.Input
+	if len(os.Args) == 1 {
+		config = flu.IO{R: os.Stdin}
+	} else {
+		config = flu.File(os.Args[1])
+	}
+
 	app.GormDialects["postgres"] = postgres.Open
-	app, err := app.Create(GitCommit, flu.DefaultClock, flu.File(os.Args[1]))
+	app, err := app.Create(GitCommit, flu.DefaultClock, config)
 	if err != nil {
 		logrus.Fatalf("initialize app: %s", err)
 	}

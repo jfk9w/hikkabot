@@ -1,6 +1,6 @@
 # hikkabot
 
-[![ci](https://github.com/jfk9w/hikkabot/actions/workflows/ci.yml/badge.svg)](https://github.com/jfk9w/hikkabot/actions/workflows/ci.yml)
+[![ci](https://github.com/jfk9w/hikkabot/actions/workflows/test.yml/badge.svg)](https://github.com/jfk9w/hikkabot/actions/workflows/test.yml)
 
 Telegram bot which allows relaying third-party feed updates to Telegram chats.
 

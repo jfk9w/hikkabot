@@ -72,7 +72,7 @@ func (v *Vendor) Close() error {
 	return nil
 }
 
-var refRegexp = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/r/([0-9A-Za-z_]+)$`)
+var refRegexp = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/[ur]/([0-9A-Za-z_]+)$`)
 
 func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed.Draft, error) {
 	groups := refRegexp.FindStringSubmatch(ref)
