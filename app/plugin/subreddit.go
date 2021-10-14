@@ -54,7 +54,7 @@ func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.V
 	}
 
 	globalConfig := new(struct{ Subreddit SubredditConfig })
-	if err := app.GetConfig(globalConfig); err != nil {
+	if err := app.GetConfig().As(globalConfig); err != nil {
 		return nil, errors.Wrap(err, "get config")
 	}
 

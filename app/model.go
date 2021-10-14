@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/app"
 	"github.com/jfk9w-go/flu/metrics"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"gorm.io/gorm"
@@ -17,7 +18,7 @@ import (
 type Interface interface {
 	flu.Clock
 	GetVersion() string
-	GetConfig(value interface{}) error
+	GetConfig() app.Config
 	GetMetricsRegistry(ctx context.Context) (metrics.Registry, error)
 	GetMediaManager(ctx context.Context) (*media.Manager, error)
 	GetDefaultDatabase() (*gorm.DB, error)

@@ -31,7 +31,7 @@ func (p Aconvert) CreateConverter(ctx context.Context, app app.Interface) (media
 		Aconvert AconvertConfig
 	})
 
-	if err := app.GetConfig(globalConfig); err != nil {
+	if err := app.GetConfig().As(globalConfig); err != nil {
 		return nil, errors.Wrap(err, "get config")
 	}
 

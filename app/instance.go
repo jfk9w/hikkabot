@@ -10,7 +10,6 @@ import (
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	"hikkabot/core/access"
@@ -36,15 +35,14 @@ type Instance struct {
 }
 
 func Create(version string, clock flu.Clock) (*Instance, error) {
-	config, err := app.DefaultConfig("HIKKABOT_", flu.YAML).Collect()
-	if err != nil {
-		return nil, errors.Wrap(err, "collect config")
-	}
-
-	app.GormDialects["postgres"] = postgres.Open
-	base, err := app.New(version, clock, config, flu.YAML)
+	configurer := app.DefaultConfigurer("HIKKABOT_", nil, "config.file", "config.stdin")
+	base, err := app.New(version, clock, configurer)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := base.ConfigureLogging(); err != nil {
+		return nil, errors.Wrap(err, "configure logging")
 	}
 
 	return &Instance{
@@ -58,7 +56,7 @@ func Create(version string, clock flu.Clock) (*Instance, error) {
 func (app *Instance) GetDefaultDatabase() (*gorm.DB, error) {
 	if app.dbconn == "" {
 		config := new(struct{ Database string })
-		if err := app.GetConfig(config); err != nil {
+		if err := app.GetConfig().As(config); err != nil {
 			return nil, err
 		}
 
@@ -95,7 +93,7 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 		}
 	})
 
-	if err := app.GetConfig(globalConfig); err != nil {
+	if err := app.GetConfig().As(globalConfig); err != nil {
 		return nil, errors.Wrap(err, "get config")
 	}
 
@@ -181,7 +179,7 @@ func (app *Instance) Run(ctx context.Context) error {
 		}
 	})
 
-	if err := app.GetConfig(config); err != nil {
+	if err := app.GetConfig().As(config); err != nil {
 		return errors.Wrap(err, "get config")
 	}
 
@@ -218,28 +216,6 @@ func (app *Instance) Run(ctx context.Context) error {
 	return listener.Status(ctx, bot, cmd)
 }
 
-func (app *Instance) Aux() (bool, error) {
-	config := new(struct {
-		DryRun  bool
-		Version bool
-	})
-
-	if err := app.GetConfig(config); err != nil {
-		return false, errors.Wrap(err, "get config")
-	}
-
-	switch {
-	case config.DryRun:
-		print(app.GetRawConfig().String())
-		return true, nil
-	case config.Version:
-		println(app.GetVersion())
-		return true, nil
-	}
-
-	return false, nil
-}
-
 func (app *Instance) createAggregator(ctx context.Context,
 	bot *telegram.Bot, accessControl *access.DefaultControl) (*aggregator.Default, error) {
 
@@ -260,7 +236,7 @@ func (app *Instance) createAggregator(ctx context.Context,
 		}
 	})
 
-	if err := app.GetConfig(globalConfig); err != nil {
+	if err := app.GetConfig().As(globalConfig); err != nil {
 		return nil, errors.Wrap(err, "get config")
 	}
 
@@ -341,7 +317,7 @@ func (app *Instance) createFileStorage(ctx context.Context) (*blob.FileStorage, 
 		}
 	})
 
-	if err := app.GetConfig(globalConfig); err != nil {
+	if err := app.GetConfig().As(globalConfig); err != nil {
 		return nil, errors.Wrap(err, "get config")
 	}
 
@@ -386,7 +362,7 @@ func (app *Instance) GetBot(ctx context.Context) (*telegram.Bot, error) {
 	}
 
 	globalConfig := new(struct{ Telegram struct{ Token string } })
-	if err := app.GetConfig(globalConfig); err != nil {
+	if err := app.GetConfig().As(globalConfig); err != nil {
 		return nil, errors.Wrap(err, "get config")
 	}
 

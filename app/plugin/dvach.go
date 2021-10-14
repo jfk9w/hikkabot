@@ -27,7 +27,7 @@ func (c *DvachClient) Get(app app.Interface) (*dvach.Client, error) {
 	}
 
 	globalConfig := new(struct{ Dvach DvachConfig })
-	if err := app.GetConfig(globalConfig); err != nil {
+	if err := app.GetConfig().As(globalConfig); err != nil {
 		return nil, err
 	}
 

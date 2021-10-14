@@ -6,16 +6,16 @@ require (
 	github.com/corona10/goimagehash v1.0.3
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/jfk9w-go/aconvert-api v0.9.15
-	github.com/jfk9w-go/flu v0.9.31
-	github.com/jfk9w-go/telegram-bot-api v0.9.33
+	github.com/jfk9w-go/flu v0.9.34
+	github.com/jfk9w-go/telegram-bot-api v0.9.37
 	github.com/lib/pq v1.10.3
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/exp v0.0.0-20211011213208-1d87cf485e27
+	golang.org/x/exp v0.0.0-20211012155715-ffe10e552389
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d
-	golang.org/x/net v0.0.0-20211011170408-caeb26a5c8c0
+	golang.org/x/net v0.0.0-20211013171255-e13a2654a71e
 	gopkg.in/guregu/null.v3 v3.5.0
 	gorm.io/driver/postgres v1.1.2
 	gorm.io/gorm v1.21.16
@@ -28,7 +28,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/containerd/continuity v0.2.0 // indirect
+	github.com/containerd/continuity v0.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
@@ -56,7 +56,7 @@ require (
 	github.com/prometheus/common v0.31.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
+	golang.org/x/sys v0.0.0-20211013075003-97ac67df715c // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect

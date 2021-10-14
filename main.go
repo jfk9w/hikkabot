@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/jfk9w-go/flu"
+	fluapp "github.com/jfk9w-go/flu/app"
 	"github.com/sirupsen/logrus"
+	"gorm.io/driver/postgres"
 
 	"hikkabot/app"
 	"hikkabot/app/plugin"
@@ -13,23 +15,13 @@ import (
 var GitCommit = "dev"
 
 func main() {
+	fluapp.GormDialects["postgres"] = postgres.Open
 	app, err := app.Create(GitCommit, flu.DefaultClock)
 	if err != nil {
 		logrus.Fatalf("initialize app: %s", err)
 	}
 
 	defer flu.CloseQuietly(app)
-
-	if ok, err := app.Aux(); ok {
-		return
-	} else if err != nil {
-		logrus.Fatalf("process aux command: %s", err)
-	}
-
-	if err := app.ConfigureLogging(); err != nil {
-		logrus.Fatalf("configure logging: %s", err)
-	}
-
 	defer func() {
 		if e := recover(); e != nil {
 			logrus.Panic(e)
