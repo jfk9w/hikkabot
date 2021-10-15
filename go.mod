@@ -5,9 +5,9 @@ go 1.17
 require (
 	github.com/corona10/goimagehash v1.0.3
 	github.com/gofrs/uuid v4.0.0+incompatible
-	github.com/jfk9w-go/aconvert-api v0.9.15
-	github.com/jfk9w-go/flu v0.9.34
-	github.com/jfk9w-go/telegram-bot-api v0.9.37
+	github.com/jfk9w-go/aconvert-api v0.9.16
+	github.com/jfk9w-go/flu v0.9.37
+	github.com/jfk9w-go/telegram-bot-api v0.9.40
 	github.com/lib/pq v1.10.3
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pkg/errors v0.9.1
@@ -15,7 +15,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/exp v0.0.0-20211012155715-ffe10e552389
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d
-	golang.org/x/net v0.0.0-20211013171255-e13a2654a71e
+	golang.org/x/net v0.0.0-20211014222326-fd004c51d1d6
 	gopkg.in/guregu/null.v3 v3.5.0
 	gorm.io/driver/postgres v1.1.2
 	gorm.io/gorm v1.21.16
