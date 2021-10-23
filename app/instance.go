@@ -34,23 +34,21 @@ type Instance struct {
 	bot          *telegram.Bot
 }
 
-func Create(version string, clock flu.Clock) (*Instance, error) {
-	configurer := app.DefaultConfigurer("HIKKABOT_", nil, "config.file", "config.stdin")
-	base, err := app.New(version, clock, configurer)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := base.ConfigureLogging(); err != nil {
-		return nil, errors.Wrap(err, "configure logging")
-	}
-
+func Create(version string, clock flu.Clock) *Instance {
 	return &Instance{
-		Base:             base,
+		Base:             app.New(version, clock),
 		converterPlugins: make([]ConverterPlugin, 0),
 		vendorPlugins:    make([]VendorPlugin, 0),
 		vendorListeners:  make([]listener.Vendor, 0),
-	}, nil
+	}
+}
+
+func (app *Instance) Configure(configurer app.Configurer) error {
+	if err := app.Base.Configure(configurer); err != nil {
+		return errors.Wrap(err, "configure")
+	}
+
+	return errors.Wrap(app.ConfigureLogging(), "configure logging")
 }
 
 func (app *Instance) GetDefaultDatabase() (*gorm.DB, error) {

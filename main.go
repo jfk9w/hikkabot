@@ -16,12 +16,6 @@ var GitCommit = "dev"
 
 func main() {
 	fluapp.GormDialects["postgres"] = postgres.Open
-	app, err := app.Create(GitCommit, flu.DefaultClock)
-	if err != nil {
-		logrus.Fatalf("initialize app: %s", err)
-	}
-
-	defer flu.CloseQuietly(app)
 	defer func() {
 		if e := recover(); e != nil {
 			logrus.Panic(e)
@@ -30,6 +24,9 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	app := app.Create(GitCommit, flu.DefaultClock)
+	defer flu.CloseQuietly(app)
 
 	app.ApplyConverterPlugins(plugin.Aconvert{"video/webm"})
 
@@ -41,9 +38,8 @@ func main() {
 		(*plugin.DvachThread)(dvach),
 	)
 
-	if err := app.Run(ctx); err != nil {
-		logrus.Fatalf("run app: %s", err)
-	}
+	configurer := fluapp.DefaultConfigurer("hikkabot")
+	fluapp.Run(ctx, app, configurer)
 
 	flu.AwaitSignal()
 }

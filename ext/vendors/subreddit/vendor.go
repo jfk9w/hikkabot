@@ -131,7 +131,7 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		} else if errors.As(err, new(*json.SyntaxError)) {
 			log.Warnf("update: failed (json error)")
 		} else if serr := new(fluhttp.StatusCodeError); errors.As(err, serr) &&
-			serr.StatusCode < 400 && serr.StatusCode >= 500 {
+			(serr.StatusCode < 400 || serr.StatusCode >= 500) {
 			log.Warnf("update: failed (http %d)", serr.StatusCode)
 		} else {
 			_ = queue.Cancel(ctx, err)
