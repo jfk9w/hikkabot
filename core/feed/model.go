@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	gormutil "github.com/jfk9w-go/flu/gorm"
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/gormf"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
@@ -33,8 +33,8 @@ type Header struct {
 	FeedID telegram.ID `gorm:"primaryKey"`
 }
 
-func (h *Header) Labels() metrics.Labels {
-	return metrics.Labels{}.
+func (h *Header) Labels() me3x.Labels {
+	return me3x.Labels{}.
 		Add("feed", h.FeedID).
 		Add("vendor", h.Vendor).
 		Add("sub", h.SubID)
@@ -65,7 +65,7 @@ func ParseHeader(value string) (*Header, error) {
 type Subscription struct {
 	*Header   `gorm:"embedded"`
 	Name      string `gorm:"not null"`
-	Data      gormutil.JSONB
+	Data      gormf.JSONB
 	UpdatedAt *time.Time
 	Error     null.String
 }
@@ -95,17 +95,17 @@ type WriteHTML func(html *html.Writer) error
 
 type Update struct {
 	WriteHTML WriteHTML
-	Data      gormutil.JSONB
+	Data      gormf.JSONB
 	Error     error
 }
 
 type Queue struct {
 	Header *Header
 	C      chan Update
-	data   gormutil.JSONB
+	data   gormf.JSONB
 }
 
-func NewQueue(header *Header, data gormutil.JSONB, size int) *Queue {
+func NewQueue(header *Header, data gormf.JSONB, size int) *Queue {
 	return &Queue{
 		Header: header,
 		C:      make(chan Update, size),
@@ -122,14 +122,14 @@ func (q *Queue) GetData(ctx context.Context, value interface{}) error {
 	return nil
 }
 
-func (q *Queue) Log(ctx context.Context, data metrics.Labeled) *logrus.Entry {
+func (q *Queue) Log(ctx context.Context, data me3x.Labeled) *logrus.Entry {
 	return logrus.WithContext(ctx).
 		WithFields(q.Header.Labels().Map()).
 		WithFields(data.Labels().Map())
 }
 
 func (q *Queue) Proceed(ctx context.Context, writeHTML WriteHTML, value interface{}) error {
-	data, err := gormutil.ToJSONB(value)
+	data, err := gormf.ToJSONB(value)
 	if err != nil {
 		return err
 	}

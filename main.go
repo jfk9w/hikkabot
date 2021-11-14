@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jfk9w-go/flu"
-	fluapp "github.com/jfk9w-go/flu/app"
+	apfel "github.com/jfk9w-go/flu/apfel"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 
@@ -15,7 +15,7 @@ import (
 var GitCommit = "dev"
 
 func main() {
-	fluapp.GormDialects["postgres"] = postgres.Open
+	apfel.GormDialects["postgres"] = postgres.Open
 	defer func() {
 		if e := recover(); e != nil {
 			logrus.Panic(e)
@@ -38,8 +38,8 @@ func main() {
 		(*plugin.DvachThread)(dvach),
 	)
 
-	configurer := fluapp.DefaultConfigurer("hikkabot")
-	fluapp.Run(ctx, app, configurer)
+	configurer := apfel.DefaultConfigurer("hikkabot")
+	apfel.Run(ctx, app, configurer)
 
 	flu.AwaitSignal()
 }

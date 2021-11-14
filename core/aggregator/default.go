@@ -3,8 +3,8 @@ package aggregator
 import (
 	"context"
 
-	gormutil "github.com/jfk9w-go/flu/gorm"
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/gormf"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 
@@ -13,7 +13,7 @@ import (
 
 type Default struct {
 	*Context
-	metrics.Registry
+	me3x.Registry
 	Executor
 }
 
@@ -39,7 +39,7 @@ func (a *Default) Subscribe(ctx context.Context, feedID telegram.ID, ref string,
 			return errors.Wrap(err, "parse")
 		}
 
-		data, err := gormutil.ToJSONB(draft.Data)
+		data, err := gormf.ToJSONB(draft.Data)
 		if err != nil {
 			return errors.Wrap(err, "convert data")
 		}

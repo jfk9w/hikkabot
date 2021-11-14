@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 )
 
@@ -15,11 +15,11 @@ var imgurRegexp = regexp.MustCompile(`.*?(<link rel="image_src"\s+href="|<meta p
 
 type Imgur string
 
-func (r *Imgur) GetClient(defaultClient *fluhttp.Client) *fluhttp.Client {
+func (r *Imgur) GetClient(defaultClient *httpf.Client) *httpf.Client {
 	return defaultClient
 }
 
-func (r *Imgur) Resolve(ctx context.Context, client *fluhttp.Client, url string, _ int64) (string, error) {
+func (r *Imgur) Resolve(ctx context.Context, client *httpf.Client, url string, _ int64) (string, error) {
 	if *r != "" {
 		return string(*r), nil
 	}

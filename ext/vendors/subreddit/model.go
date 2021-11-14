@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
 
 	"hikkabot/3rdparty/reddit"
@@ -22,7 +22,7 @@ var (
 
 type Context struct {
 	flu.Clock
-	Metrics        metrics.Registry
+	Metrics        me3x.Registry
 	Storage        Storage
 	MediaManager   *media.Manager
 	RedditClient   *reddit.Client
@@ -53,8 +53,8 @@ type Data struct {
 	Layout        Layout         `json:"layout,omitempty"`
 }
 
-func (d *Data) Labels() metrics.Labels {
-	return metrics.Labels{}
+func (d *Data) Labels() me3x.Labels {
+	return me3x.Labels{}
 }
 
 type Storage interface {

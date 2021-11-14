@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
 	tghtml "github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"
@@ -18,7 +18,7 @@ import (
 
 type Task struct {
 	*Context
-	metrics.Registry
+	me3x.Registry
 	FeedID telegram.ID
 }
 

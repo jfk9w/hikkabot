@@ -1,14 +1,14 @@
 package dvach
 
 import (
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/jfk9w-go/telegram-bot-api"
 
 	"hikkabot/3rdparty/dvach"
 	"hikkabot/core/media"
 )
 
-func NewMediaRef(httpClient *fluhttp.Client, feedID telegram.ID, file dvach.File, dedup bool) *media.Ref {
+func NewMediaRef(httpClient *httpf.Client, feedID telegram.ID, file dvach.File, dedup bool) *media.Ref {
 	return &media.Ref{
 		Resolver: media.PlainResolver{HttpClient: httpClient},
 		Metadata: &media.Metadata{

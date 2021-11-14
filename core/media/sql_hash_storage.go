@@ -3,7 +3,7 @@ package media
 import (
 	"context"
 
-	gormutil "github.com/jfk9w-go/flu/gorm"
+	"github.com/jfk9w-go/flu/gormf"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -30,7 +30,7 @@ func (s *SQLHashStorage) Check(ctx context.Context, hash *Hash) (bool, error) {
 
 	err := s.Unmask().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.
-			Clauses(gormutil.OnConflictClause(hash, "primaryKey", false, update)).
+			Clauses(gormf.OnConflictClause(hash, "primaryKey", false, update)).
 			Create(hash).
 			Error; err != nil {
 			return errors.Wrap(err, "create")

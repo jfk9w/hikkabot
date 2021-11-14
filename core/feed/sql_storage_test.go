@@ -5,14 +5,15 @@ import (
 	"testing"
 	"time"
 
+	"hikkabot/common"
+	"hikkabot/core/feed"
+
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/flu/gorm"
+	"github.com/jfk9w-go/flu/gormf"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
-	"hikkabot/common"
-	"hikkabot/core/feed"
 )
 
 func TestSQLStorage(t *testing.T) {
@@ -41,7 +42,7 @@ func TestSQLStorage(t *testing.T) {
 	sub := &feed.Subscription{
 		Header: header,
 		Name:   "test subscription",
-		Data:   gorm.JSONB("{}"),
+		Data:   gormf.JSONB("{}"),
 	}
 
 	subs, err := storage.List(ctx, header.FeedID, true)
@@ -54,7 +55,7 @@ func TestSQLStorage(t *testing.T) {
 
 	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, nil))
 	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, errors.New("test error")))
-	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, gorm.JSONB("{}")))
+	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, gormf.JSONB("{}")))
 
 	_, err = storage.Shift(ctx, header.FeedID)
 	assert.Equal(t, feed.ErrNotFound, err)
@@ -71,7 +72,7 @@ func TestSQLStorage(t *testing.T) {
 	assert.Equal(t, 1, len(subs))
 	assert.Equal(t, header, subs[0].Header)
 	assert.Equal(t, "test subscription", subs[0].Name)
-	assert.Equal(t, gorm.JSONB("{}"), subs[0].Data)
+	assert.Equal(t, gormf.JSONB("{}"), subs[0].Data)
 	assert.Equal(t, (*time.Time)(nil), subs[0].UpdatedAt)
 	assert.Equal(t, null.NewString("", false), subs[0].Error)
 
@@ -83,7 +84,7 @@ func TestSQLStorage(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, header, sub.Header)
 	assert.Equal(t, "test subscription", sub.Name)
-	assert.Equal(t, gorm.JSONB("{}"), sub.Data)
+	assert.Equal(t, gormf.JSONB("{}"), sub.Data)
 	assert.Equal(t, (*time.Time)(nil), sub.UpdatedAt)
 	assert.Equal(t, null.NewString("", false), sub.Error)
 
@@ -115,7 +116,7 @@ func TestSQLStorage(t *testing.T) {
 	assert.Equal(t, feed.ErrNotFound, err)
 
 	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, errors.New("test error")))
-	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, gorm.JSONB(`{"x": "1"}`)))
+	assert.Equal(t, feed.ErrNotFound, storage.Update(ctx, now, header, gormf.JSONB(`{"x": "1"}`)))
 
 	now = now.Add(time.Hour)
 	sub.UpdatedAt = &now
@@ -142,11 +143,11 @@ func TestSQLStorage(t *testing.T) {
 
 	now = now.Add(time.Hour)
 	sub.UpdatedAt = &now
-	assert.Equal(t, nil, storage.Update(ctx, now, header, gorm.JSONB(`{"x": "1"}`)))
+	assert.Equal(t, nil, storage.Update(ctx, now, header, gormf.JSONB(`{"x": "1"}`)))
 
 	sub, err = storage.Get(ctx, header)
 	assert.Nil(t, err)
-	assert.Equal(t, gorm.JSONB(`{"x": "1"}`), sub.Data)
+	assert.Equal(t, gormf.JSONB(`{"x": "1"}`), sub.Data)
 	assert.Equal(t, now.UnixMilli(), sub.UpdatedAt.UnixMilli())
 
 	assert.Nil(t, storage.Delete(ctx, sub.Header))

@@ -1,7 +1,7 @@
 package catalog
 
 import (
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/me3x"
 
 	"hikkabot/ext/vendors"
 )
@@ -13,6 +13,6 @@ type Data struct {
 	Auto   []string       `json:"auto,omitempty"`
 }
 
-func (d *Data) Labels() metrics.Labels {
-	return metrics.Labels{}
+func (d *Data) Labels() me3x.Labels {
+	return me3x.Labels{}
 }

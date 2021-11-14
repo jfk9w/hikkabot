@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/sirupsen/logrus"
@@ -16,7 +16,7 @@ type writeHTMLWithChatLink func(html *html.Writer, chatLink string) *html.Writer
 
 type Event struct {
 	AccessControl
-	metrics.Registry
+	me3x.Registry
 }
 
 func (l *Event) OnResume(ctx context.Context, client telegram.Client, sub *feed.Subscription) error {

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -28,7 +28,7 @@ type Config struct {
 }
 
 type Client struct {
-	HttpClient *fluhttp.Client
+	HttpClient *httpf.Client
 	config     *Config
 	token      string
 	mu         flu.RWMutex
@@ -36,9 +36,9 @@ type Client struct {
 	cancel     func()
 }
 
-func NewClient(httpClient *fluhttp.Client, config *Config, version string) *Client {
+func NewClient(httpClient *httpf.Client, config *Config, version string) *Client {
 	if httpClient == nil {
-		httpClient = fluhttp.NewClient(nil)
+		httpClient = httpf.NewClient(nil)
 	}
 
 	owner := config.Owner
@@ -94,9 +94,9 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func (c *Client) Auth() fluhttp.Authorization {
+func (c *Client) Auth() httpf.Authorization {
 	defer c.mu.RLock().Unlock()
-	return fluhttp.Bearer(c.token)
+	return httpf.Bearer(c.token)
 }
 
 func (c *Client) RefreshToken(ctx context.Context) error {
@@ -108,7 +108,7 @@ func (c *Client) RefreshToken(ctx context.Context) error {
 		QueryParam("grant_type", "password").
 		QueryParam("username", c.config.Username).
 		QueryParam("password", c.config.Password).
-		Auth(fluhttp.Basic(c.config.ClientID, c.config.ClientSecret)).
+		Auth(httpf.Basic(c.config.ClientID, c.config.ClientSecret)).
 		Context(ctx).
 		Execute().
 		DecodeBody(flu.JSON(resp)).

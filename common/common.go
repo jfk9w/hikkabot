@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	gormutil "github.com/jfk9w-go/flu/gorm"
+	"github.com/jfk9w-go/flu/gormf"
 	"github.com/ory/dockertest"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -29,7 +29,7 @@ func NewTestPostgres(t *testing.T) *TestDatabase {
 	var db *gorm.DB
 	dsn := fmt.Sprintf("postgresql://postgres:pwd@%s/postgres", container.GetHostPort("5432/tcp"))
 	if err := pool.Retry(func() error {
-		db, err = gorm.Open(postgres.Open(dsn), gormutil.DefaultConfig)
+		db, err = gorm.Open(postgres.Open(dsn), gormf.DefaultConfig)
 		return err
 	}); err != nil {
 		t.Fatal(err)

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/flu/app"
-	fluhttp "github.com/jfk9w-go/flu/http"
+	"github.com/jfk9w-go/flu/apfel"
+	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -23,7 +23,7 @@ import (
 )
 
 type Instance struct {
-	*app.Base
+	*apfel.Core
 	converterPlugins []ConverterPlugin
 	vendorPlugins    []VendorPlugin
 	vendorListeners  []listener.Vendor
@@ -36,19 +36,11 @@ type Instance struct {
 
 func Create(version string, clock flu.Clock) *Instance {
 	return &Instance{
-		Base:             app.New(version, clock),
+		Core:             apfel.New(version, clock),
 		converterPlugins: make([]ConverterPlugin, 0),
 		vendorPlugins:    make([]VendorPlugin, 0),
 		vendorListeners:  make([]listener.Vendor, 0),
 	}
-}
-
-func (app *Instance) Configure(configurer app.Configurer) error {
-	if err := app.Base.Configure(configurer); err != nil {
-		return errors.Wrap(err, "configure")
-	}
-
-	return errors.Wrap(app.ConfigureLogging(), "configure logging")
 }
 
 func (app *Instance) GetDefaultDatabase() (*gorm.DB, error) {
@@ -105,7 +97,7 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 				Clock:       app,
 				HashStorage: hashStorage,
 			},
-			HttpClient: fluhttp.NewClient(nil),
+			HttpClient: httpf.NewClient(nil),
 			SizeBounds: [2]int64{1 << 10, telegram.Video.AttachMaxSize()},
 			Converters: make(map[string]media.Converter),
 			Retries:    config.Retries,
@@ -365,7 +357,7 @@ func (app *Instance) GetBot(ctx context.Context) (*telegram.Bot, error) {
 	}
 
 	config := globalConfig.Telegram
-	bot := telegram.NewBot(ctx, fluhttp.NewTransport().
+	bot := telegram.NewBot(ctx, httpf.NewTransport().
 		ResponseHeaderTimeout(2*time.Minute).
 		NewClient(), config.Token)
 	if _, err := bot.GetMe(ctx); err != nil {

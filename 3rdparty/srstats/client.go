@@ -6,16 +6,16 @@ import (
 	"sort"
 
 	"github.com/jfk9w-go/flu"
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 )
 
 var BaseURL = "https://subredditstats.com/api"
 
-type Client fluhttp.Client
+type Client httpf.Client
 
-func (c *Client) Unmask() *fluhttp.Client {
-	return (*fluhttp.Client)(c)
+func (c *Client) Unmask() *httpf.Client {
+	return (*httpf.Client)(c)
 }
 
 func (c *Client) GetGlobalHistogram(ctx context.Context) (map[string]float64, error) {

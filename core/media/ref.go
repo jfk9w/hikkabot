@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
@@ -22,12 +22,12 @@ type Ref struct {
 	Blob        bool
 }
 
-func (r *Ref) Labels() metrics.Labels {
+func (r *Ref) Labels() me3x.Labels {
 	return r.labels(true)
 }
 
-func (r *Ref) labels(forLog bool) metrics.Labels {
-	labels := metrics.Labels{}.
+func (r *Ref) labels(forLog bool) me3x.Labels {
+	labels := me3x.Labels{}.
 		Add("feed", r.FeedID)
 
 	if forLog {

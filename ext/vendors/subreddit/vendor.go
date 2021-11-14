@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -130,7 +130,7 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 			log.Warnf("update: failed (network error)")
 		} else if errors.As(err, new(*json.SyntaxError)) {
 			log.Warnf("update: failed (json error)")
-		} else if serr := new(fluhttp.StatusCodeError); errors.As(err, serr) &&
+		} else if serr := new(httpf.StatusCodeError); errors.As(err, serr) &&
 			(serr.StatusCode < 400 || serr.StatusCode >= 500) {
 			log.Warnf("update: failed (http %d)", serr.StatusCode)
 		} else {

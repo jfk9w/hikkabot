@@ -1,7 +1,7 @@
 package thread
 
 import (
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/me3x"
 )
 
 type Data struct {
@@ -12,6 +12,6 @@ type Data struct {
 	Tag       string `json:"tag"`
 }
 
-func (d *Data) Labels() metrics.Labels {
-	return metrics.Labels{}
+func (d *Data) Labels() me3x.Labels {
+	return me3x.Labels{}
 }

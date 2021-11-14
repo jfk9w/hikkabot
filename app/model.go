@@ -2,11 +2,10 @@ package app
 
 import (
 	"context"
-	"io"
 
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/flu/app"
-	"github.com/jfk9w-go/flu/metrics"
+	"github.com/jfk9w-go/flu/apfel"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"gorm.io/gorm"
 
@@ -18,13 +17,13 @@ import (
 type Interface interface {
 	flu.Clock
 	GetVersion() string
-	GetConfig() app.Config
-	GetMetricsRegistry(ctx context.Context) (metrics.Registry, error)
+	GetConfig() apfel.Config
+	GetMetricsRegistry(ctx context.Context) (me3x.Registry, error)
 	GetMediaManager(ctx context.Context) (*media.Manager, error)
 	GetDefaultDatabase() (*gorm.DB, error)
 	GetEventStorage(ctx context.Context) (event.Storage, error)
 	GetBot(ctx context.Context) (*telegram.Bot, error)
-	Manage(service io.Closer)
+	Manage(service interface{})
 }
 
 type VendorPlugin interface {

@@ -7,11 +7,11 @@ import (
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/backoff"
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 )
 
 type downloader struct {
-	*fluhttp.Client
+	*httpf.Client
 	retries int
 }
 

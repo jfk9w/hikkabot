@@ -8,16 +8,16 @@ import (
 
 	"github.com/jfk9w-go/flu"
 
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 )
 
 type Gfycat string
 
-func (r Gfycat) GetClient(defaultClient *fluhttp.Client) *fluhttp.Client {
+func (r Gfycat) GetClient(defaultClient *httpf.Client) *httpf.Client {
 	return defaultClient
 }
 
-func (r Gfycat) Resolve(ctx context.Context, client *fluhttp.Client, url string, _ int64) (string, error) {
+func (r Gfycat) Resolve(ctx context.Context, client *httpf.Client, url string, _ int64) (string, error) {
 	url = strings.Trim(url, "/")
 	lastSlash := strings.LastIndex(url, "/")
 	code := url[lastSlash+1:]

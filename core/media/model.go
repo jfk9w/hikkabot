@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	fluhttp "github.com/jfk9w-go/flu/http"
-	"github.com/jfk9w-go/flu/metrics"
+	httpf "github.com/jfk9w-go/flu/httpf"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
@@ -66,8 +66,8 @@ func (m *Metadata) Handle(resp *http.Response) error {
 }
 
 type Resolver interface {
-	GetClient(defaultClient *fluhttp.Client) *fluhttp.Client
-	Resolve(ctx context.Context, client *fluhttp.Client, url string, maxSize int64) (string, error)
+	GetClient(defaultClient *httpf.Client) *httpf.Client
+	Resolve(ctx context.Context, client *httpf.Client, url string, maxSize int64) (string, error)
 }
 
 type Converter interface {
@@ -77,9 +77,9 @@ type Converter interface {
 type Context struct {
 	flu.Clock
 	Storage
-	metrics.Registry
+	me3x.Registry
 	*Deduplicator
-	HttpClient *fluhttp.Client
+	HttpClient *httpf.Client
 	SizeBounds [2]int64
 	Converters map[string]Converter
 	Retries    int

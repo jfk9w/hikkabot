@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	gormutil "github.com/jfk9w-go/flu/gorm"
+	"github.com/jfk9w-go/flu/gormf"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"gorm.io/gorm"
 
@@ -25,7 +25,7 @@ func (s *SQLStorage) Init(ctx context.Context) error {
 
 func (s *SQLStorage) SaveThings(ctx context.Context, things []reddit.Thing) error {
 	return s.Unmask().WithContext(ctx).
-		Clauses(gormutil.OnConflictClause(things, "primaryKey", true, nil)).
+		Clauses(gormf.OnConflictClause(things, "primaryKey", true, nil)).
 		Create(things).
 		Error
 }

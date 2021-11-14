@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/jfk9w-go/flu"
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 )
 
@@ -38,11 +38,11 @@ func (r *response) DecodeFrom(body io.Reader) (err error) {
 	return
 }
 
-type Client fluhttp.Client
+type Client httpf.Client
 
-func NewClient(httpClient *fluhttp.Client, usercode string) *Client {
+func NewClient(httpClient *httpf.Client, usercode string) *Client {
 	if httpClient == nil {
-		httpClient = fluhttp.NewClient(nil)
+		httpClient = httpf.NewClient(nil)
 	}
 
 	return (*Client)(httpClient.
@@ -51,8 +51,8 @@ func NewClient(httpClient *fluhttp.Client, usercode string) *Client {
 		AcceptStatus(http.StatusOK))
 }
 
-func (c *Client) Unmask() *fluhttp.Client {
-	return (*fluhttp.Client)(c)
+func (c *Client) Unmask() *httpf.Client {
+	return (*httpf.Client)(c)
 }
 
 func (c *Client) GetCatalog(ctx context.Context, board string) (*Catalog, error) {

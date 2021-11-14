@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	gormutil "github.com/jfk9w-go/flu/gorm"
+	"github.com/jfk9w-go/flu/gormf"
 	"github.com/jfk9w-go/telegram-bot-api"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
@@ -106,7 +106,7 @@ func (s *SQLStorage) Update(ctx context.Context, now time.Time, header *Header, 
 	case nil:
 		tx = tx.Where("error is not null")
 		updates["error"] = nil
-	case gormutil.JSONB:
+	case gormf.JSONB:
 		tx = tx.Where("error is null")
 		updates["data"] = value
 	case error:

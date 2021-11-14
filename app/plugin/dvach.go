@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 
 	"hikkabot/3rdparty/dvach"
 	"hikkabot/app"
@@ -36,7 +36,7 @@ func (c *DvachClient) Get(app app.Interface) (*dvach.Client, error) {
 		return nil, nil
 	}
 
-	c.value = dvach.NewClient(fluhttp.NewClient(nil), config.Usercode)
+	c.value = dvach.NewClient(httpf.NewClient(nil), config.Usercode)
 	c.getTimeout = config.GetTimeout.GetOrDefault(30 * time.Second)
 	return c.value, nil
 }

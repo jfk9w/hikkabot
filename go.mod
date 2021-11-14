@@ -4,26 +4,26 @@ go 1.17
 
 require (
 	github.com/corona10/goimagehash v1.0.3
-	github.com/gofrs/uuid v4.0.0+incompatible
-	github.com/jfk9w-go/aconvert-api v0.10.0
-	github.com/jfk9w-go/flu v0.10.2
-	github.com/jfk9w-go/telegram-bot-api v0.10.3
-	github.com/lib/pq v1.10.3
+	github.com/gofrs/uuid v4.1.0+incompatible
+	github.com/jfk9w-go/aconvert-api v0.10.1-0.20211114141326-8c3a375f731e
+	github.com/jfk9w-go/flu v0.10.4-0.20211114134508-2e0070adf352
+	github.com/jfk9w-go/telegram-bot-api v0.10.4-0.20211114135118-a566469eaa97
+	github.com/lib/pq v1.10.4
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/exp v0.0.0-20211012155715-ffe10e552389
-	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d
-	golang.org/x/net v0.0.0-20211014222326-fd004c51d1d6
+	golang.org/x/exp v0.0.0-20211111183329-cb5df436b1a8
+	golang.org/x/image v0.0.0-20211028202545-6944b10bf410
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 	gopkg.in/guregu/null.v3 v3.5.0
-	gorm.io/driver/postgres v1.1.2
-	gorm.io/gorm v1.21.16
+	gorm.io/driver/postgres v1.2.2
+	gorm.io/gorm v1.22.3
 )
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/Microsoft/go-winio v0.5.0 // indirect
+	github.com/Microsoft/go-winio v0.5.1 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
@@ -55,8 +55,8 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-	golang.org/x/sys v0.0.0-20211023085530-d6a326fbbf70 // indirect
+	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa // indirect
+	golang.org/x/sys v0.0.0-20211113001501-0c823b97ae02 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect

@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/sirupsen/logrus"
 )
 
 var URL = "https://viddit.red"
 
 type Client struct {
-	HttpClient *fluhttp.Client
+	HttpClient *httpf.Client
 	mu         flu.RWMutex
 	wg         flu.WaitGroup
 	cancel     func()

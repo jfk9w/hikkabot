@@ -3,14 +3,14 @@ package main
 import (
 	"context"
 
-	fluhttp "github.com/jfk9w-go/flu/http"
+	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/sirupsen/logrus"
 
 	"hikkabot/3rdparty/srstats"
 )
 
 func main() {
-	client := (*srstats.Client)(fluhttp.NewClient(nil))
+	client := (*srstats.Client)(httpf.NewClient(nil))
 	ctx := context.Background()
 	subreddits, err := client.GetSuggestions(ctx, map[string]float64{
 		"Whatcouldgowrong":     3,
