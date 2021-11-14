@@ -13,7 +13,7 @@ import (
 
 type AconvertConfig struct {
 	Enabled bool
-	*Config `yaml:"-,inline"`
+	Config  `yaml:"-,inline"`
 }
 
 type Aconvert []string
@@ -45,6 +45,6 @@ func (p Aconvert) CreateConverter(ctx context.Context, app app.Interface) (media
 		return nil, errors.Wrap(err, "get metrics registry")
 	}
 
-	client := NewClient(ctx, metrics.WithPrefix("aconvert"), config.Config)
+	client := NewClient(ctx, metrics.WithPrefix("aconvert"), &config.Config)
 	return (*converters.Aconvert)(client), nil
 }
