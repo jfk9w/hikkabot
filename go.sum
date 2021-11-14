@@ -304,8 +304,9 @@ github.com/jackc/puddle v0.0.0-20190608224051-11cab39313c9/go.mod h1:m4B5Dj62Y0f
 github.com/jackc/puddle v1.1.3/go.mod h1:m4B5Dj62Y0fbyuIc15OsIqK0+JU8nkqQjsgx7dvjSWk=
 github.com/jfk9w-go/aconvert-api v0.10.1-0.20211114141326-8c3a375f731e h1:aWahORHUQ2tuOQjmHofQdejqa84N7iYJWnwSwXRBbbk=
 github.com/jfk9w-go/aconvert-api v0.10.1-0.20211114141326-8c3a375f731e/go.mod h1:VYPUb9JhNBYFAzbJwdU02HGRi9TDc/wiWQPS5K8MbgQ=
-github.com/jfk9w-go/flu v0.10.4-0.20211114134508-2e0070adf352 h1:1Ci+28LZ4vYeYy+B9LGtRYnHEI/7+K7Jp9toDUFUrcM=
 github.com/jfk9w-go/flu v0.10.4-0.20211114134508-2e0070adf352/go.mod h1:AMir8ZY/jowjJEo0udWzPtn7Q25rrD6gCfov0RlFlvg=
+github.com/jfk9w-go/flu v0.10.4-0.20211114142235-10eb9bf9c997 h1:DTG6fZlYqYvqZV20LMr3blOnDwl1ZQYFIYavImmkzOU=
+github.com/jfk9w-go/flu v0.10.4-0.20211114142235-10eb9bf9c997/go.mod h1:AMir8ZY/jowjJEo0udWzPtn7Q25rrD6gCfov0RlFlvg=
 github.com/jfk9w-go/telegram-bot-api v0.10.4-0.20211114135118-a566469eaa97 h1:jS2Qa027OlNHR4RzlS3WUMfSlgYQWv6pZilRSTAJ5TM=
 github.com/jfk9w-go/telegram-bot-api v0.10.4-0.20211114135118-a566469eaa97/go.mod h1:a7qYjbiY5Xsz0TsEfwfgjawS0jVtZm2rVFitSy3Igos=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
