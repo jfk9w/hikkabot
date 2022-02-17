@@ -94,7 +94,7 @@ func (r *Ref) doGet(ctx context.Context) (*media.Value, error) {
 		ref, err := converter.Convert(ctx, r)
 		r.Histogram("convert_ms",
 			r.labels(true).Add("converter", converter.ID()),
-			[]float64{0.5, 0.75, 0.9, 0.99}).
+			[]float64{1, 5, 10, 30, 60, 90, 120}).
 			Observe(r.Now().Sub(start).Seconds())
 		if err != nil {
 			logrus.WithFields(r.labels(true).Map()).
