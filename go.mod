@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/corona10/goimagehash v1.0.3
 	github.com/gofrs/uuid v4.1.0+incompatible
-	github.com/jfk9w-go/aconvert-api v0.10.1-0.20211114141326-8c3a375f731e
+	github.com/jfk9w-go/aconvert-api v0.10.1-0.20220217200926-82350b7fb9ea
 	github.com/jfk9w-go/flu v0.10.4-0.20211114144154-7c427f6e9157
 	github.com/jfk9w-go/telegram-bot-api v0.10.4-0.20211114135118-a566469eaa97
 	github.com/lib/pq v1.10.4

@@ -308,8 +308,8 @@ github.com/jackc/pgx/v4 v4.13.0/go.mod h1:9P4X524sErlaxj0XSGZk7s+LD0eOyu1ZDUrrpz
 github.com/jackc/puddle v0.0.0-20190413234325-e4ced69a3a2b/go.mod h1:m4B5Dj62Y0fbyuIc15OsIqK0+JU8nkqQjsgx7dvjSWk=
 github.com/jackc/puddle v0.0.0-20190608224051-11cab39313c9/go.mod h1:m4B5Dj62Y0fbyuIc15OsIqK0+JU8nkqQjsgx7dvjSWk=
 github.com/jackc/puddle v1.1.3/go.mod h1:m4B5Dj62Y0fbyuIc15OsIqK0+JU8nkqQjsgx7dvjSWk=
-github.com/jfk9w-go/aconvert-api v0.10.1-0.20211114141326-8c3a375f731e h1:aWahORHUQ2tuOQjmHofQdejqa84N7iYJWnwSwXRBbbk=
-github.com/jfk9w-go/aconvert-api v0.10.1-0.20211114141326-8c3a375f731e/go.mod h1:VYPUb9JhNBYFAzbJwdU02HGRi9TDc/wiWQPS5K8MbgQ=
+github.com/jfk9w-go/aconvert-api v0.10.1-0.20220217200926-82350b7fb9ea h1:YK5SzBtdf26atA1qkstSt9JdFpEYx+hsqHULjqFt5u8=
+github.com/jfk9w-go/aconvert-api v0.10.1-0.20220217200926-82350b7fb9ea/go.mod h1:VYPUb9JhNBYFAzbJwdU02HGRi9TDc/wiWQPS5K8MbgQ=
 github.com/jfk9w-go/flu v0.10.4-0.20211114134508-2e0070adf352/go.mod h1:AMir8ZY/jowjJEo0udWzPtn7Q25rrD6gCfov0RlFlvg=
 github.com/jfk9w-go/flu v0.10.4-0.20211114144154-7c427f6e9157 h1:ZKNnX6u9S7CphYxSgtU+4YOaf3K6MV/7H9JwFn+8yDc=
 github.com/jfk9w-go/flu v0.10.4-0.20211114144154-7c427f6e9157/go.mod h1:AMir8ZY/jowjJEo0udWzPtn7Q25rrD6gCfov0RlFlvg=
