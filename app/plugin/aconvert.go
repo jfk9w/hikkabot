@@ -16,35 +16,36 @@ type AconvertConfig struct {
 	Config  `yaml:"-,inline"`
 }
 
-type Aconvert []string
+var Aconvert app.ConverterPlugin = aconvert{}
 
-func (p Aconvert) ConverterID() string {
+type aconvert struct{}
+
+func (aconvert) ConverterID() string {
 	return "aconvert"
 }
 
-func (p Aconvert) MIMETypes() []string {
-	return p
+func (aconvert) MIMETypes() []string {
+	values := make([]string, 0, len(converters.AconvertMIMETypes))
+	for value := range converters.AconvertMIMETypes {
+		values = append(values, value)
+	}
+
+	return values
 }
 
-func (p Aconvert) CreateConverter(ctx context.Context, app app.Interface) (media.Converter, error) {
-	globalConfig := new(struct {
+func (aconvert) CreateConverter(ctx context.Context, app app.Interface) (media.Converter, error) {
+	var globalConfig struct {
 		Aconvert AconvertConfig
-	})
+	}
 
 	if err := app.GetConfig().As(globalConfig); err != nil {
 		return nil, errors.Wrap(err, "get config")
-	}
-
-	config := globalConfig.Aconvert
-	if !config.Enabled {
+	} else if config := globalConfig.Aconvert; !config.Enabled {
 		return nil, nil
-	}
-
-	metrics, err := app.GetMetricsRegistry(ctx)
-	if err != nil {
+	} else if metrics, err := app.GetMetricsRegistry(ctx); err != nil {
 		return nil, errors.Wrap(err, "get metrics registry")
+	} else {
+		client := NewClient(ctx, metrics.WithPrefix("aconvert"), &config.Config)
+		return (*converters.Aconvert)(client), nil
 	}
-
-	client := NewClient(ctx, metrics.WithPrefix("aconvert"), &config.Config)
-	return (*converters.Aconvert)(client), nil
 }

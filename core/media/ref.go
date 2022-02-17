@@ -2,7 +2,6 @@ package media
 
 import (
 	"context"
-
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
@@ -90,13 +89,19 @@ func (r *Ref) doGet(ctx context.Context) (*media.Value, error) {
 	}
 
 	mimeType := r.MIMEType
-	if converter, ok := r.Converters[mimeType]; ok {
+	for _, converter := range r.Converters[mimeType] {
+		start := r.Now()
 		ref, err := converter.Convert(ctx, r)
+		r.Histogram("convert_ms",
+			r.labels(true).Add("converter", converter.ID()),
+			[]float64{0.5, 0.75, 0.9, 0.99}).
+			Observe(r.Now().Sub(start).Seconds())
 		if err != nil {
-			return nil, errors.Wrapf(err, "%T", converter)
+			logrus.WithFields(r.labels(true).Map()).
+				Errorf("convert with %s: %s", converter.ID(), err)
+		} else {
+			return ref.Get(ctx)
 		}
-
-		return ref.Get(ctx)
 	}
 
 	mediaType := telegram.MediaTypeByMIMEType(mimeType)

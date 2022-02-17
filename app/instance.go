@@ -99,7 +99,7 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 			},
 			HttpClient: httpf.NewClient(nil),
 			SizeBounds: [2]int64{1 << 10, telegram.Video.AttachMaxSize()},
-			Converters: make(map[string]media.Converter),
+			Converters: make(map[string][]media.Converter),
 			Retries:    config.Retries,
 		},
 		RateLimiter: flu.ConcurrencyRateLimiter(config.Concurrency + 1),
@@ -110,18 +110,18 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 		log := logrus.WithField("converter", id)
 		converter, err := plugin.CreateConverter(ctx, app)
 		if err != nil {
-			return nil, errors.Wrapf(err, "create %s vendor", id)
+			return nil, errors.Wrapf(err, "create %s converter", id)
 		} else if converter == nil {
 			log.Warnf("disabled")
 			continue
 		}
 
 		for _, mimeType := range plugin.MIMETypes() {
-			if _, ok := manager.Converters[mimeType]; ok {
-				return nil, errors.Errorf("duplicate converter for %s", mimeType)
+			if values, ok := manager.Converters[mimeType]; ok {
+				manager.Converters[mimeType] = append(values, converter)
+			} else {
+				manager.Converters[mimeType] = []media.Converter{converter}
 			}
-
-			manager.Converters[mimeType] = converter
 		}
 
 		log.Infof("init ok")
@@ -179,6 +179,10 @@ func (app *Instance) Run(ctx context.Context) error {
 	}
 
 	supervisor := config.Telegram.Supervisor
+	if supervisor.String() == "0" {
+		return errors.New("telegram supervisor ID must be set")
+	}
+
 	accessControl := access.NewDefaultControl(supervisor)
 
 	aggregator, err := app.createAggregator(ctx, bot, accessControl)

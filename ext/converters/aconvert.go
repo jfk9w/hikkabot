@@ -7,7 +7,6 @@ import (
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
-
 	. "hikkabot/core/media"
 )
 
@@ -19,6 +18,10 @@ type Aconvert aconvert.Client
 
 func (c *Aconvert) Unmask() *aconvert.Client {
 	return (*aconvert.Client)(c)
+}
+
+func (c *Aconvert) ID() string {
+	return "aconvert"
 }
 
 func (c *Aconvert) Convert(ctx context.Context, ref *Ref) (media.Ref, error) {

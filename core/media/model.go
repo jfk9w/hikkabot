@@ -71,6 +71,7 @@ type Resolver interface {
 }
 
 type Converter interface {
+	ID() string
 	Convert(ctx context.Context, ref *Ref) (media.Ref, error)
 }
 
@@ -81,6 +82,6 @@ type Context struct {
 	*Deduplicator
 	HttpClient *httpf.Client
 	SizeBounds [2]int64
-	Converters map[string]Converter
+	Converters map[string][]Converter
 	Retries    int
 }

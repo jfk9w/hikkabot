@@ -28,7 +28,7 @@ func main() {
 	app := app.Create(GitCommit, flu.DefaultClock)
 	defer flu.CloseQuietly(app)
 
-	app.ApplyConverterPlugins(plugin.Aconvert{"video/webm"})
+	app.ApplyConverterPlugins(plugin.FFmpeg, plugin.Aconvert)
 
 	dvach := new(plugin.DvachClient)
 	reddit := plugin.NewRedditClient(ctx)
