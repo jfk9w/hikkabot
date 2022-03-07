@@ -22,6 +22,11 @@ import (
 	"hikkabot/core/media"
 )
 
+type TelegramConfig struct {
+	Supervisor telegram.ID
+	Aliases    map[string]telegram.ID
+}
+
 type Instance struct {
 	*apfel.Core
 	converterPlugins []ConverterPlugin
@@ -30,7 +35,8 @@ type Instance struct {
 
 	dbconn       string
 	mediaManager *media.Manager
-	eventStorage event.Storage
+	feedStorage  *feed.SQLStorage
+	eventStorage *event.SQLStorage
 	bot          *telegram.Bot
 }
 
@@ -134,7 +140,7 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 	return manager, nil
 }
 
-func (app *Instance) GetEventStorage(ctx context.Context) (event.Storage, error) {
+func (app *Instance) GetEventStorage(ctx context.Context) (*event.SQLStorage, error) {
 	if app.eventStorage != nil {
 		return app.eventStorage, nil
 	}
@@ -163,10 +169,7 @@ func (app *Instance) ApplyConverterPlugins(plugins ...ConverterPlugin) {
 
 func (app *Instance) Run(ctx context.Context) error {
 	config := new(struct {
-		Telegram struct {
-			Supervisor telegram.ID
-			Aliases    map[string]telegram.ID
-		}
+		Telegram TelegramConfig
 	})
 
 	if err := app.GetConfig().As(config); err != nil {
@@ -218,7 +221,7 @@ func (app *Instance) Run(ctx context.Context) error {
 func (app *Instance) createAggregator(ctx context.Context,
 	bot *telegram.Bot, accessControl *access.DefaultControl) (*aggregator.Default, error) {
 
-	storage, err := app.createFeedStorage(ctx)
+	storage, err := app.GetFeedStorage(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "create feed storage")
 	}
@@ -341,7 +344,11 @@ func (app *Instance) createFileStorage(ctx context.Context) (*blob.FileStorage, 
 	return storage, nil
 }
 
-func (app *Instance) createFeedStorage(ctx context.Context) (feed.Storage, error) {
+func (app *Instance) GetFeedStorage(ctx context.Context) (*feed.SQLStorage, error) {
+	if app.feedStorage != nil {
+		return app.feedStorage, nil
+	}
+
 	db, err := app.GetDefaultDatabase()
 	if err != nil {
 		return nil, err
@@ -352,6 +359,9 @@ func (app *Instance) createFeedStorage(ctx context.Context) (feed.Storage, error
 		return nil, errors.Wrap(err, "init feed storage")
 	}
 
+	app.Manage(storage)
+
+	app.feedStorage = storage
 	return storage, nil
 }
 

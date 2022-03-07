@@ -21,7 +21,8 @@ type Interface interface {
 	GetMetricsRegistry(ctx context.Context) (me3x.Registry, error)
 	GetMediaManager(ctx context.Context) (*media.Manager, error)
 	GetDefaultDatabase() (*gorm.DB, error)
-	GetEventStorage(ctx context.Context) (event.Storage, error)
+	GetEventStorage(ctx context.Context) (*event.SQLStorage, error)
+	GetFeedStorage(ctx context.Context) (*feed.SQLStorage, error)
 	GetBot(ctx context.Context) (*telegram.Bot, error)
 	Manage(service interface{})
 }

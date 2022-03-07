@@ -2,6 +2,7 @@ package event
 
 import (
 	"context"
+	"time"
 
 	"github.com/jfk9w-go/telegram-bot-api"
 	"gorm.io/gorm"
@@ -49,6 +50,31 @@ func (s *SQLStorage) CountEvents(ctx context.Context, chatID, messageID telegram
 	stats := make(map[string]int64)
 	for _, row := range rows {
 		stats[row.Type] = row.Events
+	}
+
+	return stats, nil
+}
+
+func (s *SQLStorage) CountChatLikesBySubreddit(ctx context.Context, chatID telegram.ID, since time.Time) (map[string]int64, error) {
+	rows := make([]struct {
+		Subreddit string
+		Events    int64
+	}, 0)
+
+	if err := s.Unmask().WithContext(ctx).Raw( /* language=SQL */ `
+		select subreddit, sum(case when type = 'dislike' then -1 else 1 end) as events
+		from event
+		where chat_id = ? and time >= ? 
+		group by 1`,
+		chatID, since).
+		Scan(&rows).
+		Error; err != nil {
+		return nil, err
+	}
+
+	stats := make(map[string]int64)
+	for _, row := range rows {
+		stats[row.Subreddit] = row.Events
 	}
 
 	return stats, nil

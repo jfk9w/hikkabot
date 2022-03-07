@@ -117,6 +117,10 @@ func (c *Client) execute(ctx context.Context, req *httpf.RequestBuilder) *httpf.
 		}
 
 		resp = req.Auth(httpf.Bearer(token)).Exchange(ctx, c)
+		if err := resp.Error(); err != nil {
+			return httpf.ExchangeError(err)
+		}
+
 		switch resp.StatusCode {
 		case http.StatusUnauthorized:
 			token = ""

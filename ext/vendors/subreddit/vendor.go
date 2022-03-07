@@ -25,6 +25,8 @@ import (
 	"hikkabot/util"
 )
 
+const Name = "subreddit"
+
 type Vendor struct {
 	Context
 	Pacing

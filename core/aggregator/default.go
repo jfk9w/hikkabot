@@ -3,6 +3,8 @@ package aggregator
 import (
 	"context"
 
+	"gopkg.in/guregu/null.v3"
+
 	"github.com/jfk9w-go/flu/gormf"
 	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
@@ -34,6 +36,8 @@ func (a *Default) Init(ctx context.Context) error {
 	return nil
 }
 
+const Deadborn = "deadborn"
+
 func (a *Default) Subscribe(ctx context.Context, feedID telegram.ID, ref string, options []string) error {
 	for vendorKey, vendor := range a.Vendors {
 		draft, err := vendor.Parse(ctx, ref, options)
@@ -58,19 +62,27 @@ func (a *Default) Subscribe(ctx context.Context, feedID telegram.ID, ref string,
 			Data: data,
 		}
 
+		for _, option := range options {
+			if option == Deadborn {
+				sub.Error = null.StringFrom(Deadborn)
+			}
+		}
+
 		if err := a.Create(ctx, sub); err != nil {
 			return errors.Wrap(err, "create in storage")
 		}
 
-		if listener, ok := vendor.(OnResumeListener); ok {
-			if err := listener.OnResume(ctx, sub.Data); err != nil {
-				return errors.Wrap(err, "call on resume listener")
+		if sub.Error.IsZero() {
+			if listener, ok := vendor.(OnResumeListener); ok {
+				if err := listener.OnResume(ctx, sub.Data); err != nil {
+					return errors.Wrap(err, "call on resume listener")
+				}
 			}
-		}
 
-		a.submitTask(sub.FeedID)
-		if err := a.OnResume(ctx, a.Client, sub); err != nil {
-			return err
+			a.submitTask(sub.FeedID)
+			if err := a.OnResume(ctx, a.Client, sub); err != nil {
+				return err
+			}
 		}
 
 		return nil

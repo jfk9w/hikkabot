@@ -36,6 +36,7 @@ func main() {
 		(*plugin.Subreddit)(reddit),
 		(*plugin.DvachCatalog)(dvach),
 		(*plugin.DvachThread)(dvach),
+		plugin.SubredditStats,
 	)
 
 	configurer := apfel.DefaultConfigurer("hikkabot")

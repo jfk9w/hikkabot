@@ -20,6 +20,7 @@ import (
 type CommandListener struct {
 	event.Storage
 	*Vendor
+	SupervisorID telegram.ID
 }
 
 func (l *CommandListener) OnCommand(ctx context.Context, client telegram.Client, cmd *telegram.Command) (bool, error) {

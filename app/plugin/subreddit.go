@@ -44,7 +44,7 @@ func (p *Subreddit) Unmask() *RedditClient {
 }
 
 func (p *Subreddit) VendorID() string {
-	return "subreddit"
+	return Name
 }
 
 func (p *Subreddit) CreateVendor(ctx context.Context, app app.Interface) (feed.Vendor, error) {
