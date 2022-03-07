@@ -22,12 +22,13 @@ func (s StringSet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.Slice())
 }
 
-func (s StringSet) UnmarshalJSON(data []byte) error {
+func (s *StringSet) UnmarshalJSON(data []byte) error {
 	slice := make([]string, 0)
 	if err := json.Unmarshal(data, &slice); err != nil {
 		return err
 	}
 
+	*s = make(StringSet, len(slice))
 	s.Fill(slice)
 	return nil
 }

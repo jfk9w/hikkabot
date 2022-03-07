@@ -11,6 +11,10 @@ import (
 	"hikkabot/core/feed"
 )
 
+type OnResumeListener interface {
+	OnResume(ctx context.Context, data gormf.JSONB) error
+}
+
 type Default struct {
 	*Context
 	me3x.Registry
@@ -58,6 +62,12 @@ func (a *Default) Subscribe(ctx context.Context, feedID telegram.ID, ref string,
 			return errors.Wrap(err, "create in storage")
 		}
 
+		if listener, ok := vendor.(OnResumeListener); ok {
+			if err := listener.OnResume(ctx, sub.Data); err != nil {
+				return errors.Wrap(err, "call on resume listener")
+			}
+		}
+
 		a.submitTask(sub.FeedID)
 		if err := a.OnResume(ctx, a.Client, sub); err != nil {
 			return err
@@ -90,6 +100,17 @@ func (a *Default) Resume(ctx context.Context, header *feed.Header) error {
 	sub, err := a.Get(ctx, header)
 	if err != nil {
 		return errors.Wrap(err, "get from storage")
+	}
+
+	vendor, ok := a.Vendors[sub.Vendor]
+	if !ok {
+		return errors.Errorf("no vendor for %s", sub.Vendor)
+	}
+
+	if listener, ok := vendor.(OnResumeListener); ok {
+		if err := listener.OnResume(ctx, sub.Data); err != nil {
+			return errors.Wrap(err, "call on resume listener")
+		}
 	}
 
 	a.submitTask(header.FeedID)

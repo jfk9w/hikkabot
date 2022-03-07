@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
@@ -63,15 +64,15 @@ func (r *Ref) Get(ctx context.Context) (*media.Value, error) {
 }
 
 func (r *Ref) doGet(ctx context.Context) (*media.Value, error) {
-	httpClient := r.GetClient(r.HttpClient)
+	client := r.GetClient(r.HttpClient)
 
 	var err error
-	r.ResolvedURL, err = r.Resolve(ctx, httpClient, r.URL, telegram.Video.AttachMaxSize())
+	r.ResolvedURL, err = r.Resolve(ctx, client, r.URL, telegram.Video.AttachMaxSize())
 	if err != nil {
 		return nil, err
 	}
 
-	downloader := &downloader{httpClient, r.Retries}
+	downloader := &downloader{client, r.Retries}
 	if r.Metadata == nil {
 		if m, err := downloader.DownloadMetadata(ctx, r.ResolvedURL); err != nil {
 			return nil, err

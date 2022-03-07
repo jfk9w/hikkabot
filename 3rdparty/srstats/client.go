@@ -12,31 +12,29 @@ import (
 
 var BaseURL = "https://subredditstats.com/api"
 
-type Client httpf.Client
+type Client http.Client
 
-func (c *Client) Unmask() *httpf.Client {
-	return (*httpf.Client)(c)
+func (c *Client) Unmask() *http.Client {
+	return (*http.Client)(c)
 }
 
 func (c *Client) GetGlobalHistogram(ctx context.Context) (map[string]float64, error) {
-	m := make(map[string]float64)
-	return m, c.Unmask().GET(BaseURL + "/globalSubredditsIdHist").
-		Context(ctx).
-		Execute().
+	var m map[string]float64
+	return m, httpf.GET(BaseURL+"/globalSubredditsIdHist").
+		Exchange(ctx, c.Unmask()).
 		CheckStatus(http.StatusOK).
 		DecodeBody(flu.JSON(&m)).
-		Error
+		Error()
 }
 
 func (c *Client) GetHistogram(ctx context.Context, subreddit string) (map[string]float64, error) {
-	m := make(map[string]float64)
-	return m, c.Unmask().GET(BaseURL+"/subredditNameToSubredditsHist").
-		QueryParam("subredditName", subreddit).
-		Context(ctx).
-		Execute().
+	var m map[string]float64
+	return m, httpf.GET(BaseURL+"/subredditNameToSubredditsHist").
+		Query("subredditName", subreddit).
+		Exchange(ctx, c.Unmask()).
 		CheckStatus(http.StatusOK).
 		DecodeBody(flu.JSON(&m)).
-		Error
+		Error()
 }
 
 func (c *Client) GetSubredditNames(ctx context.Context, ids []string) ([]string, error) {
@@ -46,13 +44,11 @@ func (c *Client) GetSubredditNames(ctx context.Context, ids []string) ([]string,
 	}
 
 	names := make([]string, 0)
-	return names, c.Unmask().POST(BaseURL + "/specificSubredditIdsToNames").
-		BodyEncoder(&flu.Text{Value: string(body.Bytes())}).
-		Context(ctx).
-		Execute().
+	return names, httpf.POST(BaseURL+"/specificSubredditIdsToNames", &flu.Text{Value: string(body.Bytes())}).
+		Exchange(ctx, c.Unmask()).
 		CheckStatus(http.StatusOK).
 		DecodeBody(flu.JSON(&names)).
-		Error
+		Error()
 }
 
 func (c *Client) GetSuggestions(ctx context.Context, subreddits map[string]float64) (Suggestions, error) {

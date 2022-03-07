@@ -11,7 +11,7 @@ import (
 )
 
 type downloader struct {
-	*httpf.Client
+	httpf.Client
 	retries int
 }
 
@@ -21,12 +21,11 @@ func (d *downloader) DownloadMetadata(ctx context.Context, url string) (*Metadat
 		Retries: d.retries,
 		Backoff: backoff.Const(time.Second),
 		Body: func(ctx context.Context) error {
-			return d.HEAD(url).
-				Context(ctx).
-				Execute().
+			return httpf.HEAD(url).
+				Exchange(ctx, d).
 				CheckStatus(http.StatusOK).
-				HandleResponse(metadata).
-				Error
+				Handle(metadata).
+				Error()
 		},
 	}.Do(ctx)
 }
@@ -36,12 +35,11 @@ func (d *downloader) DownloadContents(ctx context.Context, url string, out flu.O
 		Retries: d.retries,
 		Backoff: backoff.Const(time.Second),
 		Body: func(ctx context.Context) error {
-			return d.GET(url).
-				Context(ctx).
-				Execute().
+			return httpf.GET(url).
+				Exchange(ctx, d).
 				CheckStatus(http.StatusOK).
 				DecodeBodyTo(out).
-				Error
+				Error()
 		},
 	}.Do(ctx)
 }

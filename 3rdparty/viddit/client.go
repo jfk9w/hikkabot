@@ -3,20 +3,22 @@ package viddit
 import (
 	"context"
 	"net/http"
+	"net/http/cookiejar"
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	httpf "github.com/jfk9w-go/flu/httpf"
+	"github.com/jfk9w-go/flu/httpf"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 var URL = "https://viddit.red"
 
 type Client struct {
-	HttpClient *httpf.Client
-	mu         flu.RWMutex
-	wg         flu.WaitGroup
-	cancel     func()
+	*http.Client
+	mu     flu.RWMutex
+	wg     flu.WaitGroup
+	cancel func()
 }
 
 func (c *Client) RefreshInBackground(ctx context.Context, every time.Duration) error {
@@ -52,24 +54,27 @@ func (c *Client) RefreshInBackground(ctx context.Context, every time.Duration) e
 
 func (c *Client) refresh(ctx context.Context) error {
 	defer c.mu.Lock().Unlock()
-	c.HttpClient.Jar = nil
-	return c.HttpClient.WithCookies().GET(URL).
-		Context(ctx).
-		Execute().
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return errors.Wrap(err, "create new cookie jar")
+	}
+
+	c.Jar = jar
+	return httpf.GET(URL).
+		Exchange(ctx, c).
 		CheckStatus(http.StatusOK).
-		Error
+		Error()
 }
 
 func (c *Client) ResolveURL(ctx context.Context, url string) (string, error) {
 	defer c.mu.RLock().Unlock()
 	h := new(responseHandler)
-	return h.url, c.HttpClient.GET(URL).
-		QueryParam("url", url).
-		Context(ctx).
-		Execute().
+	return h.url, httpf.GET(URL).
+		Query("url", url).
+		Exchange(ctx, c).
 		CheckStatus(http.StatusOK).
-		HandleResponse(h).
-		Error
+		Handle(h).
+		Error()
 }
 
 func (c *Client) Close() error {

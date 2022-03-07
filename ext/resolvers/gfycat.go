@@ -13,11 +13,11 @@ import (
 
 type Gfycat string
 
-func (r Gfycat) GetClient(defaultClient *httpf.Client) *httpf.Client {
+func (r Gfycat) GetClient(defaultClient httpf.Client) httpf.Client {
 	return defaultClient
 }
 
-func (r Gfycat) Resolve(ctx context.Context, client *httpf.Client, url string, _ int64) (string, error) {
+func (r Gfycat) Resolve(ctx context.Context, client httpf.Client, url string, _ int64) (string, error) {
 	url = strings.Trim(url, "/")
 	lastSlash := strings.LastIndex(url, "/")
 	code := url[lastSlash+1:]
@@ -29,12 +29,11 @@ func (r Gfycat) Resolve(ctx context.Context, client *httpf.Client, url string, _
 	})
 
 	apiURL := fmt.Sprintf("https://api.%s.com/v1/gfycats/%s", string(r), code)
-	if err := client.GET(apiURL).
-		Context(ctx).
-		Execute().
+	if err := httpf.GET(apiURL).
+		Exchange(ctx, client).
 		CheckStatus(http.StatusOK).
 		DecodeBody(flu.JSON(resp)).
-		Error; err != nil {
+		Error(); err != nil {
 		return "", err
 	}
 

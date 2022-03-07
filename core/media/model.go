@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jfk9w-go/flu/httpf"
+
 	"github.com/jfk9w-go/flu"
-	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/media"
@@ -66,8 +67,8 @@ func (m *Metadata) Handle(resp *http.Response) error {
 }
 
 type Resolver interface {
-	GetClient(defaultClient *httpf.Client) *httpf.Client
-	Resolve(ctx context.Context, client *httpf.Client, url string, maxSize int64) (string, error)
+	GetClient(defaultClient httpf.Client) httpf.Client
+	Resolve(ctx context.Context, client httpf.Client, url string, maxSize int64) (string, error)
 }
 
 type Converter interface {
@@ -80,7 +81,7 @@ type Context struct {
 	Storage
 	me3x.Registry
 	*Deduplicator
-	HttpClient *httpf.Client
+	HttpClient *http.Client
 	SizeBounds [2]int64
 	Converters map[string][]Converter
 	Retries    int

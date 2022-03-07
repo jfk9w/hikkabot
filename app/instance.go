@@ -2,11 +2,11 @@ package app
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"
-	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -97,7 +97,7 @@ func (app *Instance) GetMediaManager(ctx context.Context) (*media.Manager, error
 				Clock:       app,
 				HashStorage: hashStorage,
 			},
-			HttpClient: httpf.NewClient(nil),
+			HttpClient: new(http.Client),
 			SizeBounds: [2]int64{1 << 10, telegram.Video.AttachMaxSize()},
 			Converters: make(map[string][]media.Converter),
 			Retries:    config.Retries,
@@ -207,7 +207,12 @@ func (app *Instance) Run(ctx context.Context) error {
 		Key:     "/status",
 	}
 
-	return listener.Status(ctx, bot, cmd)
+	if err := listener.Status(ctx, bot, cmd); err != nil {
+		return errors.Wrap(err, "send initial status")
+	}
+
+	flu.AwaitSignal(ctx)
+	return nil
 }
 
 func (app *Instance) createAggregator(ctx context.Context,
@@ -361,9 +366,7 @@ func (app *Instance) GetBot(ctx context.Context) (*telegram.Bot, error) {
 	}
 
 	config := globalConfig.Telegram
-	bot := telegram.NewBot(ctx, httpf.NewTransport().
-		ResponseHeaderTimeout(2*time.Minute).
-		NewClient(), config.Token)
+	bot := telegram.NewBot(ctx, nil, config.Token)
 	if _, err := bot.GetMe(ctx); err != nil {
 		return nil, errors.Wrap(err, "get me")
 	}

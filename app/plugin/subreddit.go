@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"hikkabot/3rdparty/viddit"
@@ -10,7 +11,6 @@ import (
 	. "hikkabot/ext/vendors/subreddit"
 
 	"github.com/jfk9w-go/flu"
-	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 )
 
@@ -142,7 +142,7 @@ func (p Subreddit) createVidditClient(ctx context.Context, app app.Interface,
 	pluginConfig *SubredditConfig) (*viddit.Client, error) {
 
 	config := pluginConfig.Viddit
-	client := &viddit.Client{HttpClient: httpf.NewClient(nil)}
+	client := &viddit.Client{Client: new(http.Client)}
 	if err := client.RefreshInBackground(ctx, config.RefreshEvery.GetOrDefault(20*time.Minute)); err != nil {
 		return nil, err
 	}

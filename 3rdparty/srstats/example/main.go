@@ -2,15 +2,13 @@ package main
 
 import (
 	"context"
-
-	httpf "github.com/jfk9w-go/flu/httpf"
-	"github.com/sirupsen/logrus"
-
 	"hikkabot/3rdparty/srstats"
+
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	client := (*srstats.Client)(httpf.NewClient(nil))
+	client := new(srstats.Client)
 	ctx := context.Background()
 	subreddits, err := client.GetSuggestions(ctx, map[string]float64{
 		"Whatcouldgowrong":     3,

@@ -40,6 +40,4 @@ func main() {
 
 	configurer := apfel.DefaultConfigurer("hikkabot")
 	apfel.Run(ctx, app, configurer)
-
-	flu.AwaitSignal()
 }

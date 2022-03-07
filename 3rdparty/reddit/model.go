@@ -89,3 +89,10 @@ func (l *Listing) DecodeFrom(body io.Reader) error {
 
 	return nil
 }
+
+type SubscribeAction string
+
+const (
+	Subscribe   SubscribeAction = "sub"
+	Unsubscribe SubscribeAction = "unsub"
+)

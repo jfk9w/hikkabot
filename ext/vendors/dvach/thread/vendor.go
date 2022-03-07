@@ -139,7 +139,7 @@ func (v *Vendor) processPost(
 	}, nil
 }
 
-func (v *Vendor) getPost(ctx context.Context, board string, num int) (dvach.Post, error) {
+func (v *Vendor) getPost(ctx context.Context, board string, num int) (*dvach.Post, error) {
 	ctx, cancel := context.WithTimeout(ctx, v.GetTimeout)
 	defer cancel()
 	return v.DvachClient.GetPost(ctx, board, num)

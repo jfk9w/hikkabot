@@ -3,11 +3,12 @@ package converters
 import (
 	"context"
 
+	. "hikkabot/core/media"
+
 	aconvert "github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/telegram-bot-api/ext/media"
 	"github.com/pkg/errors"
-	. "hikkabot/core/media"
 )
 
 var AconvertMIMETypes = map[string]string{
@@ -32,7 +33,7 @@ func (c *Aconvert) Convert(ctx context.Context, ref *Ref) (media.Ref, error) {
 	}
 
 	return &Ref{
-		Resolver: PlainResolver{HttpClient: c.Unmask().Client},
+		Resolver: PlainResolver{c},
 		Context:  ref.Context,
 		URL:      resp.URL(),
 		Dedup:    ref.Dedup,

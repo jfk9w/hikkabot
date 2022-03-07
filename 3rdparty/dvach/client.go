@@ -6,6 +6,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"strconv"
 
 	"github.com/jfk9w-go/flu"
@@ -38,98 +40,101 @@ func (r *response) DecodeFrom(body io.Reader) (err error) {
 	return
 }
 
-type Client httpf.Client
+type Client http.Client
 
-func NewClient(httpClient *httpf.Client, usercode string) *Client {
-	if httpClient == nil {
-		httpClient = httpf.NewClient(nil)
+func NewClient(client *http.Client, usercode string) (*Client, error) {
+	if client == nil {
+		client = new(http.Client)
 	}
 
-	return (*Client)(httpClient.
-		SetCookies(Host, cookies(usercode, "/")...).
-		SetCookies(Host, cookies(usercode, "/makaba")...).
-		AcceptStatus(http.StatusOK))
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "create cookie jar")
+	}
+
+	cookieURL := &url.URL{Scheme: "https", Host: Domain}
+	jar.SetCookies(cookieURL, cookies(usercode, "/"))
+	jar.SetCookies(cookieURL, cookies(usercode, "/makaba"))
+	return (*Client)(client), nil
 }
 
-func (c *Client) Unmask() *httpf.Client {
-	return (*httpf.Client)(c)
+func (c *Client) Unmask() *http.Client {
+	return (*http.Client)(c)
 }
 
 func (c *Client) GetCatalog(ctx context.Context, board string) (*Catalog, error) {
-	catalog := new(Catalog)
-	err := c.Unmask().GET(Host + "/" + board + "/catalog_num.json").
-		Context(ctx).
-		Execute().
-		DecodeBody(newResponse(catalog)).
-		Error
-	if err != nil {
+	var catalog Catalog
+	if err := httpf.GET(Host+"/"+board+"/catalog_num.json").
+		Exchange(ctx, c.Unmask()).
+		DecodeBody(newResponse(&catalog)).
+		Error(); err != nil {
 		return nil, err
 	}
-	return catalog, catalog.init(board)
+
+	return &catalog, (&catalog).init(board)
 }
 
 func (c *Client) GetThread(ctx context.Context, board string, num int, offset int) ([]Post, error) {
 	if offset <= 0 {
 		offset = num
 	}
-	thread := make([]Post, 0)
-	err := c.Unmask().GET(Host+"/makaba/mobile.fcgi").
-		QueryParam("task", "get_thread").
-		QueryParam("board", board).
-		QueryParam("thread", strconv.Itoa(num)).
-		QueryParam("num", strconv.Itoa(offset)).
-		Context(ctx).
-		Execute().
-		DecodeBody(newResponse(&thread)).
-		Error
-	if err != nil {
+
+	var posts Posts
+	if err := httpf.GET(Host+"/makaba/mobile.fcgi").
+		Query("task", "get_thread").
+		Query("board", board).
+		Query("thread", strconv.Itoa(num)).
+		Query("num", strconv.Itoa(offset)).
+		Exchange(ctx, c.Unmask()).
+		DecodeBody(newResponse(&posts)).
+		Error(); err != nil {
 		return nil, err
 	}
-	return thread, Posts(thread).init(board)
+
+	return posts, posts.init(board)
 }
 
-func (c *Client) GetPost(ctx context.Context, board string, num int) (Post, error) {
-	posts := make([]Post, 0)
-	err := c.Unmask().GET(Host+"/makaba/mobile.fcgi").
-		QueryParam("task", "get_post").
-		QueryParam("board", board).
-		QueryParam("post", strconv.Itoa(num)).
-		Context(ctx).
-		Execute().
+func (c *Client) GetPost(ctx context.Context, board string, num int) (*Post, error) {
+	var posts Posts
+	if err := httpf.GET(Host+"/makaba/mobile.fcgi").
+		Query("task", "get_post").
+		Query("board", board).
+		Query("post", strconv.Itoa(num)).
+		Exchange(ctx, c.Unmask()).
 		DecodeBody(newResponse(&posts)).
-		Error
-	if err != nil {
-		return Post{}, err
+		Error(); err != nil {
+		return nil, err
 	}
+
 	if len(posts) > 0 {
-		return posts[0], (&posts[0]).init(board)
+		return &posts[0], (&posts[0]).init(board)
 	}
-	return Post{}, ErrNotFound
+
+	return nil, ErrNotFound
 }
 
 func (c *Client) DownloadFile(ctx context.Context, file *File, out flu.Output) error {
-	return c.Unmask().GET(Host + file.Path).
-		Context(ctx).
-		Execute().
+	return httpf.GET(Host+file.Path).
+		Exchange(ctx, c.Unmask()).
 		DecodeBodyTo(out).
-		Error
+		Error()
 }
 
 func (c *Client) GetBoards(ctx context.Context) ([]Board, error) {
-	boardMap := make(map[string][]Board)
-	err := c.Unmask().GET(Host+"/makaba/mobile.fcgi").
-		QueryParam("task", "get_boards").
-		Context(ctx).
-		Execute().
+	var boardMap map[string][]Board
+	if err := httpf.GET(Host+"/makaba/mobile.fcgi").
+		Query("task", "get_boards").
+		Exchange(ctx, c.Unmask()).
 		DecodeBody(newResponse(&boardMap)).
-		Error
-	if err != nil {
+		Error(); err != nil {
 		return nil, err
 	}
-	boards := make([]Board, 0)
-	for _, boardMapValue := range boardMap {
-		boards = append(boards, boardMapValue...)
+
+	var boards []Board
+	for _, value := range boardMap {
+		boards = append(boards, value...)
 	}
+
 	return boards, nil
 }
 
@@ -138,10 +143,12 @@ func (c *Client) GetBoard(ctx context.Context, id string) (*Board, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	for _, board := range boards {
 		if board.ID == id {
 			return &board, nil
 		}
 	}
+
 	return nil, ErrNotFound
 }

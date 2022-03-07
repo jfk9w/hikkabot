@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jfk9w-go/flu/gormf"
+
 	"github.com/jfk9w-go/flu"
 	httpf "github.com/jfk9w-go/flu/httpf"
 	tgmedia "github.com/jfk9w-go/telegram-bot-api/ext/media"
@@ -73,6 +75,21 @@ func (v *Vendor) Close() error {
 }
 
 var refRegexp = regexp.MustCompile(`^(((http|https)://)?reddit\.com)?/[ur]/([0-9A-Za-z_]+)$`)
+
+func (v *Vendor) OnResume(ctx context.Context, rawData gormf.JSONB) error {
+	var data Data
+	if err := rawData.Unmarshal(&data); err != nil {
+		return errors.Wrap(err, "unmarshal raw data")
+	}
+
+	if err := v.RedditClient.Subscribe(ctx, reddit.Subscribe, []string{data.Subreddit}); err != nil {
+		return errors.Wrap(err, "subscribe to subreddit")
+	} else {
+		logrus.WithField("subreddit", data.Subreddit).Info("subscribe reddit account to subreddit ok")
+	}
+
+	return nil
+}
 
 func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed.Draft, error) {
 	groups := refRegexp.FindStringSubmatch(ref)
@@ -332,7 +349,7 @@ func (v *Vendor) createMediaRef(header *feed.Header, thing *reddit.ThingData, me
 			ref.Resolver = new(resolvers.Imgur)
 		}
 	case "preview.redd.it":
-		ref.Resolver = media.PlainResolver{HttpClient: v.RedditClient.HttpClient}
+		ref.Resolver = media.PlainResolver{v.RedditClient.Client}
 	case "v.redd.it":
 		ref.URL = thing.PermalinkURL()
 		ref.Resolver = (*resolvers.Viddit)(v.VidditClient)
