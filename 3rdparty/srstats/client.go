@@ -76,7 +76,7 @@ func (c *Client) GetSuggestions(ctx context.Context, subreddits map[string]float
 		}
 	}
 
-	//normalize(m)
+	normalize(m)
 	suggestions := make(Suggestions, len(m))
 	ids := make([]string, len(m))
 	i := 0
@@ -110,7 +110,9 @@ func normalize(histogram map[string]float64) {
 		sum += value
 	}
 
-	for key, value := range histogram {
-		histogram[key] = value / sum
+	if sum > 0 {
+		for key, value := range histogram {
+			histogram[key] = value / sum
+		}
 	}
 }

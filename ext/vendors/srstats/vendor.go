@@ -116,11 +116,6 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		return
 	}
 
-	totalScore := float64(0)
-	for _, suggestion := range suggestions {
-		totalScore += suggestion.Score
-	}
-
 	data.FiredAtSecs = now.Unix()
 
 	_ = queue.Proceed(ctx, func(html *html.Writer) error {
@@ -129,10 +124,6 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 		for _, suggestion := range suggestions {
 			sr := suggestion.Subreddit
 			score := suggestion.Score
-			if totalScore > 0 {
-				score /= totalScore
-			}
-
 			header := &feed.Header{
 				SubID:  sr,
 				Vendor: subreddit.Name,
