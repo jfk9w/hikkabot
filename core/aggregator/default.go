@@ -83,6 +83,10 @@ func (a *Default) Subscribe(ctx context.Context, feedID telegram.ID, ref string,
 			if err := a.OnResume(ctx, a.Client, sub); err != nil {
 				return err
 			}
+		} else {
+			if err := a.OnSuspend(ctx, a.Client, sub); err != nil {
+				return err
+			}
 		}
 
 		return nil
