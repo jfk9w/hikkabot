@@ -10,9 +10,7 @@ import (
 	"hikkabot/3rdparty/srstats"
 )
 
-type Telegram interface {
-	GetChat(ctx context.Context, chatID telegram.ChatID) (*telegram.Chat, error)
-}
+type Telegram telegram.Client
 
 type Feeds interface {
 	Get(ctx context.Context, header *feed.Header) (*feed.Subscription, error)

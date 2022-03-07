@@ -2,15 +2,12 @@ package srstats
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"
-	"github.com/jfk9w-go/telegram-bot-api/ext/output"
-	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
@@ -92,11 +89,11 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 	}
 
 	log := logrus.
-		WithField("vendor", "srstats").
+		WithField("vendor", Name).
 		WithField("chat_id", data.ChatID)
 
 	now := v.Now()
-	if time.Unix(data.FiredAtSecs, 0).Add(v.Period.GetOrDefault(oneDay)).After(now) {
+	if time.Unix(data.FiredAtSecs, 0).Add(v.Interval.GetOrDefault(oneDay)).After(now) {
 		return
 	}
 
@@ -125,46 +122,45 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 	data.FiredAtSecs = now.Unix()
 
 	_ = queue.Proceed(ctx, func(html *html.Writer) error {
-		html.Text("suggestions @ %s ❓", data.Ref)
-		if out, ok := html.Out.(*output.Paged); ok {
-			if chat, ok := out.Receiver.(*receiver.Chat); ok {
-				var buttons [][]telegram.Button
-				var i int
-				for _, suggestion := range suggestions {
-					sr := suggestion.Subreddit
-					score := suggestion.Score
-					if totalScore > 0 {
-						score /= totalScore
-					}
+		html.Bold("suggestions").Text(" @ %s ❓", data.Ref)
+		var i int
+		for _, suggestion := range suggestions {
+			sr := suggestion.Subreddit
+			score := suggestion.Score
+			if totalScore > 0 {
+				score /= totalScore
+			}
 
-					header := &feed.Header{
-						SubID:  sr,
-						Vendor: subreddit.Name,
-						FeedID: data.ChatID,
-					}
+			header := &feed.Header{
+				SubID:  sr,
+				Vendor: subreddit.Name,
+				FeedID: data.ChatID,
+			}
 
-					if _, err := v.Get(context.Background(), header); !errors.Is(err, feed.ErrNotFound) {
-						continue
-					}
+			if _, err := v.Get(context.Background(), header); err == nil {
+				continue
+			} else if !errors.Is(err, feed.ErrNotFound) {
+				log.WithField("subreddit", sr).Warnf("failed to get sub: %v", err)
+				continue
+			}
 
-					buttons = append(buttons, []telegram.Button{
-						(&telegram.Command{
-							Key:  "/sub",
-							Args: []string{"/r/" + sr, data.Ref},
-						}).Button(fmt.Sprintf("%s [%.2f] 🔥", sr, suggestion.Score)),
-						(&telegram.Command{
-							Key:  "/sub",
-							Args: []string{"/r/" + sr, data.Ref, aggregator.Deadborn},
-						}).Button(fmt.Sprintf("%s [%.2f] 🛑", sr, suggestion.Score)),
-					})
+			html.Text("\n").
+				Link(sr, "https://www.reddit.com/r/"+sr).
+				Text(" – %.3f%% ", score*100).
+				Link("🔥", (&telegram.Command{
+					Key:  "/sub",
+					Args: []string{"/r/" + sr, data.Ref}}).
+					Button("").
+					StartCallbackURL(string(v.Username()))).
+				Text(" ").
+				Link("🛑", (&telegram.Command{
+					Key:  "/sub",
+					Args: []string{"/r/" + sr, data.Ref, aggregator.Deadborn}}).
+					Button("").
+					StartCallbackURL(string(v.Username())))
 
-					i++
-					if i >= 10 {
-						break
-					}
-				}
-
-				chat.ReplyMarkup = telegram.InlineKeyboard(buttons...)
+			if i++; i >= 10 {
+				break
 			}
 		}
 

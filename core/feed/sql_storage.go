@@ -47,7 +47,7 @@ func (s *SQLStorage) Create(ctx context.Context, sub *Subscription) error {
 func (s *SQLStorage) Get(ctx context.Context, header *Header) (*Subscription, error) {
 	sub := new(Subscription)
 	err := s.Unmask().WithContext(ctx).
-		Where("sub_id = ? and vendor = ? and feed_id = ?", header.SubID, header.Vendor, header.FeedID).
+		Where("lower(sub_id) = lower(?) and vendor = ? and feed_id = ?", header.SubID, header.Vendor, header.FeedID).
 		First(sub).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
