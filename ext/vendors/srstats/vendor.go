@@ -25,6 +25,7 @@ type Data struct {
 	Ref         string      `json:"ref"`
 	ChatID      telegram.ID `json:"chat_id"`
 	FiredAtSecs int64       `json:"fired_at"`
+	Options     []string    `json:"options"`
 }
 
 type Config struct {
@@ -70,8 +71,9 @@ func (v *Vendor) Parse(ctx context.Context, ref string, options []string) (*feed
 		SubID: chatID.String(),
 		Name:  chat.Title,
 		Data: Data{
-			Ref:    ref,
-			ChatID: chatID,
+			Ref:     ref,
+			ChatID:  chatID,
+			Options: options,
 		},
 	}, nil
 }
@@ -149,13 +151,13 @@ func (v *Vendor) Refresh(ctx context.Context, queue *feed.Queue) {
 				Text(" – %.3f%% ", score*100).
 				Link("🔥", (&telegram.Command{
 					Key:  "/sub",
-					Args: []string{"/r/" + sr, data.Ref}}).
+					Args: append([]string{"/r/" + sr, data.Ref}, data.Options...)}).
 					Button("").
 					StartCallbackURL(string(v.Username()))).
 				Text(" ").
 				Link("🛑", (&telegram.Command{
 					Key:  "/sub",
-					Args: []string{"/r/" + sr, data.Ref, aggregator.Deadborn}}).
+					Args: append([]string{"/r/" + sr, data.Ref, aggregator.Deadborn}, data.Options...)}).
 					Button("").
 					StartCallbackURL(string(v.Username())))
 
