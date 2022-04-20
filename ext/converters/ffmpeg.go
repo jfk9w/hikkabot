@@ -2,46 +2,121 @@ package converters
 
 import (
 	"context"
+	"os"
+
+	"hikkabot/core"
+	"hikkabot/feed"
+	"hikkabot/feed/media"
+
 	"github.com/jfk9w-go/flu"
-	"github.com/jfk9w-go/telegram-bot-api/ext/media"
+	"github.com/jfk9w-go/flu/apfel"
+	"github.com/jfk9w-go/flu/logf"
+	"github.com/jfk9w-go/flu/syncf"
 	"github.com/pkg/errors"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
-	. "hikkabot/core/media"
 )
 
-var FFmpegMIMETypes = map[string][4]string{
-	"video/webm": {"mp4", "libx264", "aac", "video/mp4"},
+const ffmpegServiceID = "media-converters.ffmpeg"
+
+type ffmpegFormat struct {
+	f, vc, ac string
 }
 
-var FFmpeg Converter = _ffmpeg{}
-
-type _ffmpeg struct{}
-
-func (_ffmpeg) ID() string {
-	return "ffmpeg"
+var ffmpegFormats = map[string]ffmpegFormat{
+	"video/mp4": {"mp4", "libx264", "aac"},
 }
 
-func (_ffmpeg) Convert(_ context.Context, ref *Ref) (media.Ref, error) {
-	if target, ok := FFmpegMIMETypes[ref.MIMEType]; !ok {
-		return nil, errors.Errorf("unsupported mime type: %s", ref.MIMEType)
-	} else if blob, err := ref.Alloc(ref.Now()); err != nil {
-		return nil, errors.Wrap(err, "allocate blob")
-	} else if file, ok := blob.(flu.File); !ok {
-		return nil, errors.Wrapf(err, "only flu.File is supported, got %T", blob)
-	} else if err := ffmpeg.Input(ref.ResolvedURL).
-		Output(file.Path(), ffmpeg.KwArgs{"c": "copy", "f": target[0], "c:v": target[1], "c:a": target[2]}).
-		Run(); err != nil {
-		return nil, errors.Wrap(err, "copy")
-	} else {
-		return &FFmpegResult{
-			MIMEType: target[3],
-			Input:    file,
-		}, nil
+type FFmpeg[C core.BlobContext] struct {
+	clock syncf.Clock
+	blobs feed.Blobs
+}
+
+func (c FFmpeg[C]) String() string {
+	return ffmpegServiceID
+}
+
+func (c *FFmpeg[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
+	var blobs core.Blobs[C]
+	if err := app.Use(ctx, &blobs, false); err != nil {
+		return err
 	}
+
+	c.clock = app
+	c.blobs = &blobs
+	return nil
 }
 
-type FFmpegResult media.Value
+func (c *FFmpeg[C]) Convert(ctx context.Context, ref media.Ref, mimeType string) (media.MetaRef, error) {
+	format, ok := ffmpegFormats[mimeType]
+	if !ok {
+		return nil, nil
+	}
 
-func (r *FFmpegResult) Get(_ context.Context) (*media.Value, error) {
-	return (*media.Value)(r), nil
+	input, err := ref.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var stream *ffmpeg.Stream
+	switch input := input.(type) {
+	case flu.File:
+		stream = ffmpeg.Input(input.String())
+	case flu.URL:
+		stream = ffmpeg.Input(input.String())
+	default:
+		input, err := c.blobs.Buffer("", syncf.Value[flu.Input]{Val: input}).Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		file, ok := input.(flu.File)
+		if !ok {
+			return nil, errors.Errorf("only flu.File blobs are supported, got %T", input)
+		}
+
+		stream = ffmpeg.Input(file.String())
+	}
+
+	blob := c.blobs.Buffer(mimeType, syncf.Value[flu.Input]{Val: make(flu.Bytes, 0)})
+	ctx = core.SkipSizeCheck(ctx)
+
+	output, err := blob.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	file, ok := output.(flu.File)
+	if !ok {
+		return nil, errors.Errorf("only flu.File blobs are supported, got %T", output)
+	}
+
+	startTime := c.clock.Now()
+	stream = stream.Output(file.String(), ffmpeg.KwArgs{
+		"c":   "copy",
+		"f":   format.f,
+		"c:v": format.vc,
+		"c:a": format.ac,
+	})
+
+	stream.Context = ctx
+	err = stream.OverWriteOutput().Run()
+	logf.Get(c).Resultf(ctx, logf.Debug, logf.Warn,
+		"convert [%s] => [%s] in %s: %v",
+		flu.Readable(input), output, c.clock.Now().Sub(startTime), err)
+	if err != nil {
+		return nil, err
+	}
+
+	stat, err := os.Stat(file.String())
+	if err != nil {
+		return nil, err
+	}
+
+	return &media.LocalRef{
+		Input: file,
+		Meta: &media.Meta{
+			MIMEType: mimeType,
+			Size:     media.Size(stat.Size()),
+		},
+	}, nil
 }

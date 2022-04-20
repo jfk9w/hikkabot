@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/jfk9w-go/flu"
-	httpf "github.com/jfk9w-go/flu/httpf"
+	"github.com/jfk9w-go/flu/apfel"
+	"github.com/jfk9w-go/flu/httpf"
+	"github.com/jfk9w-go/flu/logf"
+	"github.com/jfk9w-go/flu/syncf"
 	"github.com/pkg/errors"
 )
 
@@ -19,22 +22,24 @@ var (
 )
 
 type Config struct {
-	ClientID, ClientSecret string
-	Username, Password     string
-
-	Owner      string
-	MaxRetries int
+	ClientID     string `yaml:"clientId" doc:"See https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example"`
+	ClientSecret string `yaml:"clientSecret" doc:"See https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example"`
+	Username     string `yaml:"username" doc:"See https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example"`
+	Password     string `yaml:"password" doc:"See https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example"`
+	Owner        string `yaml:"owner,omitempty" doc:"This value will be used in User-Agent header. If empty, username will be used."`
+	MaxRetries   int    `yaml:"maxRetries,omitempty" doc:"Maximum request retries before giving up." default:"3"`
 }
 
-type Client struct {
-	*http.Client
-	config    Config
-	clock     flu.Clock
-	token     chan string
-	expiresAt time.Time
+type Context interface {
+	RedditConfig() Config
 }
 
-func NewClient(clock flu.Clock, config Config, version string) *Client {
+type Client[C Context] struct {
+	*client
+}
+
+func (c *Client[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
+	config := app.Config().RedditConfig()
 	owner := config.Owner
 	if owner == "" {
 		owner = config.Username
@@ -43,19 +48,39 @@ func NewClient(clock flu.Clock, config Config, version string) *Client {
 	token := make(chan string, 1)
 	token <- ""
 
-	return &Client{
-		Client: &http.Client{
+	c.client = &client{
+		client: &http.Client{
 			Transport: withUserAgent(
 				httpf.NewDefaultTransport(),
-				fmt.Sprintf(`hikkabot/%s by /u/%s`, version, owner)),
+				fmt.Sprintf(`hikkabot/%s by /u/%s`, app.Version(), owner)),
 		},
 		config: config,
-		clock:  clock,
+		clock:  app,
 		token:  token,
 	}
+
+	return nil
 }
 
-func (c *Client) getToken(ctx context.Context) (string, error) {
+type client struct {
+	client    httpf.Client
+	config    Config
+	clock     syncf.Clock
+	token     chan string
+	expiresAt time.Time
+}
+
+func (c *client) String() string {
+	return "reddit.client"
+}
+
+func (c *client) Do(req *http.Request) (*http.Response, error) {
+	resp, err := c.client.Do(req)
+	logf.Get(c).Resultf(req.Context(), logf.Trace, logf.Warn, "%s => %v", &httpf.RequestBuilder{Request: req}, err)
+	return resp, err
+}
+
+func (c *client) getToken(ctx context.Context) (string, error) {
 	select {
 	case token := <-c.token:
 		return token, nil
@@ -64,7 +89,7 @@ func (c *Client) getToken(ctx context.Context) (string, error) {
 	}
 }
 
-func (c *Client) done(ctx context.Context, token string) error {
+func (c *client) done(ctx context.Context, token string) error {
 	select {
 	case c.token <- token:
 		return nil
@@ -73,7 +98,7 @@ func (c *Client) done(ctx context.Context, token string) error {
 	}
 }
 
-func (c *Client) authorize(ctx context.Context) (string, error) {
+func (c *client) authorize(ctx context.Context) (string, error) {
 	var resp struct {
 		AccessToken string `json:"access_token"`
 		ExpiresIn   int    `json:"expires_in"`
@@ -95,12 +120,7 @@ func (c *Client) authorize(ctx context.Context) (string, error) {
 	return resp.AccessToken, nil
 }
 
-var (
-	errUnauthorized    = errors.New("unauthorized")
-	errTooManyRequests = errors.New("too many requests")
-)
-
-func (c *Client) execute(ctx context.Context, req *httpf.RequestBuilder) *httpf.ExchangeResult {
+func (c *client) execute(ctx context.Context, req *httpf.RequestBuilder) *httpf.ExchangeResult {
 	token, err := c.getToken(ctx)
 	if err != nil {
 		return httpf.ExchangeError(err)
@@ -108,9 +128,10 @@ func (c *Client) execute(ctx context.Context, req *httpf.RequestBuilder) *httpf.
 
 	defer func() { _ = c.done(ctx, token) }()
 	var resp *httpf.ExchangeResult
-	for i := 0; i < c.config.MaxRetries; i++ {
+	for i := 0; i < c.config.MaxRetries+1; i++ {
 		if token == "" || c.expiresAt.Before(c.clock.Now()) {
 			token, err = c.authorize(ctx)
+			logf.Get(c).Resultf(ctx, logf.Debug, logf.Error, "refresh token: %v", err)
 			if err != nil {
 				return httpf.ExchangeError(errors.Wrap(err, "authorize"))
 			}
@@ -149,7 +170,7 @@ func (c *Client) execute(ctx context.Context, req *httpf.RequestBuilder) *httpf.
 	return resp
 }
 
-func (c *Client) GetListing(ctx context.Context, subreddit, sort string, limit int) ([]Thing, error) {
+func (c *client) GetListing(ctx context.Context, subreddit, sort string, limit int) ([]Thing, error) {
 	if limit <= 0 {
 		limit = 25
 	}
@@ -166,7 +187,7 @@ func (c *Client) GetListing(ctx context.Context, subreddit, sort string, limit i
 	return resp.Data.Children, nil
 }
 
-func (c *Client) GetPosts(ctx context.Context, subreddit string, ids ...string) ([]Thing, error) {
+func (c *client) GetPosts(ctx context.Context, subreddit string, ids ...string) ([]Thing, error) {
 	var resp Listing
 	if err := c.execute(ctx, httpf.GET(Host+"/r/"+subreddit+"/api/info").
 		Query("id", strings.Join(ids, ","))).
@@ -179,7 +200,7 @@ func (c *Client) GetPosts(ctx context.Context, subreddit string, ids ...string) 
 	return resp.Data.Children, nil
 }
 
-func (c *Client) Subscribe(ctx context.Context, action SubscribeAction, subreddits []string) error {
+func (c *client) Subscribe(ctx context.Context, action SubscribeAction, subreddits []string) error {
 	return c.execute(ctx, httpf.POST(Host+"/api/subscribe", nil).
 		Query("action", string(action)).
 		Query("skip_initial_defaults", "true").

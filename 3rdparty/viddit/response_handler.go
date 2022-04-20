@@ -8,11 +8,11 @@ import (
 	"golang.org/x/net/html"
 )
 
-type responseHandler struct {
+type resolveResponse struct {
 	url string
 }
 
-func (h *responseHandler) Handle(resp *http.Response) error {
+func (h *resolveResponse) Handle(resp *http.Response) error {
 	defer resp.Body.Close()
 	tokenizer := html.NewTokenizer(resp.Body)
 	for tokenizer.Next() != html.ErrorToken {

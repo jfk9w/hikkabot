@@ -6,82 +6,98 @@ import (
 	"net/http/cookiejar"
 	"time"
 
+	"github.com/jfk9w-go/flu/logf"
+
+	"github.com/jfk9w-go/flu/apfel"
+
 	"github.com/jfk9w-go/flu"
+
+	"github.com/jfk9w-go/flu/syncf"
+
 	"github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var URL = "https://viddit.red"
 
-type Client struct {
-	*http.Client
-	mu     flu.RWMutex
-	wg     flu.WaitGroup
-	cancel func()
+type Config struct {
+	RefreshEvery flu.Duration `yaml:"refreshEvery,omitempty" doc:"Cookie refresh interval" default:"20m"`
 }
 
-func (c *Client) RefreshInBackground(ctx context.Context, every time.Duration) error {
-	if c.cancel != nil {
-		return nil
+type Context interface {
+	VidditConfig() Config
+}
+
+type Client[C Context] struct {
+	*client
+}
+
+func (c *Client[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
+	c.client = &client{
+		client:       new(http.Client),
+		clock:        app,
+		refreshEvery: app.Config().VidditConfig().RefreshEvery.Value,
 	}
-
-	if err := c.refresh(ctx); err != nil {
-		return err
-	}
-
-	c.cancel = c.wg.Go(ctx, func(ctx context.Context) {
-		ticker := time.NewTicker(every)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				for err := c.refresh(ctx); err != nil; err = c.refresh(ctx) {
-					if flu.IsContextRelated(err) {
-						return
-					}
-
-					logrus.Warnf("refresh viddit cookie: %s", err)
-				}
-			}
-		}
-	})
 
 	return nil
 }
 
-func (c *Client) refresh(ctx context.Context) error {
-	defer c.mu.Lock().Unlock()
+type client struct {
+	client       *http.Client
+	clock        syncf.Clock
+	refreshEvery time.Duration
+
+	lastRefresh time.Time
+	mu          syncf.RWMutex
+}
+
+func (c *client) String() string {
+	return "viddit.client"
+}
+
+func (c *client) Do(req *http.Request) (*http.Response, error) {
+	resp, err := c.client.Do(req)
+	logf.Get(c).Resultf(req.Context(), logf.Trace, logf.Warn, "%s => %v", &httpf.RequestBuilder{Request: req}, err)
+	return resp, err
+}
+
+func (c *client) ResolveURL(ctx context.Context, url string) (string, error) {
+	now := c.clock.Now()
+	ctx, cancel := c.mu.Lock(ctx)
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+
+	defer cancel()
+
+	if now.Sub(c.lastRefresh) <= c.refreshEvery {
+		defer cancel()
+		var resp resolveResponse
+		err := httpf.GET(URL).
+			Query("url", url).
+			Exchange(ctx, c).
+			CheckStatus(http.StatusOK).
+			Handle(&resp).
+			Error()
+		logf.Get(c).Resultf(ctx, logf.Debug, logf.Warn, "resolve url for [%s]: %v", url, err)
+		return resp.url, err
+	}
+
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return errors.Wrap(err, "create new cookie jar")
+		return "", errors.Wrap(err, "create new cookie jar")
 	}
 
-	c.Jar = jar
-	return httpf.GET(URL).
+	c.client.Jar = jar
+	err = httpf.GET(URL).
 		Exchange(ctx, c).
 		CheckStatus(http.StatusOK).
 		Error()
-}
-
-func (c *Client) ResolveURL(ctx context.Context, url string) (string, error) {
-	defer c.mu.RLock().Unlock()
-	h := new(responseHandler)
-	return h.url, httpf.GET(URL).
-		Query("url", url).
-		Exchange(ctx, c).
-		CheckStatus(http.StatusOK).
-		Handle(h).
-		Error()
-}
-
-func (c *Client) Close() error {
-	if c.cancel != nil {
-		c.cancel()
-		c.wg.Wait()
+	logf.Get(c).Resultf(ctx, logf.Debug, logf.Error, "refresh cookie: %v", err)
+	if err != nil {
+		return "", errors.Wrapf(err, "get [%s] to refresh cookie", URL)
 	}
 
-	return nil
+	c.lastRefresh = now
+	return c.ResolveURL(ctx, url)
 }

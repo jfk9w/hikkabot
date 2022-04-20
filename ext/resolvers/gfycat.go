@@ -4,38 +4,54 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
-	"github.com/jfk9w-go/flu"
+	"hikkabot/feed/media"
 
-	httpf "github.com/jfk9w-go/flu/httpf"
+	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/apfel"
+	"github.com/jfk9w-go/flu/httpf"
 )
 
-type Gfycat string
-
-func (r Gfycat) GetClient(defaultClient httpf.Client) httpf.Client {
-	return defaultClient
+type GfycatLike[C any] struct {
+	Name string
 }
 
-func (r Gfycat) Resolve(ctx context.Context, client httpf.Client, url string, _ int64) (string, error) {
-	url = strings.Trim(url, "/")
+func (r GfycatLike[C]) String() string {
+	return "media-resolver." + r.Name
+}
+
+func (r *GfycatLike[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
+	return nil
+}
+
+func (r *GfycatLike[C]) Resolve(ctx context.Context, source *url.URL) (media.MetaRef, error) {
+	if !strings.Contains(source.Host, r.Name) {
+		return nil, nil
+	}
+
+	url := strings.Trim(source.String(), "/")
 	lastSlash := strings.LastIndex(url, "/")
 	code := url[lastSlash+1:]
 
-	resp := new(struct {
+	var resp struct {
 		GfyItem struct {
 			URL string `json:"mp4Url"`
 		} `json:"gfyItem"`
-	})
-
-	apiURL := fmt.Sprintf("https://api.%s.com/v1/gfycats/%s", string(r), code)
-	if err := httpf.GET(apiURL).
-		Exchange(ctx, client).
-		CheckStatus(http.StatusOK).
-		DecodeBody(flu.JSON(resp)).
-		Error(); err != nil {
-		return "", err
 	}
 
-	return resp.GfyItem.URL, nil
+	apiURL := fmt.Sprintf("https://api.%s.com/v1/gfycats/%s", r.Name, code)
+	if err := httpf.GET(apiURL).
+		Exchange(ctx, nil).
+		CheckStatus(http.StatusOK).
+		DecodeBody(flu.JSON(&resp)).
+		Error(); err != nil {
+		return nil, err
+	}
+
+	return &media.HTTPRef{
+		URL:    resp.GfyItem.URL,
+		Buffer: true,
+	}, nil
 }

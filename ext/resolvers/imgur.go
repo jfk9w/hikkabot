@@ -4,30 +4,48 @@ import (
 	"bufio"
 	"context"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
+	"hikkabot/feed/media"
+
+	"github.com/jfk9w-go/flu/apfel"
+
 	"github.com/jfk9w-go/flu"
 
-	httpf "github.com/jfk9w-go/flu/httpf"
+	"github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 )
 
 var imgurRegexp = regexp.MustCompile(`.*?(<link rel="image_src"\s+href="|<meta property="og:video"\s+content=")(.*?)".*`)
 
-type Imgur string
+type Imgur[C any] struct{}
 
-func (r *Imgur) GetClient(defaultClient httpf.Client) httpf.Client {
-	return defaultClient
+func (r Imgur[C]) String() string {
+	return "media-resolver.imgur"
 }
 
-func (r *Imgur) Resolve(ctx context.Context, client httpf.Client, url string, _ int64) (string, error) {
-	if *r != "" {
-		return string(*r), nil
+func (r *Imgur[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
+	return nil
+}
+
+func (r *Imgur[C]) Resolve(ctx context.Context, source *url.URL) (media.MetaRef, error) {
+	switch source.Host {
+	case "imgur.com", "www.imgur.com", "i.imgur.com":
+	default:
+		return nil, nil
 	}
 
-	if err := httpf.GET(url).
-		Exchange(ctx, client).
+	url := source.String()
+	if strings.Contains(url, ".gifv") {
+		url := strings.Replace(url, ".gifv", ".mp4", 1)
+		return &media.HTTPRef{URL: url}, nil
+	}
+
+	var ref media.HTTPRef
+	return &ref, httpf.GET(url).
+		Exchange(ctx, nil).
 		CheckStatus(http.StatusOK).
 		HandleFunc(func(resp *http.Response) error {
 			defer flu.CloseQuietly(resp.Body)
@@ -41,16 +59,11 @@ func (r *Imgur) Resolve(ctx context.Context, client httpf.Client, url string, _ 
 				line := scanner.Text()
 				groups := imgurRegexp.FindStringSubmatch(line)
 				if len(groups) == 3 {
-					*r = Imgur(groups[2])
+					ref.URL = groups[2]
 					return nil
 				}
 			}
 
 			return errors.New("unable to find URL")
-		}).
-		Error(); err != nil {
-		return url, nil
-	}
-
-	return (string)(*r), nil
+		}).Error()
 }

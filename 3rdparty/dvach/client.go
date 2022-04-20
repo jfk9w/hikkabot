@@ -1,71 +1,67 @@
 package dvach
 
 import (
-	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"strconv"
+
+	"github.com/jfk9w-go/flu/logf"
+
+	"github.com/jfk9w-go/flu/apfel"
 
 	"github.com/jfk9w-go/flu"
 	httpf "github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 )
 
-type response struct {
-	value interface{}
+type Config struct {
+	Usercode string `yaml:"usercode" doc:"Auth cookie set for 2ch.hk / and /makaba paths. You can get it from your browser."`
 }
 
-func newResponse(value interface{}) flu.DecoderFrom {
-	return &response{value: value}
+type Context interface {
+	DvachConfig() Config
 }
 
-func (r *response) DecodeFrom(body io.Reader) (err error) {
-	buf, err := ioutil.ReadAll(body)
-	if err != nil {
-		return errors.Wrap(err, "read body")
-	}
-	bufr := bytes.NewReader(buf)
-	if err = flu.DecodeFrom(flu.IO{R: bufr}, flu.JSON(r.value)); err == nil {
-		return
-	}
-	err = new(Error)
-	bufr.Reset(buf)
-	if flu.DecodeFrom(flu.IO{R: bufr}, flu.JSON(err)) != nil {
-		err = errors.Errorf("failed to decode response: %s", string(buf))
-	}
-	return
+type Client[C Context] struct {
+	client httpf.Client
 }
 
-type Client http.Client
+func (c Client[C]) String() string {
+	return "dvach.client"
+}
 
-func NewClient(client *http.Client, usercode string) (*Client, error) {
-	if client == nil {
-		client = new(http.Client)
-	}
+func (c *Client[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
+	config := app.Config().DvachConfig()
+	return c.Standalone(ctx, config)
+}
 
+func (c *Client[C]) Standalone(ctx context.Context, config Config) error {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "create cookie jar")
+		return errors.Wrap(err, "create cookie jar")
 	}
 
 	cookieURL := &url.URL{Scheme: "https", Host: Domain}
-	jar.SetCookies(cookieURL, cookies(usercode, "/"))
-	jar.SetCookies(cookieURL, cookies(usercode, "/makaba"))
-	return (*Client)(client), nil
+	jar.SetCookies(cookieURL, cookies(config.Usercode, "/"))
+	jar.SetCookies(cookieURL, cookies(config.Usercode, "/makaba"))
+	c.client = &http.Client{Jar: jar}
+
+	return nil
 }
 
-func (c *Client) Unmask() *http.Client {
-	return (*http.Client)(c)
+func (c *Client[C]) Do(req *http.Request) (*http.Response, error) {
+	resp, err := c.client.Do(req)
+	logf.Get(c).Resultf(req.Context(), logf.Trace, logf.Warn, "%s => %v", &httpf.RequestBuilder{Request: req}, err)
+	return resp, err
 }
 
-func (c *Client) GetCatalog(ctx context.Context, board string) (*Catalog, error) {
+func (c *Client[C]) GetCatalog(ctx context.Context, board string) (*Catalog, error) {
 	var catalog Catalog
 	if err := httpf.GET(Host+"/"+board+"/catalog_num.json").
-		Exchange(ctx, c.Unmask()).
+		Exchange(ctx, c).
 		DecodeBody(newResponse(&catalog)).
 		Error(); err != nil {
 		return nil, err
@@ -74,7 +70,7 @@ func (c *Client) GetCatalog(ctx context.Context, board string) (*Catalog, error)
 	return &catalog, (&catalog).init(board)
 }
 
-func (c *Client) GetThread(ctx context.Context, board string, num int, offset int) ([]Post, error) {
+func (c *Client[C]) GetThread(ctx context.Context, board string, num int, offset int) ([]Post, error) {
 	if offset <= 0 {
 		offset = num
 	}
@@ -85,7 +81,7 @@ func (c *Client) GetThread(ctx context.Context, board string, num int, offset in
 		Query("board", board).
 		Query("thread", strconv.Itoa(num)).
 		Query("num", strconv.Itoa(offset)).
-		Exchange(ctx, c.Unmask()).
+		Exchange(ctx, c).
 		DecodeBody(newResponse(&posts)).
 		Error(); err != nil {
 		return nil, err
@@ -94,13 +90,13 @@ func (c *Client) GetThread(ctx context.Context, board string, num int, offset in
 	return posts, posts.init(board)
 }
 
-func (c *Client) GetPost(ctx context.Context, board string, num int) (*Post, error) {
+func (c *Client[C]) GetPost(ctx context.Context, board string, num int) (*Post, error) {
 	var posts Posts
 	if err := httpf.GET(Host+"/makaba/mobile.fcgi").
 		Query("task", "get_post").
 		Query("board", board).
 		Query("post", strconv.Itoa(num)).
-		Exchange(ctx, c.Unmask()).
+		Exchange(ctx, c).
 		DecodeBody(newResponse(&posts)).
 		Error(); err != nil {
 		return nil, err
@@ -113,18 +109,11 @@ func (c *Client) GetPost(ctx context.Context, board string, num int) (*Post, err
 	return nil, ErrNotFound
 }
 
-func (c *Client) DownloadFile(ctx context.Context, file *File, out flu.Output) error {
-	return httpf.GET(Host+file.Path).
-		Exchange(ctx, c.Unmask()).
-		DecodeBodyTo(out).
-		Error()
-}
-
-func (c *Client) GetBoards(ctx context.Context) ([]Board, error) {
+func (c *Client[C]) GetBoards(ctx context.Context) ([]Board, error) {
 	var boardMap map[string][]Board
 	if err := httpf.GET(Host+"/makaba/mobile.fcgi").
 		Query("task", "get_boards").
-		Exchange(ctx, c.Unmask()).
+		Exchange(ctx, c).
 		DecodeBody(newResponse(&boardMap)).
 		Error(); err != nil {
 		return nil, err
@@ -138,7 +127,7 @@ func (c *Client) GetBoards(ctx context.Context) ([]Board, error) {
 	return boards, nil
 }
 
-func (c *Client) GetBoard(ctx context.Context, id string) (*Board, error) {
+func (c *Client[C]) GetBoard(ctx context.Context, id string) (*Board, error) {
 	boards, err := c.GetBoards(ctx)
 	if err != nil {
 		return nil, err
@@ -151,4 +140,30 @@ func (c *Client) GetBoard(ctx context.Context, id string) (*Board, error) {
 	}
 
 	return nil, ErrNotFound
+}
+
+type response struct {
+	value interface{}
+}
+
+func newResponse(value interface{}) flu.DecoderFrom {
+	return &response{value: value}
+}
+
+func (r *response) DecodeFrom(body io.Reader) error {
+	var buf flu.ByteBuffer
+	if _, err := flu.Copy(flu.IO{R: body}, &buf); err != nil {
+		return err
+	}
+
+	if err := flu.DecodeFrom(&buf, flu.JSON(r.value)); err == nil {
+		return nil
+	}
+
+	var err Error
+	if err := flu.DecodeFrom(&buf, flu.JSON(&err)); err != nil {
+		return errors.Errorf("failed to decode response [%s]", buf.Bytes().String())
+	}
+
+	return err
 }
