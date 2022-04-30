@@ -12,7 +12,7 @@ import (
 )
 
 type InterfaceConfig struct {
-	SupervisorID telegram.ID            `yaml:"supervisorId" doc:"Telegram admin user ID. If not set, only /start command will be available."`
+	SupervisorID telegram.ID            `yaml:"supervisorId" doc:"Telegram admin user ID. If not set, only public commands (e.g. /start) will be available."`
 	Aliases      map[string]telegram.ID `yaml:"aliases,omitempty" doc:"Chat aliases to use in commands: keys are aliases and values are telegram IDs."`
 }
 

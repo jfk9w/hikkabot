@@ -13,14 +13,12 @@ import (
 	"hikkabot/core"
 	"hikkabot/feed"
 
-	"github.com/jfk9w-go/flu/colf"
-
-	"github.com/jfk9w-go/flu/me3x"
-
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"
+	"github.com/jfk9w-go/flu/colf"
 	"github.com/jfk9w-go/flu/httpf"
 	"github.com/jfk9w-go/flu/logf"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/flu/syncf"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/tapp"
@@ -269,6 +267,8 @@ func (v *Subreddit[C]) getPercentile(ctx context.Context, header feed.Header, da
 	if err != nil {
 		return 0, err
 	}
+
+	v.metrics.Gauge("subscribers", me3x.Labels{}.Add("feed_id", header.FeedID)).Set(float64(members))
 
 	pacing := v.config.Pacing
 	var percentile int
