@@ -17,8 +17,8 @@ $ hikkabot --config.file=config.yml # pass your configuration file
 Alternatively, you can use our Docker image:
 
 ```bash
-$ docker run ghcr.io/jfk9w-go/hikkabot --telegram.token=<your_telegram_bot_api_token>
-$ hikkabot_telegram_token=<your_telegram_bot_api_token> docker run ghcr.io/jfk9w-go/hikkabot # you can also pass configuration options as environment variables
+$ docker run ghcr.io/jfk9w/hikkabot --telegram.token=<your_telegram_bot_api_token>
+$ hikkabot_telegram_token=<your_telegram_bot_api_token> docker run ghcr.io/jfk9w/hikkabot # you can also pass configuration options as environment variables
 ```
 
 `--help` is also available.
