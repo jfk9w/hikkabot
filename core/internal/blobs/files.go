@@ -8,15 +8,11 @@ import (
 
 	"hikkabot/feed/media"
 
-	"github.com/pkg/errors"
-
-	"github.com/jfk9w-go/flu/logf"
-
-	"github.com/jfk9w-go/flu"
-
-	"github.com/jfk9w-go/flu/syncf"
-
 	"github.com/gofrs/uuid"
+	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/logf"
+	"github.com/jfk9w-go/flu/syncf"
+	"github.com/pkg/errors"
 )
 
 type Files struct {

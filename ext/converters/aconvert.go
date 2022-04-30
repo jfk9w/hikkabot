@@ -5,12 +5,10 @@ import (
 
 	"hikkabot/feed/media"
 
-	"github.com/jfk9w-go/flu"
-
-	"github.com/jfk9w-go/flu/logf"
-
 	"github.com/jfk9w-go/aconvert-api"
+	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"
+	"github.com/jfk9w-go/flu/logf"
 )
 
 var aconvertFormats = map[string]string{
@@ -46,7 +44,7 @@ func (c *Aconvert[C]) Convert(ctx context.Context, ref media.Ref, mimeType strin
 		return nil, err
 	}
 
-	resp, err := c.Client.Convert(ctx, input, aconvert.Opts{}.TargetFormat(format))
+	resp, err := c.Client.Convert(ctx, input, aconvert.Options{}.TargetFormat(format))
 	logf.Get(c).Resultf(ctx, logf.Debug, logf.Warn, "convert %s: %v", flu.Readable(input), err)
 	if err != nil {
 		return nil, err

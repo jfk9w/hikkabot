@@ -13,12 +13,12 @@ import (
 	"github.com/jfk9w-go/flu/apfel"
 
 	"github.com/jfk9w-go/flu"
-	httpf "github.com/jfk9w-go/flu/httpf"
+	"github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 )
 
 type Config struct {
-	Usercode string `yaml:"usercode" doc:"Auth cookie set for 2ch.hk / and /makaba paths. You can get it from your browser."`
+	Usercode string `yaml:"usercode,omitempty" doc:"Auth cookie set for 2ch.hk / and /makaba paths. You can get it from your browser. Required to access hidden boards."`
 }
 
 type Context interface {
@@ -44,9 +44,14 @@ func (c *Client[C]) Standalone(ctx context.Context, config Config) error {
 		return errors.Wrap(err, "create cookie jar")
 	}
 
-	cookieURL := &url.URL{Scheme: "https", Host: Domain}
-	jar.SetCookies(cookieURL, cookies(config.Usercode, "/"))
-	jar.SetCookies(cookieURL, cookies(config.Usercode, "/makaba"))
+	if config.Usercode != "" {
+		cookieURL := &url.URL{Scheme: "https", Host: Domain}
+		jar.SetCookies(cookieURL, cookies(config.Usercode, "/"))
+		jar.SetCookies(cookieURL, cookies(config.Usercode, "/makaba"))
+	} else {
+		logf.Get(c).Warnf(ctx, "dvach usercode is empty – hidden boards will be unavailable")
+	}
+
 	c.client = &http.Client{Jar: jar}
 
 	return nil
@@ -91,22 +96,12 @@ func (c *Client[C]) GetThread(ctx context.Context, board string, num int, offset
 }
 
 func (c *Client[C]) GetPost(ctx context.Context, board string, num int) (*Post, error) {
-	var posts Posts
-	if err := httpf.GET(Host+"/makaba/mobile.fcgi").
-		Query("task", "get_post").
-		Query("board", board).
-		Query("post", strconv.Itoa(num)).
-		Exchange(ctx, c).
-		DecodeBody(newResponse(&posts)).
-		Error(); err != nil {
+	posts, err := c.GetThread(ctx, board, num, num)
+	if err != nil {
 		return nil, err
 	}
 
-	if len(posts) > 0 {
-		return &posts[0], (&posts[0]).init(board)
-	}
-
-	return nil, ErrNotFound
+	return &posts[0], nil
 }
 
 func (c *Client[C]) GetBoards(ctx context.Context) ([]Board, error) {

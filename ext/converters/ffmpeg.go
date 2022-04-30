@@ -3,6 +3,7 @@ package converters
 import (
 	"context"
 	"os"
+	"os/exec"
 
 	"hikkabot/core"
 	"hikkabot/feed"
@@ -36,6 +37,12 @@ func (c FFmpeg[C]) String() string {
 }
 
 func (c *FFmpeg[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
+	_, err := exec.LookPath("ffmpeg")
+	logf.Get(c).Resultf(ctx, logf.Info, logf.Warn, "check ffmpeg in $PATH: %v", err)
+	if err != nil {
+		return apfel.ErrDisabled
+	}
+
 	var blobs core.Blobs[C]
 	if err := app.Use(ctx, &blobs, false); err != nil {
 		return err
@@ -64,7 +71,7 @@ func (c *FFmpeg[C]) Convert(ctx context.Context, ref media.Ref, mimeType string)
 	case flu.URL:
 		stream = ffmpeg.Input(input.String())
 	default:
-		input, err := c.blobs.Buffer("", syncf.Value[flu.Input]{Val: input}).Get(ctx)
+		input, err := c.blobs.Buffer("", syncf.Val[flu.Input]{V: input}).Get(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +84,7 @@ func (c *FFmpeg[C]) Convert(ctx context.Context, ref media.Ref, mimeType string)
 		stream = ffmpeg.Input(file.String())
 	}
 
-	blob := c.blobs.Buffer(mimeType, syncf.Value[flu.Input]{Val: make(flu.Bytes, 0)})
+	blob := c.blobs.Buffer(mimeType, syncf.Val[flu.Input]{V: make(flu.Bytes, 0)})
 	ctx = core.SkipSizeCheck(ctx)
 
 	output, err := blob.Get(ctx)

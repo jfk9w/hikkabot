@@ -7,7 +7,7 @@ import (
 
 	"hikkabot/feed"
 
-	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/colf"
 
 	"github.com/jfk9w-go/flu/logf"
 	"github.com/jfk9w-go/flu/syncf"
@@ -42,8 +42,12 @@ func (i *Impl) String() string {
 }
 
 func (i *Impl) CommandScope() tapp.CommandScope {
+	if i.SupervisorID == 0 {
+		return tapp.CommandScope{}
+	}
+
 	return tapp.CommandScope{
-		UserIDs: flu.Set[telegram.ID]{i.SupervisorID: true},
+		UserIDs: colf.Set[telegram.ID]{i.SupervisorID: true},
 	}
 }
 
@@ -67,7 +71,11 @@ func (i *Impl) Subscribe(ctx context.Context, _ telegram.Client, cmd *telegram.C
 		options = cmd.Args[2:]
 	}
 
-	return i.Poller.Subscribe(ctx, feedID, ref, options)
+	if err := i.Poller.Subscribe(ctx, feedID, ref, options); err != nil {
+		return err
+	}
+
+	return cmd.ReplyCallback(ctx, i.Telegram, thumbsUp)
 }
 
 func (i *Impl) Suspend(ctx context.Context, _ telegram.Client, cmd *telegram.Command) error {
@@ -152,7 +160,9 @@ func (i *Impl) List(ctx context.Context, _ telegram.Client, cmd *telegram.Comman
 
 	_, err = i.Telegram.Send(ctx, cmd.Chat.ID, text, &telegram.SendOptions{
 		ReplyMarkup:      telegram.InlineKeyboard(keyboard...),
-		ReplyToMessageID: cmd.Message.ID})
+		ReplyToMessageID: cmd.Message.ID,
+	})
+
 	return err
 }
 
@@ -169,8 +179,7 @@ func (i *Impl) S_callback(ctx context.Context, client telegram.Client, cmd *tele
 		return err
 	}
 
-	_ = cmd.Reply(ctx, client, thumbsUp)
-	return nil
+	return cmd.ReplyCallback(ctx, client, thumbsUp)
 }
 
 func (i *Impl) R_callback(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
@@ -178,8 +187,7 @@ func (i *Impl) R_callback(ctx context.Context, client telegram.Client, cmd *tele
 		return err
 	}
 
-	_ = cmd.Reply(ctx, client, thumbsUp)
-	return nil
+	return cmd.ReplyCallback(ctx, client, thumbsUp)
 }
 
 func (i *Impl) D_callback(ctx context.Context, client telegram.Client, cmd *telegram.Command) error {
@@ -187,8 +195,7 @@ func (i *Impl) D_callback(ctx context.Context, client telegram.Client, cmd *tele
 		return err
 	}
 
-	_ = cmd.Reply(ctx, client, thumbsUp)
-	return nil
+	return cmd.ReplyCallback(ctx, client, thumbsUp)
 }
 
 //
@@ -269,9 +276,10 @@ func formatHeader(header feed.Header) string {
 }
 
 func (i *Impl) parseHeader(cmd *telegram.Command, argumentIndex int) (header feed.Header, err error) {
-	tokens := strings.Split(cmd.Args[argumentIndex], headerDelimiter)
+	arg := cmd.Args[argumentIndex]
+	tokens := strings.Split(arg, headerDelimiter)
 	if len(tokens) != 3 {
-		err = ErrInvalidHeader
+		err = errors.Errorf("invalid header [%s]", header)
 		return
 	}
 

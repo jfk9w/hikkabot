@@ -10,10 +10,8 @@ import (
 
 	"hikkabot/feed/media"
 
-	"github.com/jfk9w-go/flu/apfel"
-
 	"github.com/jfk9w-go/flu"
-
+	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/flu/httpf"
 	"github.com/pkg/errors"
 )

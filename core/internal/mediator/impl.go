@@ -4,14 +4,14 @@ import (
 	"context"
 	"net/url"
 	"sync"
+	"time"
 
 	"hikkabot/feed"
 	"hikkabot/feed/media"
 
-	"github.com/jfk9w-go/flu/me3x"
-
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/logf"
+	"github.com/jfk9w-go/flu/me3x"
 	"github.com/jfk9w-go/flu/syncf"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
@@ -28,6 +28,7 @@ type Impl struct {
 	Blobs   feed.Blobs
 	Locker  syncf.Locker
 	Metrics me3x.Registry
+	Timeout time.Duration
 
 	resolvers  []media.Resolver
 	converters []media.Converter
@@ -68,6 +69,9 @@ func (m *Impl) Mediate(ctx context.Context, source string, dedupKey *feed.ID) re
 				source: url,
 			}
 		}
+
+		ctx, cancel := context.WithTimeout(ctx, m.Timeout)
+		defer cancel()
 
 		logf.Get(m).Tracef(ctx, "mediating [%s]", source)
 		startTime := m.Clock.Now()
@@ -226,7 +230,7 @@ func (m *Impl) dedup(ctx context.Context, mimeType string, ref media.Ref, dedup 
 }
 
 func (m *Impl) bufferLeaveURL(mimeType string, ref media.Ref) media.Ref {
-	return syncf.RefFunc[flu.Input](func(ctx context.Context) (flu.Input, error) {
+	return syncf.Resolve[flu.Input](func(ctx context.Context) (flu.Input, error) {
 		input, err := ref.Get(ctx)
 		if err != nil {
 			return nil, err

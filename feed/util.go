@@ -6,11 +6,8 @@ import (
 
 var (
 	ErrNotFound        = errors.New("not found")
-	ErrExists          = errors.New("exists")
-	ErrForbidden       = errors.New("forbidden")
-	ErrWrongVendor     = errors.New("wrong vendor")
 	ErrSuspendedByUser = errors.New("suspended by user")
-	ErrInvalidHeader   = errors.New("invalid header")
+	ErrUnsupported     = errors.New("unsupported")
 )
 
 const Deadborn = "deadborn"

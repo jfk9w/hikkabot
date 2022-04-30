@@ -13,6 +13,8 @@ import (
 	"hikkabot/core"
 	"hikkabot/feed"
 
+	"github.com/jfk9w-go/flu/colf"
+
 	"github.com/jfk9w-go/flu/me3x"
 
 	"github.com/jfk9w-go/flu"
@@ -39,7 +41,7 @@ type SubredditPacingConfig struct {
 type SubredditConfig struct {
 	Pacing        SubredditPacingConfig `yaml:"pacing,omitempty" doc:"Settings for controlling pacing based on top ratio."`
 	CleanInterval flu.Duration          `yaml:"cleanInterval,omitempty" doc:"How often to clean things from data." default:"24h"`
-	ThingTTL      flu.Duration          `yaml:"thingTTL,omitempty" doc:"How long to keep things in database." default:"168h"`
+	ThingTTL      flu.Duration          `yaml:"thingTtl,omitempty" doc:"How long to keep things in database." default:"168h"`
 }
 
 type SubredditContext interface {
@@ -51,10 +53,10 @@ type SubredditContext interface {
 }
 
 type SubredditData struct {
-	Subreddit     string          `json:"subreddit"`
-	SentIDs       flu.Set[string] `json:"sent_ids,omitempty"`
-	LastCleanSecs int64           `json:"last_clean,omitempty"`
-	Layout        ThingLayout     `json:"layout,omitempty"`
+	Subreddit     string           `json:"subreddit"`
+	SentIDs       colf.Set[string] `json:"sent_ids,omitempty"`
+	LastCleanSecs int64            `json:"last_clean,omitempty"`
+	Layout        ThingLayout      `json:"layout,omitempty"`
 }
 
 type Subreddit[C SubredditContext] struct {
@@ -104,7 +106,7 @@ func (v *Subreddit[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error
 		return err
 	}
 
-	var metrics apfel.Metrics[C]
+	var metrics apfel.Prometheus[C]
 	if err := app.Use(ctx, &metrics, false); err != nil {
 		return err
 	}
@@ -220,7 +222,7 @@ func (v *Subreddit[C]) Refresh(ctx context.Context, header feed.Header, refresh 
 			return err
 		}
 
-		data.SentIDs.Append(thing.ID)
+		data.SentIDs.Add(thing.ID)
 		if err := refresh.Submit(ctx, writeHTML, data); err != nil {
 			return err
 		}
@@ -273,12 +275,9 @@ func (v *Subreddit[C]) getPercentile(ctx context.Context, header feed.Header, da
 	return percentile, v.storage.RedditTx(ctx, func(tx StorageTx) error {
 		boost := 0.
 		if (data.Layout.ShowPreference || data.Layout.ShowPaywall) && len(data.SentIDs) > 0 {
-			score, err := tx.Score(header.FeedID, flu.ToSlice[string](data.SentIDs))
-			if err != nil {
-				return errors.Wrap(err, "score")
-			}
-
-			if score.First != nil && v.clock.Now().Sub(*score.First) >= pacing.Gain.Value {
+			score, err := tx.Score(header.FeedID, colf.ToSlice[string](data.SentIDs))
+			switch {
+			case err == nil && score.First != nil && v.clock.Now().Sub(*score.First) >= pacing.Gain.Value:
 				thingRatio := (float64(score.LikedThings) - float64(score.DislikedThings)) / float64(len(data.SentIDs))
 				if members < pacing.Members {
 					members = pacing.Members
@@ -286,6 +285,8 @@ func (v *Subreddit[C]) getPercentile(ctx context.Context, header feed.Header, da
 
 				userRatio := (float64(score.Likes) - float64(score.Dislikes)) / float64(members)
 				boost = pacing.Scale * thingRatio * userRatio
+			case err != nil:
+				logf.Get(v).Warnf(ctx, "using base pacing %.4f due to score error: %v", pacing.Base, err)
 			}
 		}
 

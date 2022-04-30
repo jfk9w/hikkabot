@@ -54,7 +54,7 @@ func (p *Poller[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
 		return err
 	}
 
-	var metrics apfel.Metrics[C]
+	var metrics apfel.Prometheus[C]
 	if err := app.Use(ctx, &metrics, false); err != nil {
 		return err
 	}

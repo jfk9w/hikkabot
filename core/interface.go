@@ -6,12 +6,13 @@ import (
 	"hikkabot/core/internal/iface"
 
 	"github.com/jfk9w-go/flu/apfel"
+	"github.com/jfk9w-go/flu/logf"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/tapp"
 )
 
 type InterfaceConfig struct {
-	SupervisorID telegram.ID            `yaml:"supervisorId" doc:"Telegram admin user ID."`
+	SupervisorID telegram.ID            `yaml:"supervisorId" doc:"Telegram admin user ID. If not set, only /start command will be available."`
 	Aliases      map[string]telegram.ID `yaml:"aliases,omitempty" doc:"Chat aliases to use in commands: keys are aliases and values are telegram IDs."`
 }
 
@@ -43,6 +44,11 @@ func (i *Interface[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error
 	}
 
 	config := app.Config().InterfaceConfig()
+	if config.SupervisorID == 0 {
+		logf.Get(i).Warnf(ctx, "telegram supervisor ID is not set – subscription management is disabled; "+
+			"consider providing valid user ID (hint: use /start command to get it)")
+	}
+
 	i.Impl = &iface.Impl{
 		Telegram:     bot.Bot(),
 		Poller:       poller,

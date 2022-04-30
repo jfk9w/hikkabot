@@ -8,7 +8,10 @@ import (
 
 	"hikkabot/feed"
 
-	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/colf"
+
+	"github.com/jfk9w-go/flu/logf"
+
 	"github.com/jfk9w-go/flu/gormf"
 	"github.com/jfk9w-go/flu/syncf"
 	"github.com/pkg/errors"
@@ -19,6 +22,7 @@ import (
 type SQL struct {
 	Clock syncf.Clock
 	DB    *gorm.DB
+	IsPG  bool
 }
 
 func (s *SQL) GetActiveFeedIDs(ctx context.Context) ([]feed.ID, error) {
@@ -41,7 +45,7 @@ func (s *SQL) CreateSubscription(ctx context.Context, sub *feed.Subscription) er
 		Omit("updated_at").
 		Create(sub)
 	if tx.Error == nil && tx.RowsAffected < 1 {
-		return feed.ErrExists
+		return errors.New("exists")
 	}
 
 	return tx.Error
@@ -93,13 +97,17 @@ func (s *SQL) SaveEvent(ctx context.Context, feedID feed.ID, eventType string, v
 }
 
 func (s *SQL) CountEventsBy(ctx context.Context, feedID feed.ID, since time.Time, key string, multipliers map[string]float64) (map[string]int64, error) {
+	if err := postgresDisclaimer(s.IsPG, "CountEventsBy"); err != nil {
+		return nil, err
+	}
+
 	var rows []struct {
 		Type   string
 		Key    string
 		Events int64
 	}
 
-	types := flu.ToSlice[string](flu.Keys[string, float64](multipliers))
+	types := colf.Keys[string, float64](multipliers)
 	if err := s.DB.WithContext(ctx).Raw(fmt.Sprintf( /* language=SQL */ `
 		select type, jsonb_extract_path_text(data, '%s') as key, count(1) as events
 		from event
@@ -120,7 +128,7 @@ func (s *SQL) CountEventsBy(ctx context.Context, feedID feed.ID, since time.Time
 }
 
 func (s *SQL) EventTx(ctx context.Context, body func(tx feed.EventTx) error) error {
-	return s.tx(ctx, func(tx *gorm.DB) error { return body(&sqlTx{clock: s.Clock, db: s.DB}) })
+	return s.tx(ctx, func(tx *gorm.DB) error { return body(&sqlTx{clock: s.Clock, db: s.DB, isPG: s.IsPG}) })
 }
 
 func (s *SQL) IsMediaUnique(ctx context.Context, hash *feed.MediaHash) (bool, error) {
@@ -162,6 +170,7 @@ func (s *SQL) tx(ctx context.Context, body func(tx *gorm.DB) error) error {
 type sqlTx struct {
 	clock syncf.Clock
 	db    *gorm.DB
+	isPG  bool
 }
 
 func (stx *sqlTx) GetSubscription(header feed.Header) (*feed.Subscription, error) {
@@ -218,6 +227,10 @@ func (stx *sqlTx) UpdateSubscription(header feed.Header, value interface{}) erro
 }
 
 func (stx *sqlTx) GetLastEventData(feedID feed.ID, eventType string, filter map[string]any, value any) error {
+	if err := postgresDisclaimer(stx.isPG, "GetLastEventData"); err != nil {
+		return err
+	}
+
 	where, values := whereEvent(feedID, []string{eventType}, filter)
 	var row struct {
 		Data gormf.JSONB
@@ -253,6 +266,10 @@ func (stx *sqlTx) SaveEvent(feedID feed.ID, eventType string, value any) error {
 }
 
 func (stx *sqlTx) DeleteEvents(feedID feed.ID, types []string, filter map[string]any) error {
+	if err := postgresDisclaimer(stx.isPG, "DeleteEvents"); err != nil {
+		return err
+	}
+
 	where, values := whereEvent(feedID, types, filter)
 	return stx.db.
 		Delete(new(feed.Event), append([]any{where}, values...)...).
@@ -260,6 +277,10 @@ func (stx *sqlTx) DeleteEvents(feedID feed.ID, types []string, filter map[string
 }
 
 func (stx *sqlTx) CountEventsByType(feedID feed.ID, types []string, filter map[string]any) (map[string]int64, error) {
+	if err := postgresDisclaimer(stx.isPG, "CountEventsByType"); err != nil {
+		return nil, err
+	}
+
 	var rows []struct {
 		Type   string
 		Events int64
@@ -283,6 +304,15 @@ func (stx *sqlTx) CountEventsByType(feedID feed.ID, types []string, filter map[s
 	}
 
 	return stats, nil
+}
+
+func postgresDisclaimer(isPG bool, name string) error {
+	if !isPG {
+		logf.Get(ServiceID).Warnf(nil, "%s is not supported, you may want to switch to postgres", name)
+		return feed.ErrUnsupported
+	}
+
+	return nil
 }
 
 func whereEvent(feedID feed.ID, types []string, filter map[string]any) (string, []any) {

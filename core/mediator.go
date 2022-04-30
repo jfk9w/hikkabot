@@ -7,14 +7,16 @@ import (
 	"hikkabot/feed"
 	"hikkabot/feed/media"
 
-	"github.com/jfk9w-go/flu/syncf"
+	"github.com/jfk9w-go/flu"
 
 	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/flu/logf"
+	"github.com/jfk9w-go/flu/syncf"
 )
 
 type MediatorConfig struct {
-	Concurrency int `yaml:"concurrency,omitempty" doc:"How many concurrent media downloads to allow." default:"5"`
+	Concurrency int          `yaml:"concurrency,omitempty" doc:"How many concurrent media downloads to allow." default:"5"`
+	Timeout     flu.Duration `yaml:"timeout,omitempty" doc:"If mediation time exceeds timeout, it will be interrupted." default:"10m"`
 }
 
 type MediatorService interface {
@@ -53,7 +55,7 @@ func (m *Mediator[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error 
 		return err
 	}
 
-	var metrics apfel.Metrics[C]
+	var metrics apfel.Prometheus[C]
 	if err := app.Use(ctx, &metrics, false); err != nil {
 		return err
 	}
@@ -65,6 +67,7 @@ func (m *Mediator[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error 
 		Blobs:   blobs,
 		Metrics: metrics.Registry().WithPrefix("app_media"),
 		Locker:  syncf.Semaphore(app, config.Concurrency, 0),
+		Timeout: config.Timeout.Value,
 	}
 
 	if err := app.Manage(ctx, mediator); err != nil {

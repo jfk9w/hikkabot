@@ -9,9 +9,12 @@ import (
 	"hikkabot/core"
 	"hikkabot/feed"
 
+	"github.com/jfk9w-go/flu/colf"
+
+	"github.com/jfk9w-go/flu/logf"
+
 	"github.com/pkg/errors"
 
-	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/flu/gormf"
 	"gorm.io/gorm"
@@ -57,6 +60,7 @@ func (s *Storage[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
 		Storage:      storage,
 		EventStorage: storage,
 		db:           db.DB(),
+		isPG:         db.Config.Driver == "postgres",
 	}
 
 	return nil
@@ -72,15 +76,17 @@ func (s *sqlStorage) SaveThings(ctx context.Context, things []reddit.Thing) erro
 type sqlStorage struct {
 	feed.Storage
 	feed.EventStorage
-	db *gorm.DB
+	db   *gorm.DB
+	isPG bool
 }
 
 func (s *sqlStorage) RedditTx(ctx context.Context, body func(tx StorageTx) error) error {
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error { return body(&sqlStorageTx{db: s.db}) })
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error { return body(&sqlStorageTx{db: s.db, isPG: s.isPG}) })
 }
 
 type sqlStorageTx struct {
-	db *gorm.DB
+	db   *gorm.DB
+	isPG bool
 }
 
 func (stx *sqlStorageTx) GetPercentile(subreddit string, top float64) (int, error) {
@@ -99,6 +105,11 @@ func (stx *sqlStorageTx) GetPercentile(subreddit string, top float64) (int, erro
 }
 
 func (stx *sqlStorageTx) Score(feedID feed.ID, thingIDs []string) (*Score, error) {
+	if !stx.isPG {
+		logf.Get(storageServiceID).Warnf(nil, "Score not supported, you may want to switch to postgres")
+		return nil, feed.ErrUnsupported
+	}
+
 	score := new(Score)
 	return score, stx.db.Raw( /* language=SQL */ `
 		select min(time) as first,
@@ -120,19 +131,19 @@ func (stx *sqlStorageTx) DeleteStaleThings(until time.Time) (int64, error) {
 	return tx.RowsAffected, tx.Error
 }
 
-func (stx *sqlStorageTx) GetFreshThingIDs(ids flu.Set[string]) (flu.Set[string], error) {
-	freshIDs := make(flu.Slice[string], 0)
+func (stx *sqlStorageTx) GetFreshThingIDs(ids colf.Set[string]) (colf.Set[string], error) {
+	freshIDs := make(colf.Slice[string], 0)
 	if err := stx.db.Raw( /* language=SQL */ `
 		select id from reddit
 		where id in ?
 		order by num_id`,
-		flu.ToSlice[string](ids)).
+		colf.ToSlice[string](ids)).
 		Scan(&freshIDs).
 		Error; err != nil {
 		return nil, err
 	}
 
-	set := make(flu.Set[string], len(freshIDs))
-	flu.AppendAll[string](&set, freshIDs)
+	set := make(colf.Set[string], len(freshIDs))
+	colf.AddAll[string](&set, freshIDs)
 	return set, nil
 }

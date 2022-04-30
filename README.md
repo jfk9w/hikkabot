@@ -4,22 +4,24 @@
 
 Telegram bot which allows relaying third-party feed updates to Telegram chats.
 
-## Usage
-
-Hikkabot requires a configuration file. The path must be provided as the first command-line argument.
-
-You can use [this template](https://github.com/jfk9w/hikkabot/raw/master/config_template.yml) to build the configuration upon.
-
 ### Installation and execution
 
 Install using Go package manager:
 
 ```bash
 $ go install hikkabot
-$ hikkabot config.yml
+$ hikkabot --config.schema=yaml > config.schema.yaml # this way you can get configuration JSON schema
+$ hikkabot --config.file=config.yml # pass your configuration file
 ```
 
-Logs are printed to stdout.
+Alternatively, you can use our Docker image:
+
+```bash
+$ docker run ghcr.io/jfk9w-go/hikkabot --telegram.token=<your_telegram_bot_api_token>
+$ hikkabot_telegram_token=<your_telegram_bot_api_token> docker run ghcr.io/jfk9w-go/hikkabot # you can also pass configuration options as environment variables
+```
+
+`--help` is also available.
 
 ## Features
 

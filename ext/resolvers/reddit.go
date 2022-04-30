@@ -5,21 +5,22 @@ import (
 	"net/url"
 
 	"hikkabot/3rdparty/reddit"
-	"hikkabot/3rdparty/viddit"
+	"hikkabot/3rdparty/redditsave"
 	"hikkabot/feed/media"
 
 	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/flu/httpf"
+	"github.com/pkg/errors"
 )
 
 type RedditContext interface {
 	reddit.Context
-	viddit.Context
+	redditsave.Context
 }
 
 type Reddit[C RedditContext] struct {
-	client httpf.Client
-	viddit viddit.Interface
+	client     httpf.Client
+	redditsave redditsave.Interface
 }
 
 func (r *Reddit[C]) String() string {
@@ -32,13 +33,13 @@ func (r *Reddit[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
 		return err
 	}
 
-	var viddit viddit.Client[C]
-	if err := app.Use(ctx, &viddit, false); err != nil {
+	var redditsave redditsave.Client[C]
+	if err := app.Use(ctx, &redditsave, false); err != nil {
 		return err
 	}
 
 	r.client = client
-	r.viddit = viddit
+	r.redditsave = redditsave
 	return nil
 }
 
@@ -52,9 +53,9 @@ func (r *Reddit[C]) Resolve(ctx context.Context, source *url.URL) (media.MetaRef
 		}, nil
 
 	case "v.redd.it":
-		url, err := r.viddit.ResolveURL(ctx, source.String())
+		url, err := r.redditsave.ResolveURL(ctx, source.String())
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "via redditsave")
 		}
 
 		return &media.HTTPRef{

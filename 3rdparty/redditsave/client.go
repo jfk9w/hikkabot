@@ -1,4 +1,4 @@
-package viddit
+package redditsave
 
 import (
 	"context"
@@ -18,14 +18,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-var URL = "https://viddit.red"
+var URL = "https://redditsave.com"
 
 type Config struct {
 	RefreshEvery flu.Duration `yaml:"refreshEvery,omitempty" doc:"Cookie refresh interval" default:"20m"`
 }
 
 type Context interface {
-	VidditConfig() Config
+	RedditsaveConfig() Config
 }
 
 type Client[C Context] struct {
@@ -33,10 +33,15 @@ type Client[C Context] struct {
 }
 
 func (c *Client[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
+	config := app.Config().RedditsaveConfig()
+	return c.Standalone(ctx, app, config.RefreshEvery.Value)
+}
+
+func (c *Client[C]) Standalone(ctx context.Context, clock syncf.Clock, refreshEvery time.Duration) error {
 	c.client = &client{
 		client:       new(http.Client),
-		clock:        app,
-		refreshEvery: app.Config().VidditConfig().RefreshEvery.Value,
+		clock:        clock,
+		refreshEvery: refreshEvery,
 	}
 
 	return nil
@@ -52,7 +57,7 @@ type client struct {
 }
 
 func (c *client) String() string {
-	return "viddit.client"
+	return "redditsave.client"
 }
 
 func (c *client) Do(req *http.Request) (*http.Response, error) {
@@ -73,13 +78,12 @@ func (c *client) ResolveURL(ctx context.Context, url string) (string, error) {
 	if now.Sub(c.lastRefresh) <= c.refreshEvery {
 		defer cancel()
 		var resp resolveResponse
-		err := httpf.GET(URL).
+		err := httpf.GET(URL+"/info").
 			Query("url", url).
 			Exchange(ctx, c).
 			CheckStatus(http.StatusOK).
 			Handle(&resp).
 			Error()
-		logf.Get(c).Resultf(ctx, logf.Debug, logf.Warn, "resolve url for [%s]: %v", url, err)
 		return resp.url, err
 	}
 

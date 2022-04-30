@@ -19,10 +19,6 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-type OnResumeListener interface {
-	OnResume(ctx context.Context, data gormf.JSONB) error
-}
-
 type Impl struct {
 	Clock    syncf.Clock
 	Storage  feed.Storage
@@ -88,7 +84,10 @@ func (p *Impl) Subscribe(ctx context.Context, feedID feed.ID, ref string, option
 
 		if listener, ok := vendor.(feed.BeforeResumeListener); ok {
 			err := listener.BeforeResume(ctx, header)
-			logf.Get(p).Tracef(ctx, "resumed %s: %v", header, err)
+			logf.Get(p).Resultf(ctx, logf.Debug, logf.Warn, "before resume [%s]: %v", header, err)
+			if err != nil {
+				return err
+			}
 		}
 
 		data, err := gormf.ToJSONB(draft.Data)
@@ -122,7 +121,7 @@ func (p *Impl) Subscribe(ctx context.Context, feedID feed.ID, ref string, option
 		return nil
 	}
 
-	return feed.ErrWrongVendor
+	return errors.New("failed to find matching vendor")
 }
 
 func (p *Impl) Suspend(ctx context.Context, header feed.Header, err error) error {
@@ -148,6 +147,14 @@ func (p *Impl) Resume(ctx context.Context, header feed.Header) error {
 		return errors.Errorf("no vendor for %s", header.Vendor)
 	}
 
+	if listener, ok := vendor.(feed.BeforeResumeListener); ok {
+		err := listener.BeforeResume(ctx, header)
+		logf.Get(p).Resultf(ctx, logf.Debug, logf.Warn, "before resume [%s]: %v", header, err)
+		if err != nil {
+			return err
+		}
+	}
+
 	var sub *feed.Subscription
 	if err := p.Storage.Tx(ctx, func(tx feed.Tx) error {
 		if err := tx.UpdateSubscription(header, nil); err != nil {
@@ -159,12 +166,6 @@ func (p *Impl) Resume(ctx context.Context, header feed.Header) error {
 		return err
 	}); err != nil {
 		return err
-	}
-
-	if listener, ok := vendor.(OnResumeListener); ok {
-		if err := listener.OnResume(ctx, sub.Data); err != nil {
-			return errors.Wrap(err, "call on resume listener")
-		}
 	}
 
 	p.submitTask(header.FeedID)
@@ -235,7 +236,7 @@ func (p *Impl) submitTask(feedID feed.ID) {
 func (p *Impl) refresh(ctx context.Context, sub *feed.Subscription) (int, error) {
 	vendor, ok := p.vendors[sub.Vendor]
 	if !ok {
-		return 0, feed.ErrWrongVendor
+		return 0, errors.Errorf("vendor [%s] not found", sub.Vendor)
 	}
 
 	header := sub.Header

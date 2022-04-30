@@ -6,6 +6,8 @@ import (
 	"hikkabot/core/internal/storage"
 	"hikkabot/feed"
 
+	"github.com/jfk9w-go/flu/logf"
+
 	"github.com/jfk9w-go/flu/apfel"
 	"github.com/pkg/errors"
 )
@@ -33,7 +35,13 @@ func (s *Storage[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
 		return nil
 	}
 
-	db := &apfel.GormDB[C]{Config: app.Config().StorageConfig()}
+	config := app.Config().StorageConfig()
+	if config.Driver != "postgres" {
+		logf.Get(s).Warnf(ctx, "database driver is not postgres – some functions will be unavailable; "+
+			"consider switching to postgres")
+	}
+
+	db := &apfel.GormDB[C]{Config: config}
 	if err := app.Use(ctx, db, false); err != nil {
 		return err
 	}
@@ -45,6 +53,7 @@ func (s *Storage[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
 	s.StorageService = &storage.SQL{
 		Clock: app,
 		DB:    db.DB(),
+		IsPG:  db.Config.Driver == "postgres",
 	}
 
 	return nil

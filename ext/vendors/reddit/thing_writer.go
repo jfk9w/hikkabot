@@ -59,7 +59,7 @@ func (w *thingWriter[C]) mediaRef(ctx context.Context, thing reddit.ThingData, d
 		}
 
 		if url == "" {
-			return syncf.Value[*receiver.Media]{Err: errors.New("unable to find url")}
+			return syncf.Val[*receiver.Media]{E: errors.New("unable to find url")}
 		}
 	}
 

@@ -5,23 +5,21 @@ import (
 
 	"hikkabot/3rdparty/dvach"
 	"hikkabot/3rdparty/reddit"
-	"hikkabot/3rdparty/viddit"
+	"hikkabot/3rdparty/redditsave"
 	"hikkabot/core"
 	"hikkabot/ext/converters"
 	"hikkabot/ext/resolvers"
 	"hikkabot/ext/vendors"
 
-	"github.com/jfk9w-go/flu/gormf"
-	"gorm.io/gorm"
-
-	"gorm.io/driver/sqlite"
-
 	"github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"
+	"github.com/jfk9w-go/flu/gormf"
 	"github.com/jfk9w-go/flu/logf"
 	"github.com/jfk9w-go/telegram-bot-api/ext/tapp"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 type C struct {
@@ -30,36 +28,32 @@ type C struct {
 		core.InterfaceConfig `yaml:",inline"`
 	} `yaml:"telegram" doc:"Bot-related settings."`
 
-	Poller struct {
-		core.PollerConfig `yaml:",inline"`
-		Db                apfel.GormConfig `yaml:"db" doc:"Poller database connection settings. Supported drivers: postgres, sqlite"`
-		Media             struct {
-			core.BlobConfig     `yaml:",inline"`
-			core.MediatorConfig `yaml:",inline"`
-		} `yaml:"media,omitempty" doc:"Media downloader settings."`
-	} `yaml:"poller" doc:"Poller-related settings."`
+	Db apfel.GormConfig `yaml:"db,omitempty" doc:"Poller database connection settings. Supported drivers: postgres, sqlite (not fully)" default:"{\"driver\":\"sqlite\",\"dsn\":\"file::memory:?cache=shared\"}"`
 
-	Viddit viddit.Config `yaml:"viddit,omitempty" doc:"viddit.com-related settings."`
+	Poller core.PollerConfig `yaml:"poller,omitempty" doc:"Poller-related settings."`
+
+	Media struct {
+		core.BlobConfig     `yaml:",inline"`
+		core.MediatorConfig `yaml:",inline"`
+	} `yaml:"media,omitempty" doc:"Media downloader settings."`
+
+	FFmpeg struct {
+		Enabled bool `yaml:"enabled,omitempty" doc:"Whether ffmpeg-based media converter should be enabled. Requires ffmpeg to be present in $PATH." default:"true"`
+	} `yaml:"ffmpeg,omitempty" doc:"FFmpeg-related settings."`
 
 	Aconvert struct {
-		Enabled         bool `yaml:"enabled,omitempty" doc:"Whether aconvert.com-based converter should be enabled."`
+		Enabled         bool `yaml:"enabled,omitempty" doc:"Whether aconvert.com-based media converter should be enabled."`
 		aconvert.Config `yaml:",inline"`
 	} `yaml:"aconvert,omitempty" doc:"aconvert.com-related settings."`
 
-	FFmpeg struct {
-		Enabled bool `yaml:"enabled,omitempty" doc:"Whether ffmpeg-based converter should be enabled."`
-	} `yaml:"ffmpeg,omitempty" doc:"ffmpeg-related settings."`
-
-	Dvach struct {
-		Enabled      bool `yaml:"enabled,omitempty" doc:"Whether 2ch.hk-based vendors should be enabled."`
-		dvach.Config `yaml:",inline"`
-	} `yaml:"dvach,omitempty" doc:"2ch.hk-related settings."`
+	Dvach dvach.Config `yaml:"dvach,omitempty" doc:"2ch.hk-related settings."`
 
 	Reddit struct {
 		Enabled       bool `yaml:"enabled,omitempty" doc:"Whether reddit.com-based vendors should be enabled."`
 		reddit.Config `yaml:",inline"`
-		Posts         vendors.SubredditConfig            `yaml:"posts,omitempty" doc:"Subreddit posts settings."`
-		Suggestions   vendors.SubredditSuggestionsConfig `yaml:"suggestions,omitempty" doc:"Subreddit suggestions settings."`
+		Redditsave    redditsave.Config                  `yaml:"redditsave,omitempty" doc:"redditsave.com-related settings. Used to resolve v.redd.it videos with audio."`
+		Posts         vendors.SubredditConfig            `yaml:"posts,omitempty" doc:"Subreddit posts vendor settings."`
+		Suggestions   vendors.SubredditSuggestionsConfig `yaml:"suggestions,omitempty" doc:"Subreddit suggestions vendor settings."`
 	} `yaml:"reddit,omitempty" doc:"reddit.com-related settings."`
 
 	Logging    apfel.LogfConfig       `yaml:"logging,omitempty" doc:"Logging settings."`
@@ -70,13 +64,13 @@ func (c C) LogfConfig() apfel.LogfConfig             { return c.Logging }
 func (c C) PrometheusConfig() apfel.PrometheusConfig { return c.Prometheus }
 func (c C) TelegramConfig() tapp.Config              { return c.Telegram.Config }
 func (c C) InterfaceConfig() core.InterfaceConfig    { return c.Telegram.InterfaceConfig }
-func (c C) PollerConfig() core.PollerConfig          { return c.Poller.PollerConfig }
-func (c C) StorageConfig() apfel.GormConfig          { return c.Poller.Db }
-func (c C) BlobConfig() core.BlobConfig              { return c.Poller.Media.BlobConfig }
-func (c C) VidditConfig() viddit.Config              { return c.Viddit }
+func (c C) PollerConfig() core.PollerConfig          { return c.Poller }
+func (c C) StorageConfig() apfel.GormConfig          { return c.Db }
+func (c C) BlobConfig() core.BlobConfig              { return c.Media.BlobConfig }
+func (c C) RedditsaveConfig() redditsave.Config      { return c.Reddit.Redditsave }
 func (c C) AconvertConfig() aconvert.Config          { return c.Aconvert.Config }
-func (c C) MediatorConfig() core.MediatorConfig      { return c.Poller.Media.MediatorConfig }
-func (c C) DvachConfig() dvach.Config                { return c.Dvach.Config }
+func (c C) MediatorConfig() core.MediatorConfig      { return c.Media.MediatorConfig }
+func (c C) DvachConfig() dvach.Config                { return c.Dvach }
 func (c C) RedditConfig() reddit.Config              { return c.Reddit.Config }
 func (c C) SubredditConfig() vendors.SubredditConfig { return c.Reddit.Posts }
 func (c C) SubredditSuggestionsConfig() vendors.SubredditSuggestionsConfig {
@@ -86,8 +80,6 @@ func (c C) SubredditSuggestionsConfig() vendors.SubredditSuggestionsConfig {
 var GitCommit = "dev"
 
 func main() {
-	logf.ResetLevel(logf.Trace)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -104,7 +96,7 @@ func main() {
 				"sqlite":   sqlite.Open,
 			},
 			Config: gorm.Config{
-				Logger: gormf.LogfLogger(app, func() logf.Interface { return logf.Get("gorm.sql") }),
+				Logger: gormf.LogfLogger(app, "gorm.sql"),
 			},
 		}
 
@@ -114,7 +106,7 @@ func main() {
 
 	app.Uses(ctx,
 		new(apfel.Logf[C]),
-		new(apfel.Metrics[C]),
+		new(apfel.Prometheus[C]),
 		&telegram,
 		gorm,
 		&poller,
@@ -122,24 +114,16 @@ func main() {
 		&resolvers.GfycatLike[C]{Name: "gfycat"},
 		&resolvers.GfycatLike[C]{Name: "redgifs"},
 		new(resolvers.Imgur[C]),
+		new(converters.FFmpeg[C]),
+		new(resolvers.Dvach[C]),
+		vendors.DvachCatalog[C](),
+		vendors.DvachThread[C](),
 	)
 
 	config := app.Config()
 
-	if config.FFmpeg.Enabled {
-		app.Uses(ctx, new(converters.FFmpeg[C]))
-	}
-
 	if config.Aconvert.Enabled {
 		app.Uses(ctx, new(converters.Aconvert[C]))
-	}
-
-	if config.Dvach.Enabled {
-		app.Uses(ctx,
-			new(resolvers.Dvach[C]),
-			vendors.DvachCatalog[C](),
-			vendors.DvachThread[C](),
-		)
 	}
 
 	if config.Reddit.Enabled {

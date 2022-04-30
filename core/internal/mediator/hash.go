@@ -10,11 +10,10 @@ import (
 
 	"hikkabot/feed"
 
-	"golang.org/x/image/bmp"
-
 	"github.com/corona10/goimagehash"
 	"github.com/jfk9w-go/flu"
 	"github.com/pkg/errors"
+	"golang.org/x/image/bmp"
 )
 
 type readImageFunc func(io.Reader) (image.Image, error)

@@ -1,4 +1,4 @@
-package viddit
+package redditsave
 
 import "context"
 

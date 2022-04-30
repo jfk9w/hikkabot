@@ -14,9 +14,9 @@ import (
 )
 
 type BlobConfig struct {
-	MinSize media.Size   `yaml:"minSize,omitempty" doc:"Minimum media file size." pattern:"^(\\d+)([kmgt])?$" default:"0"`
-	MaxSize media.Size   `yaml:"maxSize,omitempty" doc:"Maximum media file size." pattern:"^(\\d+)([kmgt])?$" default:"50m"`
-	TTL     flu.Duration `yaml:"ttl,omitempty" doc:"How long to keep cached files." default:"5m"`
+	MinSize media.Size   `yaml:"minSize,omitempty" doc:"Minimum media file size." pattern:"^(\\d+)([KMGT])?$" default:"10K"`
+	MaxSize media.Size   `yaml:"maxSize,omitempty" doc:"Maximum media file size." pattern:"^(\\d+)([KMGT])?$" default:"50M"`
+	TTL     flu.Duration `yaml:"ttl,omitempty" doc:"How long to keep cached files." default:"15m"`
 }
 
 type BlobContext interface {

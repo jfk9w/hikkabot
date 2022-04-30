@@ -120,10 +120,15 @@ func (c *client) authorize(ctx context.Context) (string, error) {
 	return resp.AccessToken, nil
 }
 
-func (c *client) execute(ctx context.Context, req *httpf.RequestBuilder) *httpf.ExchangeResult {
+var (
+	errUnauthorized = errors.New("unauthorized")
+	errRateLimited  = errors.New("rate-limited")
+)
+
+func (c *client) execute(ctx context.Context, req *httpf.RequestBuilder, result any) error {
 	token, err := c.getToken(ctx)
 	if err != nil {
-		return httpf.ExchangeError(err)
+		return err
 	}
 
 	defer func() { _ = c.done(ctx, token) }()
@@ -133,41 +138,58 @@ func (c *client) execute(ctx context.Context, req *httpf.RequestBuilder) *httpf.
 			token, err = c.authorize(ctx)
 			logf.Get(c).Resultf(ctx, logf.Debug, logf.Error, "refresh token: %v", err)
 			if err != nil {
-				return httpf.ExchangeError(errors.Wrap(err, "authorize"))
+				return errors.Wrap(err, "authorize")
 			}
 		}
 
 		resp = req.Auth(httpf.Bearer(token)).Exchange(ctx, c)
-		if err := resp.Error(); err != nil {
-			return httpf.ExchangeError(err)
+
+		resp.HandleFunc(func(resp *http.Response) error {
+			switch resp.StatusCode {
+			case http.StatusOK:
+				return nil
+
+			case http.StatusUnauthorized:
+				token = ""
+				return errUnauthorized
+
+			case http.StatusTooManyRequests:
+				resetValue := resp.Header.Get("X-Ratelimit-Reset")
+				reset, err := strconv.Atoi(resetValue)
+				if err != nil {
+					return errors.Wrapf(err, "parse reset header: %s", resetValue)
+				}
+
+				resetAfter := time.Duration(reset) * time.Second
+				logf.Get(c).Warnf(ctx, "request overflow, sleeping for %s", resetAfter)
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(resetAfter):
+					return errRateLimited
+				}
+
+			default:
+				return nil
+			}
+		})
+
+		if result != nil {
+			resp.DecodeBody(flu.JSON(result))
 		}
 
-		switch resp.StatusCode {
-		case http.StatusUnauthorized:
-			token = ""
+		err = resp.Error()
+		switch err {
+		case nil:
+			return nil
+		case errUnauthorized, errRateLimited:
 			continue
-
-		case http.StatusTooManyRequests:
-			resetValue := resp.Header.Get("X-Ratelimit-Reset")
-			reset, err := strconv.Atoi(resetValue)
-			if err != nil {
-				return httpf.ExchangeError(errors.Wrapf(err, "parse reset header: %s", resetValue))
-			}
-
-			resetAfter := time.Duration(reset) * time.Second
-			select {
-			case <-ctx.Done():
-				return httpf.ExchangeError(ctx.Err())
-			case <-time.After(resetAfter):
-				continue
-			}
-
 		default:
-			return resp
+			return err
 		}
 	}
 
-	return resp
+	return err
 }
 
 func (c *client) GetListing(ctx context.Context, subreddit, sort string, limit int) ([]Thing, error) {
@@ -177,10 +199,8 @@ func (c *client) GetListing(ctx context.Context, subreddit, sort string, limit i
 
 	var resp Listing
 	if err := c.execute(ctx, httpf.GET(Host+"/r/"+subreddit+"/"+sort).
-		Query("limit", strconv.Itoa(limit))).
-		CheckStatus(http.StatusOK).
-		DecodeBody(&resp).
-		Error(); err != nil {
+		Query("limit", strconv.Itoa(limit)),
+		&resp); err != nil {
 		return nil, errors.Wrap(err, "get listing")
 	}
 
@@ -190,10 +210,8 @@ func (c *client) GetListing(ctx context.Context, subreddit, sort string, limit i
 func (c *client) GetPosts(ctx context.Context, subreddit string, ids ...string) ([]Thing, error) {
 	var resp Listing
 	if err := c.execute(ctx, httpf.GET(Host+"/r/"+subreddit+"/api/info").
-		Query("id", strings.Join(ids, ","))).
-		CheckStatus(http.StatusOK).
-		DecodeBody(&resp).
-		Error(); err != nil {
+		Query("id", strings.Join(ids, ",")),
+		&resp); err != nil {
 		return nil, errors.Wrap(err, "get posts")
 	}
 
@@ -204,9 +222,8 @@ func (c *client) Subscribe(ctx context.Context, action SubscribeAction, subreddi
 	return c.execute(ctx, httpf.POST(Host+"/api/subscribe", nil).
 		Query("action", string(action)).
 		Query("skip_initial_defaults", "true").
-		Query("sr_name", strings.Join(subreddits, ","))).
-		CheckStatus(http.StatusOK).
-		Error()
+		Query("sr_name", strings.Join(subreddits, ",")),
+		nil)
 }
 
 func withUserAgent(rt http.RoundTripper, userAgent string) httpf.RoundTripperFunc {

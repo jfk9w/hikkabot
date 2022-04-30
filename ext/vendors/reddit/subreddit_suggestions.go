@@ -10,10 +10,9 @@ import (
 	"hikkabot/core"
 	"hikkabot/feed"
 
-	"github.com/jfk9w-go/flu/logf"
-
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"
+	"github.com/jfk9w-go/flu/logf"
 	"github.com/jfk9w-go/flu/syncf"
 	"github.com/jfk9w-go/telegram-bot-api"
 	"github.com/jfk9w-go/telegram-bot-api/ext/html"

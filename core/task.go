@@ -6,7 +6,8 @@ import (
 
 	"hikkabot/feed"
 
-	"github.com/jfk9w-go/flu"
+	"github.com/jfk9w-go/flu/colf"
+
 	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/flu/logf"
 	"github.com/jfk9w-go/flu/syncf"
@@ -27,7 +28,7 @@ func (e *TaskExecutor[C]) Include(ctx context.Context, app apfel.MixinApp[C]) er
 		return nil
 	}
 
-	executor := &taskExecutor{tasks: make(flu.Set[string])}
+	executor := &taskExecutor{tasks: make(colf.Set[string])}
 	executor.ctx, executor.cancel = context.WithCancel(context.Background())
 
 	if err := app.Manage(ctx, executor); err != nil {
@@ -40,7 +41,7 @@ func (e *TaskExecutor[C]) Include(ctx context.Context, app apfel.MixinApp[C]) er
 
 type taskExecutor struct {
 	ctx    context.Context
-	tasks  flu.Set[string]
+	tasks  colf.Set[string]
 	cancel func()
 	work   syncf.WaitGroup
 	mu     syncf.RWMutex
@@ -73,7 +74,7 @@ func (e *taskExecutor) Submit(id any, task feed.Task) {
 		logf.Resultf(ctx, logf.Debug, logf.Warn, "task [%s] completed: %v", key, err)
 	})
 
-	e.tasks.Append(key)
+	e.tasks.Add(key)
 	logf.Get(e).Debugf(ctx, "started task [%s]", key)
 }
 
