@@ -36,6 +36,10 @@ func (r *Imgur[C]) Resolve(ctx context.Context, source *url.URL) (media.MetaRef,
 	}
 
 	url := source.String()
+	if strings.HasSuffix(url, ".jpg") {
+		return &media.HTTPRef{URL: url}, nil
+	}
+
 	if strings.Contains(url, ".gifv") {
 		url := strings.Replace(url, ".gifv", ".mp4", 1)
 		return &media.HTTPRef{URL: url}, nil

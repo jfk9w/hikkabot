@@ -3,8 +3,6 @@ package iface
 import "github.com/pkg/errors"
 
 var (
-	ErrInvalidHeader = errors.New("invalid header")
-
 	errSubscribe = errors.New("" +
 		"Usage: /subscribe SUB [CHAT_ID] [OPTIONS]\n\n" +
 		"SUB – subscription string (for example, a link).\n" +

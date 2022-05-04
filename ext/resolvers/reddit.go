@@ -62,6 +62,9 @@ func (r *Reddit[C]) Resolve(ctx context.Context, source *url.URL) (media.MetaRef
 			URL:    url,
 			Client: r.client,
 			Buffer: true,
+			Meta: &media.Meta{
+				MIMEType: "video/mp4",
+			},
 		}, nil
 
 	default:
