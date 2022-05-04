@@ -151,12 +151,12 @@ func (r *response) DecodeFrom(body io.Reader) error {
 		return err
 	}
 
-	if err := flu.DecodeFrom(&buf, flu.JSON(r.value)); err == nil {
+	if err := flu.DecodeFrom(buf.Bytes(), flu.JSON(r.value)); err == nil {
 		return nil
 	}
 
 	var err Error
-	if err := flu.DecodeFrom(&buf, flu.JSON(&err)); err != nil {
+	if err := flu.DecodeFrom(buf.Bytes(), flu.JSON(&err)); err != nil {
 		return errors.Errorf("failed to decode response [%s]", buf.Bytes().String())
 	}
 
