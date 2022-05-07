@@ -30,7 +30,7 @@ func (r *Imgur[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
 
 func (r *Imgur[C]) Resolve(ctx context.Context, source *url.URL) (media.MetaRef, error) {
 	switch source.Host {
-	case "imgur.com", "www.imgur.com", "i.imgur.com":
+	case "imgur.com", "www.imgur.com", "i.imgur.com", "m.imgur.com":
 	default:
 		return nil, nil
 	}
