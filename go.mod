@@ -6,16 +6,16 @@ require (
 	github.com/corona10/goimagehash v1.0.3
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/jfk9w-go/aconvert-api v0.11.2
-	github.com/jfk9w-go/flu v0.11.4
-	github.com/jfk9w-go/telegram-bot-api v0.10.9
+	github.com/jfk9w-go/flu v0.11.5
+	github.com/jfk9w-go/telegram-bot-api v0.10.12-0.20220727205909-a9b124deb49f
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/u2takey/ffmpeg-go v0.4.1
-	golang.org/x/exp v0.0.0-20220428152302-39d4317da171
+	golang.org/x/exp v0.0.0-20220602145555-4a0574d9293f
 	golang.org/x/image v0.0.0-20220413100746-70e8d0d3baa9
-	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
+	golang.org/x/net v0.0.0-20220531201128-c960675eff93
 	gopkg.in/guregu/null.v3 v3.5.0
-	gopkg.in/yaml.v3 v3.0.0-20220512140231-539c8e751b99
+	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.3.5
 	gorm.io/driver/sqlite v1.3.2
 	gorm.io/gorm v1.23.5
@@ -46,13 +46,13 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/moul/flexyaml v0.0.0-20171225152558-f458bfa8afe2 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
-	github.com/prometheus/client_golang v1.12.1 // indirect
+	github.com/prometheus/client_golang v1.12.2 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.34.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/u2takey/go-utils v0.3.1 // indirect
 	golang.org/x/crypto v0.0.0-20220427172511-eb4f295cb31f // indirect
-	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

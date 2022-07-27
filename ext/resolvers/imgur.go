@@ -10,10 +10,11 @@ import (
 
 	"hikkabot/feed/media"
 
+	"github.com/pkg/errors"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/flu/httpf"
-	"github.com/pkg/errors"
 )
 
 var imgurRegexp = regexp.MustCompile(`.*?(<link rel="image_src"\s+href="|<meta property="og:video"\s+content=")(.*?)".*`)
@@ -36,12 +37,15 @@ func (r *Imgur[C]) Resolve(ctx context.Context, source *url.URL) (media.MetaRef,
 	}
 
 	url := source.String()
-	if strings.HasSuffix(url, ".jpg") {
-		return &media.HTTPRef{URL: url}, nil
-	}
-
-	if strings.Contains(url, ".gifv") {
-		url := strings.Replace(url, ".gifv", ".mp4", 1)
+	switch {
+	case strings.Contains(url, ".gifv"):
+		return &media.HTTPRef{
+			URL: strings.Replace(url, ".gifv", ".mp4", 1),
+		}, nil
+	case strings.Contains(url, ".jpg") ||
+		strings.Contains(url, ".jpeg") ||
+		strings.Contains(url, ".png") ||
+		strings.Contains(url, ".gif"):
 		return &media.HTTPRef{URL: url}, nil
 	}
 
