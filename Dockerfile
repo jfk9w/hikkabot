@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine3.15 AS builder
+FROM golang:1.18.3-alpine3.15 AS builder
 WORKDIR /src
 ADD . .
 ARG VERSION=dev
