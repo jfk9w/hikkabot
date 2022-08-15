@@ -2,7 +2,6 @@ package dvach
 
 import (
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -21,22 +20,20 @@ func (f File) URL() string {
 }
 
 type Post struct {
-	NumString    string `json:"num"`
-	ParentString string `json:"parent"`
-	DateString   string `json:"date"`
-	Subject      string `json:"subject"`
-	Comment      string `json:"comment"`
-	Files        []File `json:"files"`
+	Num        int    `json:"num"`
+	Parent     int    `json:"parent"`
+	DateString string `json:"date"`
+	Subject    string `json:"subject"`
+	Comment    string `json:"comment"`
+	Files      []File `json:"files"`
 
 	// OP-only fields
 	PostsCount *int `json:"posts_count"`
 	FilesCount *int `json:"files_count"`
 
 	// fields with custom initialization
-	Board  string
-	Num    int
-	Parent int
-	Date   time.Time
+	Board string
+	Date  time.Time
 }
 
 var (
@@ -53,17 +50,8 @@ func (p *Post) init(board string) (err error) {
 		tz = loc
 	})
 	p.Board = board
-	p.Num, err = strconv.Atoi(p.NumString)
-	if err != nil {
-		return
-	}
-	p.Parent, err = strconv.Atoi(p.ParentString)
-	if err != nil {
-		return
-	}
 	if p.Parent == 0 {
 		p.Parent = p.Num
-		p.ParentString = p.NumString
 	}
 	datestr := []rune(p.DateString)
 	p.Date, err = time.ParseInLocation("02/01/06 15:04:05",
@@ -77,9 +65,9 @@ func (p *Post) IsOriginal() bool {
 
 func (p *Post) URL() string {
 	if p.IsOriginal() {
-		return fmt.Sprintf("%s/%s/res/%s.html", Host, p.Board, p.NumString)
+		return fmt.Sprintf("%s/%s/res/%d.html", Host, p.Board, p.Num)
 	}
-	return fmt.Sprintf("%s/%s/res/%s.html#%s", Host, p.Board, p.ParentString, p.NumString)
+	return fmt.Sprintf("%s/%s/res/%d.html#%d", Host, p.Board, p.Parent, p.Num)
 }
 
 type Posts []Post
@@ -109,10 +97,10 @@ type Board struct {
 }
 
 type Error struct {
-	Code int    `json:"Code"`
-	Err  string `json:"Error"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
 
 func (e Error) Error() string {
-	return fmt.Sprintf("%d %s", e.Code, e.Err)
+	return fmt.Sprintf("%d %s", e.Code, e.Message)
 }

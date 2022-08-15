@@ -2,19 +2,20 @@ package dvach
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"strconv"
 
 	"github.com/jfk9w-go/flu/logf"
 
 	"github.com/jfk9w-go/flu/apfel"
 
+	"github.com/pkg/errors"
+
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/httpf"
-	"github.com/pkg/errors"
 )
 
 type Config struct {
@@ -80,19 +81,24 @@ func (c *Client[C]) GetThread(ctx context.Context, board string, num int, offset
 		offset = num
 	}
 
-	var posts Posts
-	if err := httpf.GET(Host+"/makaba/mobile.fcgi").
-		Query("task", "get_thread").
-		Query("board", board).
-		Query("thread", strconv.Itoa(num)).
-		Query("num", strconv.Itoa(offset)).
+	var resp struct {
+		Posts Posts  `json:"posts,omitempty"`
+		Error *Error `json:"error,omitempty"`
+	}
+
+	url := fmt.Sprintf("%s/api/mobile/v2/after/%s/%d/%d", Host, board, num, offset)
+	if err := httpf.GET(url).
 		Exchange(ctx, c).
-		DecodeBody(newResponse(&posts)).
+		DecodeBody(newResponse(&resp)).
 		Error(); err != nil {
 		return nil, err
 	}
 
-	return posts, posts.init(board)
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	return resp.Posts, resp.Posts.init(board)
 }
 
 func (c *Client[C]) GetPost(ctx context.Context, board string, num int) (*Post, error) {
@@ -151,14 +157,5 @@ func (r *response) DecodeFrom(body io.Reader) error {
 		return err
 	}
 
-	if err := flu.DecodeFrom(buf.Bytes(), flu.JSON(r.value)); err == nil {
-		return nil
-	}
-
-	var err Error
-	if err := flu.DecodeFrom(buf.Bytes(), flu.JSON(&err)); err != nil {
-		return errors.Errorf("failed to decode response [%s]", buf.Bytes().String())
-	}
-
-	return err
+	return flu.DecodeFrom(buf.Bytes(), flu.JSON(r.value))
 }
