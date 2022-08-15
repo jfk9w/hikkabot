@@ -6,18 +6,20 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jfk9w-go/flu/logf"
 	"hikkabot/3rdparty/dvach"
 	"hikkabot/core"
 	"hikkabot/ext/vendors/dvach/internal"
 	"hikkabot/feed"
 	"hikkabot/util"
 
+	"github.com/pkg/errors"
+
 	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/telegram-bot-api"
 	tghtml "github.com/jfk9w-go/telegram-bot-api/ext/html"
 	"github.com/jfk9w-go/telegram-bot-api/ext/output"
 	"github.com/jfk9w-go/telegram-bot-api/ext/receiver"
-	"github.com/pkg/errors"
 )
 
 var catalogRegexp = regexp.MustCompile(`^((http|https)://)?(2ch\.hk)?/([a-z]+)(/)?$`)
@@ -107,6 +109,7 @@ func (v *Catalog[C]) Refresh(ctx context.Context, header feed.Header, refresh fe
 
 	catalog, err := v.client.GetCatalog(ctx, data.Board)
 	if err != nil {
+		logf.Get(v).Warnf(ctx, "failed to get catalog for [%s]: %v", header, err)
 		return nil
 	}
 
