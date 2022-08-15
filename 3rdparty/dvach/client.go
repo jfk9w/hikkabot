@@ -3,7 +3,6 @@ package dvach
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -68,7 +67,7 @@ func (c *Client[C]) GetCatalog(ctx context.Context, board string) (*Catalog, err
 	var catalog Catalog
 	if err := httpf.GET(Host+"/"+board+"/catalog_num.json").
 		Exchange(ctx, c).
-		DecodeBody(newResponse(&catalog)).
+		DecodeBody(flu.JSON(&catalog)).
 		Error(); err != nil {
 		return nil, err
 	}
@@ -89,7 +88,7 @@ func (c *Client[C]) GetThread(ctx context.Context, board string, num int, offset
 	url := fmt.Sprintf("%s/api/mobile/v2/after/%s/%d/%d", Host, board, num, offset)
 	if err := httpf.GET(url).
 		Exchange(ctx, c).
-		DecodeBody(newResponse(&resp)).
+		DecodeBody(flu.JSON(&resp)).
 		Error(); err != nil {
 		return nil, err
 	}
@@ -115,7 +114,7 @@ func (c *Client[C]) GetBoards(ctx context.Context) ([]Board, error) {
 	if err := httpf.GET(Host+"/makaba/mobile.fcgi").
 		Query("task", "get_boards").
 		Exchange(ctx, c).
-		DecodeBody(newResponse(&boardMap)).
+		DecodeBody(flu.JSON(&boardMap)).
 		Error(); err != nil {
 		return nil, err
 	}
@@ -141,21 +140,4 @@ func (c *Client[C]) GetBoard(ctx context.Context, id string) (*Board, error) {
 	}
 
 	return nil, ErrNotFound
-}
-
-type response struct {
-	value interface{}
-}
-
-func newResponse(value interface{}) flu.DecoderFrom {
-	return &response{value: value}
-}
-
-func (r *response) DecodeFrom(body io.Reader) error {
-	var buf flu.ByteBuffer
-	if _, err := flu.Copy(flu.IO{R: body}, &buf); err != nil {
-		return err
-	}
-
-	return flu.DecodeFrom(buf.Bytes(), flu.JSON(r.value))
 }
