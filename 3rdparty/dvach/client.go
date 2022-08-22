@@ -94,7 +94,7 @@ func (c *Client[C]) GetThread(ctx context.Context, board string, num int, offset
 	}
 
 	if resp.Error != nil {
-		return nil, resp.Error
+		return nil, *resp.Error
 	}
 
 	return resp.Posts, resp.Posts.init(board)
