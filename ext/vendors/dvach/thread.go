@@ -3,7 +3,6 @@ package dvach
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -99,7 +98,7 @@ func (v *Thread[C]) Refresh(ctx context.Context, header feed.Header, refresh fee
 	posts, err := v.client.GetThread(ctx, data.Board, data.Num, data.Offset)
 	if err != nil {
 		var dvachErr dvach.Error
-		if errors.As(err, &dvachErr) && dvachErr.Code == -http.StatusNotFound {
+		if errors.As(err, &dvachErr) && dvachErr.Code == dvach.ThreadDoesNotExistErrorCode {
 			return err
 		}
 

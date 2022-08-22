@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+const ThreadDoesNotExistErrorCode = -3
+
 type Interface interface {
 	GetCatalog(ctx context.Context, board string) (*Catalog, error)
 	GetThread(ctx context.Context, board string, num int, offset int) ([]Post, error)
