@@ -172,13 +172,13 @@ func (v *SubredditSuggestions[C]) writeHTML(data SubredditSuggestionsData, sugge
 				Link(sr, "https://www.reddit.com/r/"+sr).
 				Text(" – %.3f%% ", score*100).
 				Link("🔥", (&telegram.Command{
-					Key:  "/sub",
+					Key:  "sub",
 					Args: append([]string{"/r/" + sr, data.Ref}, data.Options...)}).
 					Button("").
 					StartCallbackURL(string(v.telegram.Username()))).
 				Text(" ").
 				Link("🛑", (&telegram.Command{
-					Key:  "/sub",
+					Key:  "sub",
 					Args: append([]string{"/r/" + sr, data.Ref, feed.Deadborn}, data.Options...)}).
 					Button("").
 					StartCallbackURL(string(v.telegram.Username())))
