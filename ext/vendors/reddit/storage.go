@@ -67,6 +67,10 @@ func (s *Storage[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
 }
 
 func (s *sqlStorage) SaveThings(ctx context.Context, things []reddit.Thing) error {
+	if len(things) == 0 {
+		return nil
+	}
+
 	return s.db.WithContext(ctx).
 		Clauses(gormf.OnConflictClause(things, "primaryKey", true, nil)).
 		Create(things).

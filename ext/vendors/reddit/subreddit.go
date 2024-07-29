@@ -187,7 +187,7 @@ func (v *Subreddit[C]) Refresh(ctx context.Context, header feed.Header, refresh 
 	}
 
 	if err := v.storage.SaveThings(ctx, things); err != nil {
-		return err
+		return errors.Wrap(err, "save things")
 	}
 
 	var (
