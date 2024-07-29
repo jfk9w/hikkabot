@@ -1,6 +1,6 @@
 module hikkabot
 
-go 1.18
+go 1.22
 
 require (
 	github.com/corona10/goimagehash v1.1.0
