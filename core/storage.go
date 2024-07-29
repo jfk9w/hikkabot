@@ -52,7 +52,7 @@ func (s *Storage[C]) Include(ctx context.Context, app apfel.MixinApp[C]) error {
 
 	s.StorageService = &storage.SQL{
 		Clock: app,
-		DB:    db.DB(),
+		DB:    db.DB().Debug(),
 		IsPG:  db.Config.Driver == "postgres",
 	}
 
