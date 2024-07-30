@@ -6,14 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jfk9w/hikkabot/internal/feed"
-
 	"github.com/jfk9w-go/flu/colf"
-
-	"github.com/jfk9w-go/flu/logf"
-
 	"github.com/jfk9w-go/flu/gormf"
+	"github.com/jfk9w-go/flu/logf"
 	"github.com/jfk9w-go/flu/syncf"
+	"github.com/jfk9w/hikkabot/internal/feed"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -308,7 +305,7 @@ func (stx *sqlTx) CountEventsByType(feedID feed.ID, types []string, filter map[s
 
 func postgresDisclaimer(isPG bool, name string) error {
 	if !isPG {
-		logf.Get(ServiceID).Warnf(nil, "%s is not supported, you may want to switch to postgres", name)
+		logf.Get(ServiceID).Warnf(context.TODO(), "%s is not supported, you may want to switch to postgres", name)
 		return feed.ErrUnsupported
 	}
 

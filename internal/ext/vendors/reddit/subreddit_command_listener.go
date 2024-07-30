@@ -140,8 +140,6 @@ func (l *subredditCommandListener[C]) Sr_c_callback(ctx context.Context, _ teleg
 		return errors.Wrap(err, "post not found")
 	}
 
-	buffer := receiver.NewBuffer()
-
 	html, buffer := l.createHTMLWriter(ctx)
 	layout := ThingLayout{ShowAuthor: true, ShowText: true, HideMedia: true}
 	writeHTML := l.writer.writeHTML(ctx, feedID, layout, things[0].Data)

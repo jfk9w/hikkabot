@@ -6,7 +6,6 @@ import (
 	"net"
 	"regexp"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/jfk9w/hikkabot/internal/3rdparty/reddit"
@@ -61,12 +60,10 @@ type Subreddit[C SubredditContext] struct {
 	config   SubredditConfig
 	clock    syncf.Clock
 	storage  StorageInterface
-	mediator feed.Mediator
 	client   reddit.Interface
 	telegram telegram.Client
 	writer   thingWriter[C]
 	metrics  me3x.Registry
-	mu       sync.RWMutex
 }
 
 func (v *Subreddit[C]) String() string {

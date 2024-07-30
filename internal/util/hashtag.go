@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"golang.org/x/exp/utf8string"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
@@ -18,7 +20,7 @@ func Hashtag(str string) string {
 	str = tagRegexp.ReplaceAllString(str, "")
 	fields := strings.Fields(str)
 	for i, field := range fields {
-		fields[i] = strings.Title(junkRegexp.ReplaceAllString(field, ""))
+		fields[i] = cases.Title(language.Russian).String(junkRegexp.ReplaceAllString(field, ""))
 	}
 	str = strings.Join(fields, "")
 	tag := utf8string.NewString(str)

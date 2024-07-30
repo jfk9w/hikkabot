@@ -110,7 +110,7 @@ func (stx *sqlStorageTx) GetPercentile(subreddit string, top float64) (int, erro
 
 func (stx *sqlStorageTx) Score(feedID feed.ID, thingIDs []string) (*Score, error) {
 	if !stx.isPG {
-		logf.Get(storageServiceID).Warnf(nil, "Score not supported, you may want to switch to postgres")
+		logf.Get(storageServiceID).Warnf(context.TODO(), "Score not supported, you may want to switch to postgres")
 		return nil, feed.ErrUnsupported
 	}
 
