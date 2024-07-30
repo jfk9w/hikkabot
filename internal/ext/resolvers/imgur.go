@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/jfk9w/hikkabot/internal/feed/media"
+	"github.com/jfk9w/hikkabot/v4/internal/feed/media"
 
 	"github.com/pkg/errors"
 

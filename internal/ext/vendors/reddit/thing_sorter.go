@@ -1,6 +1,6 @@
 package reddit
 
-import "github.com/jfk9w/hikkabot/internal/3rdparty/reddit"
+import "github.com/jfk9w/hikkabot/v4/internal/3rdparty/reddit"
 
 type thingSorter []reddit.Thing
 

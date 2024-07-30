@@ -1,8 +1,8 @@
 package vendors
 
 import (
-	"github.com/jfk9w/hikkabot/internal/ext/vendors/dvach"
-	"github.com/jfk9w/hikkabot/internal/ext/vendors/reddit"
+	"github.com/jfk9w/hikkabot/v4/internal/ext/vendors/dvach"
+	"github.com/jfk9w/hikkabot/v4/internal/ext/vendors/reddit"
 )
 
 type (

@@ -9,11 +9,11 @@ import (
 
 	"github.com/jfk9w-go/flu/logf"
 
-	"github.com/jfk9w/hikkabot/internal/3rdparty/dvach"
-	"github.com/jfk9w/hikkabot/internal/core"
-	"github.com/jfk9w/hikkabot/internal/ext/vendors/dvach/internal"
-	"github.com/jfk9w/hikkabot/internal/feed"
-	"github.com/jfk9w/hikkabot/internal/util"
+	"github.com/jfk9w/hikkabot/v4/internal/3rdparty/dvach"
+	"github.com/jfk9w/hikkabot/v4/internal/core"
+	"github.com/jfk9w/hikkabot/v4/internal/ext/vendors/dvach/internal"
+	"github.com/jfk9w/hikkabot/v4/internal/feed"
+	"github.com/jfk9w/hikkabot/v4/internal/util"
 
 	"github.com/pkg/errors"
 

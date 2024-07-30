@@ -4,9 +4,9 @@ import (
 	"context"
 	"os"
 
-	"github.com/jfk9w/hikkabot/internal/core/internal/blobs"
-	"github.com/jfk9w/hikkabot/internal/feed"
-	"github.com/jfk9w/hikkabot/internal/feed/media"
+	"github.com/jfk9w/hikkabot/v4/internal/core/internal/blobs"
+	"github.com/jfk9w/hikkabot/v4/internal/feed"
+	"github.com/jfk9w/hikkabot/v4/internal/feed/media"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"

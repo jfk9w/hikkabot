@@ -1,6 +1,6 @@
 package internal
 
-import "github.com/jfk9w/hikkabot/internal/3rdparty/dvach"
+import "github.com/jfk9w/hikkabot/v4/internal/3rdparty/dvach"
 
 type Posts []dvach.Post
 

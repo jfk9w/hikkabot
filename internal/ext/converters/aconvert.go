@@ -3,7 +3,7 @@ package converters
 import (
 	"context"
 
-	"github.com/jfk9w/hikkabot/internal/feed/media"
+	"github.com/jfk9w/hikkabot/v4/internal/feed/media"
 
 	"github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"

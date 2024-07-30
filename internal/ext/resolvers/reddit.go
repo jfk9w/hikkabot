@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/jfk9w/hikkabot/internal/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/internal/3rdparty/redditsave"
-	"github.com/jfk9w/hikkabot/internal/feed/media"
+	"github.com/jfk9w/hikkabot/v4/internal/3rdparty/reddit"
+	"github.com/jfk9w/hikkabot/v4/internal/3rdparty/redditsave"
+	"github.com/jfk9w/hikkabot/v4/internal/feed/media"
 
 	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/flu/httpf"

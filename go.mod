@@ -1,4 +1,4 @@
-module github.com/jfk9w/hikkabot
+module github.com/jfk9w/hikkabot/v4
 
 go 1.22
 

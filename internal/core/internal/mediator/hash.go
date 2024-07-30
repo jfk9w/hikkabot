@@ -8,7 +8,7 @@ import (
 	"image/png"
 	"io"
 
-	"github.com/jfk9w/hikkabot/internal/feed"
+	"github.com/jfk9w/hikkabot/v4/internal/feed"
 
 	"github.com/corona10/goimagehash"
 	"github.com/jfk9w-go/flu"

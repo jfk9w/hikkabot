@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jfk9w/hikkabot/internal/feed/media"
+	"github.com/jfk9w/hikkabot/v4/internal/feed/media"
 
 	"github.com/gofrs/uuid"
 	"github.com/jfk9w-go/flu"

@@ -10,7 +10,7 @@ import (
 	"github.com/jfk9w-go/flu/gormf"
 	"github.com/jfk9w-go/flu/logf"
 	"github.com/jfk9w-go/flu/syncf"
-	"github.com/jfk9w/hikkabot/internal/feed"
+	"github.com/jfk9w/hikkabot/v4/internal/feed"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

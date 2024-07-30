@@ -5,9 +5,9 @@ import (
 	_ "embed"
 	"time"
 
-	"github.com/jfk9w/hikkabot/internal/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/internal/core"
-	"github.com/jfk9w/hikkabot/internal/feed"
+	"github.com/jfk9w/hikkabot/v4/internal/3rdparty/reddit"
+	"github.com/jfk9w/hikkabot/v4/internal/core"
+	"github.com/jfk9w/hikkabot/v4/internal/feed"
 
 	"github.com/jfk9w-go/flu/colf"
 

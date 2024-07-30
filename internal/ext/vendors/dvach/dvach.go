@@ -1,8 +1,8 @@
 package dvach
 
 import (
-	"github.com/jfk9w/hikkabot/internal/3rdparty/dvach"
-	"github.com/jfk9w/hikkabot/internal/core"
+	"github.com/jfk9w/hikkabot/v4/internal/3rdparty/dvach"
+	"github.com/jfk9w/hikkabot/v4/internal/core"
 )
 
 type Context interface {

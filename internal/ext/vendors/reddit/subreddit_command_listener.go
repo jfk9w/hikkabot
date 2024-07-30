@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/jfk9w/hikkabot/internal/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/internal/feed"
+	"github.com/jfk9w/hikkabot/v4/internal/3rdparty/reddit"
+	"github.com/jfk9w/hikkabot/v4/internal/feed"
 
 	"github.com/jfk9w-go/flu/apfel"
 	"github.com/jfk9w-go/telegram-bot-api"

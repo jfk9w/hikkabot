@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jfk9w/hikkabot/internal/feed"
+	"github.com/jfk9w/hikkabot/v4/internal/feed"
 
 	"github.com/jfk9w-go/flu/colf"
 

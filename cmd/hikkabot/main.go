@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 
-	"github.com/jfk9w/hikkabot/internal/3rdparty/dvach"
-	"github.com/jfk9w/hikkabot/internal/3rdparty/reddit"
-	"github.com/jfk9w/hikkabot/internal/3rdparty/redditsave"
-	"github.com/jfk9w/hikkabot/internal/core"
-	"github.com/jfk9w/hikkabot/internal/ext/converters"
-	"github.com/jfk9w/hikkabot/internal/ext/resolvers"
-	"github.com/jfk9w/hikkabot/internal/ext/vendors"
+	"github.com/jfk9w/hikkabot/v4/internal/3rdparty/dvach"
+	"github.com/jfk9w/hikkabot/v4/internal/3rdparty/reddit"
+	"github.com/jfk9w/hikkabot/v4/internal/3rdparty/redditsave"
+	"github.com/jfk9w/hikkabot/v4/internal/core"
+	"github.com/jfk9w/hikkabot/v4/internal/ext/converters"
+	"github.com/jfk9w/hikkabot/v4/internal/ext/resolvers"
+	"github.com/jfk9w/hikkabot/v4/internal/ext/vendors"
 
 	"github.com/jfk9w-go/aconvert-api"
 	"github.com/jfk9w-go/flu"

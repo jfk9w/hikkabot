@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 
-	"github.com/jfk9w/hikkabot/internal/core/internal/poller"
-	"github.com/jfk9w/hikkabot/internal/feed"
+	"github.com/jfk9w/hikkabot/v4/internal/core/internal/poller"
+	"github.com/jfk9w/hikkabot/v4/internal/feed"
 
 	"github.com/jfk9w-go/flu"
 	"github.com/jfk9w-go/flu/apfel"
