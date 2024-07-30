@@ -1,11 +1,13 @@
-FROM golang:1.22.5-alpine3.20 AS builder
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src
 ADD . .
 ARG VERSION=dev
-RUN apk add --no-cache gcc musl-dev
-RUN go build -buildvcs=false -ldflags "-X main.GitCommit=$VERSION" -o /app
+RUN apk add --no-cache make gcc musl-dev
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH VERSION=$VERSION make bin
 
-FROM alpine:3.20
-COPY --from=builder /app /usr/bin/app
+FROM alpine:latest
+COPY --from=builder /src/bin/* /usr/local/bin/
 RUN apk add --no-cache tzdata ffmpeg
-ENTRYPOINT ["app"]
+ENTRYPOINT ["hikkabot"]

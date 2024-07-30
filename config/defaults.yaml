@@ -1,0 +1,63 @@
+telegram:
+  token: ""
+  supervisorId: 0
+db:
+  dsn: file::memory:?cache=shared
+  driver: sqlite
+poller:
+  refreshEvery: 1m0s
+  preload: 5
+media:
+  minSize: "1024"
+  maxSize: "52428800"
+  ttl: 15m0s
+  concurrency: 5
+  timeout: 10m0s
+ffmpeg:
+  enabled: true
+aconvert:
+  serverIds:
+    - 3
+    - 7
+    - 9
+    - 11
+    - 13
+    - 15
+    - 17
+    - 19
+    - 21
+    - 23
+    - 25
+    - 27
+    - 29
+  timeout: 5m0s
+  maxRetries: 3
+reddit:
+  clientId: ""
+  clientSecret: ""
+  username: ""
+  password: ""
+  maxRetries: 3
+  redditsave:
+    refreshEvery: 20m0s
+  posts:
+    pacing:
+      gain: 48h0m0s
+      base: 0.01
+      scale: 300
+      members: 300
+      batch: 1
+    cleanInterval: 24h0m0s
+    thingTtl: 168h0m0s
+  suggestions:
+    period: 374h0m0s
+    interval: 24h0m0s
+logging:
+  level: info
+  output: stderr
+prometheus:
+  address: ""
+  collectors:
+    - go
+    - build_info
+    - process
