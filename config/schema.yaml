@@ -1,0 +1,339 @@
+type: object
+properties:
+  aconvert:
+    type: object
+    description: aconvert.com-related settings.
+    properties:
+      enabled:
+        type: boolean
+        description: Whether aconvert.com-based media converter should be enabled.
+      maxRetries:
+        type: number
+        description: Max request retries before giving up.
+        default: 3
+      probe:
+        type: object
+        description: Probe parameters for checking servers. If set, servers from serverIds list will be tested before adding to the client pool.
+        properties:
+          file:
+            type: string
+            description: Path to the file which will be used for testing (discovering) servers.
+          format:
+            type: string
+            description: Target conversion format for the file.
+            examples:
+              - mp4
+        additionalProperties: false
+        required:
+          - file
+          - format
+      serverIds:
+        type: array
+        description: Server IDs to use for conversion.
+        items:
+          type: integer
+          format: int32
+        default:
+          - 3
+          - 7
+          - 9
+          - 11
+          - 13
+          - 15
+          - 17
+          - 19
+          - 21
+          - 23
+          - 25
+          - 27
+          - 29
+      timeout:
+        type: string
+        description: Timeout to use while making HTTP requests.
+        default: 5m
+    additionalProperties: false
+  db:
+    type: object
+    description: 'Poller database connection settings. Supported drivers: postgres, sqlite (not fully)'
+    properties:
+      driver:
+        type: string
+        description: Database driver to use. Note that concrete driver support depends on the application.
+        examples:
+          - postgres
+          - sqlite
+      dsn:
+        type: string
+        description: Database connection string.
+        examples:
+          - postgresql://user:pass@host:port/db
+          - 'sqlite::memory:'
+    additionalProperties: false
+    required:
+      - dsn
+      - driver
+    default:
+      dsn: file::memory:?cache=shared
+      driver: sqlite
+  dvach:
+    type: object
+    description: 2ch.hk-related settings.
+    properties:
+      usercode:
+        type: string
+        description: Auth cookie set for 2ch.hk / and /makaba paths. You can get it from your browser. Required to access hidden boards.
+    additionalProperties: false
+  ffmpeg:
+    type: object
+    description: FFmpeg-related settings.
+    properties:
+      enabled:
+        type: boolean
+        description: Whether ffmpeg-based media converter should be enabled. Requires ffmpeg to be present in $PATH.
+        default: true
+    additionalProperties: false
+  logging:
+    type: object
+    description: Logging settings.
+    properties:
+      level:
+        type: string
+        description: Default level threshold. Messages with level below the threshold will not be logged.
+        enum:
+          - trace
+          - debug
+          - info
+          - warn
+          - error
+          - panic
+          - silent
+        default: info
+      output:
+        type: string
+        description: Default log output. Either a file path or one of examples.
+        default: stderr
+        examples:
+          - stdout
+          - stderr
+      rules:
+        type: array
+        description: Loggers are matched to rules in the order of appearance. If no rules match, the settings from this object are used.
+        items:
+          type: object
+          properties:
+            level:
+              type: string
+              description: Level threshold. Messages with level below the threshold will not be logged. Defaults to the global default.
+              enum:
+                - trace
+                - debug
+                - info
+                - warn
+                - error
+                - panic
+                - silent
+              examples:
+                - info
+            match:
+              type: string
+              description: Defines a regex which is used for matching logger names.
+              format: regex
+              examples:
+                - ^apfel
+            output:
+              type: string
+              description: Log output. Either a file path or one of examples. Defaults to the global default.
+              examples:
+                - stdout
+                - stderr
+          additionalProperties: false
+          required:
+            - match
+    additionalProperties: false
+  media:
+    type: object
+    description: Media downloader settings.
+    properties:
+      concurrency:
+        type: number
+        description: How many concurrent media downloads to allow.
+        default: 5
+      maxSize:
+        type: string
+        description: Maximum media file size.
+        default: 50M
+        pattern: ^(\d+)([KMGT])?$
+      minSize:
+        type: string
+        description: Minimum media file size.
+        default: 1K
+        pattern: ^(\d+)([KMGT])?$
+      timeout:
+        type: string
+        description: If mediation time exceeds timeout, it will be interrupted.
+        default: 10m
+      ttl:
+        type: string
+        description: How long to keep cached files.
+        default: 15m
+    additionalProperties: false
+  poller:
+    type: object
+    description: Poller-related settings.
+    properties:
+      preload:
+        type: number
+        description: Number of items to preload.
+        default: 5
+      refreshEvery:
+        type: string
+        description: Feed update interval.
+        default: 1m
+    additionalProperties: false
+  prometheus:
+    type: object
+    description: Prometheus settings.
+    properties:
+      address:
+        type: string
+        description: Prometheus listener address URL.
+        examples:
+          - http://localhost:9090/metrics
+      collectors:
+        type: array
+        description: Additional Prometheus built-in collectors.
+        items:
+          type: string
+          enum:
+            - go
+            - build_info
+            - process
+        default:
+          - go
+          - build_info
+          - process
+    additionalProperties: false
+    required:
+      - address
+  reddit:
+    type: object
+    description: reddit.com-related settings.
+    properties:
+      clientId:
+        type: string
+        description: See https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example
+      clientSecret:
+        type: string
+        description: See https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example
+      enabled:
+        type: boolean
+        description: Whether reddit.com-based vendors should be enabled.
+      maxRetries:
+        type: number
+        description: Maximum request retries before giving up.
+        default: 3
+      owner:
+        type: string
+        description: This value will be used in User-Agent header. If empty, username will be used.
+      password:
+        type: string
+        description: See https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example
+      posts:
+        type: object
+        description: Subreddit posts vendor settings.
+        properties:
+          cleanInterval:
+            type: string
+            description: How often to clean things from data.
+            default: 24h
+          pacing:
+            type: object
+            description: Settings for controlling pacing based on top ratio.
+            properties:
+              base:
+                type: number
+                description: Base top ratio to be applied for stable subscriptions.
+                format: double
+                default: 0.01
+              batch:
+                type: number
+                description: Max update batch size.
+                default: 1
+              gain:
+                type: string
+                description: Do not apply pacing during this interval since subscription start.
+                default: 48h
+              members:
+                type: number
+                description: Lowest chat members threshold.
+                default: 300
+              min:
+                type: number
+                description: Lowest allowed top ratio.
+                format: double
+              scale:
+                type: number
+                description: Top ratio multiplier. The number is highly dependent on the number of active users.
+                format: double
+                default: 300
+            additionalProperties: false
+          thingTtl:
+            type: string
+            description: How long to keep things in database.
+            default: 168h
+        additionalProperties: false
+      redditsave:
+        type: object
+        description: redditsave.com-related settings. Used to resolve v.redd.it videos with audio.
+        properties:
+          refreshEvery:
+            type: string
+            description: Cookie refresh interval
+            default: 20m
+        additionalProperties: false
+      suggestions:
+        type: object
+        description: Subreddit suggestions vendor settings.
+        properties:
+          interval:
+            type: string
+            description: How often to make suggestions.
+            default: 24h
+          period:
+            type: string
+            description: Period to consider data for.
+            default: 374h
+        additionalProperties: false
+      username:
+        type: string
+        description: See https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example
+    additionalProperties: false
+    required:
+      - clientId
+      - clientSecret
+      - username
+      - password
+  telegram:
+    type: object
+    description: Bot-related settings.
+    properties:
+      aliases:
+        type: object
+        description: 'Chat aliases to use in commands: keys are aliases and values are telegram IDs.'
+        additionalProperties:
+          type: integer
+          format: int64
+      supervisorId:
+        type: integer
+        description: Telegram admin user ID. If not set, only public commands (e.g. /start) will be available.
+        format: int64
+      token:
+        type: string
+        description: Telegram Bot API token.
+    additionalProperties: false
+    required:
+      - token
+      - supervisorId
+additionalProperties: false
+required:
+  - telegram
